@@ -52,6 +52,7 @@ const clients = {
         sourceLabel: 'Fonte: Conjur, abr/2026',
         sourceUrl: 'https://www.conjur.com.br/2026-abr-23/uso-de-ia-para-inventar-jurisprudencia-resulta-em-condenacao-por-litigancia-de-ma-fe/',
         slide: {
+          image: '/juspilot/1-noticia.png',
           type: 'jp-news-cover',
           chip: 'EM ALTA NO JUDICIÁRIO',
           headline: 'Mais uma condenação por',
@@ -90,6 +91,7 @@ Conheça em [inserir link]
         sourceUrl: 'https://canaltech.com.br/colunas/por-que-a-produtividade-recorde-nao-e-suficiente-para-salvar-o-judiciario/',
         slides: [
           {
+            image: '/juspilot/2-carrossel-1.png',
             type: 'jp-cover',
             chip: 'CNJ · JUSTIÇA EM NÚMEROS 2025',
             title: '80,6 milhões',
@@ -97,18 +99,21 @@ Conheça em [inserir link]
             body: 'O Judiciário brasileiro fechou 2024 baixando 44,8 milhões — e ainda assim acumulou estoque recorde. A conta não fecha sem IA.'
           },
           {
+            image: '/juspilot/2-carrossel-2.png',
             type: 'jp-numbered',
             number: '01',
             title: 'O dado que ninguém comenta',
             body: 'Se a Justiça parasse de receber novas ações hoje, levaria quase 2 anos para limpar só o estoque atual. O esforço manual não dobra a curva. A matemática não permite.'
           },
           {
+            image: '/juspilot/2-carrossel-3.png',
             type: 'jp-numbered',
             number: '02',
             title: 'O CNJ já abriu o caminho',
             body: 'A Resolução 615/2025 reconhece a IA como ferramenta auxiliar legítima para automação de serviços acessórios e suporte à decisão — desde que com supervisão humana qualificada.'
           },
           {
+            image: '/juspilot/2-carrossel-4.png',
             type: 'jp-final',
             number: '03',
             title: 'O advogado também ganha tempo.',
@@ -143,6 +148,7 @@ Conheça o JusPilot em [inserir link]
         sourceLabel: 'Fonte: Migalhas, jan/2026',
         sourceUrl: 'https://www.migalhas.com.br/quentes/433822/',
         slide: {
+          image: '/juspilot/3-noticia.png',
           type: 'jp-news-cover',
           chip: 'OAB · RECOMENDAÇÃO 001/2024',
           headline: '20 salários-mínimos',
@@ -181,6 +187,7 @@ Conheça em [inserir link]
         theme: 'Anúncio do produto — 72h × 34s',
         format: 'Post estático — capa única',
         slide: {
+          image: '/juspilot/4-comercial.png',
           type: 'jp-comercial',
           eyebrow: 'JUSPILOT',
           title: '72 horas.',
@@ -214,6 +221,7 @@ Agende uma demonstração de 15 minutos: [inserir link]
 
   octalab: {
     name: 'Octalab',
+    comingSoon: true,
     tagline: 'We build tomorrow\'s tech.',
     accent: '#F4EFE5',
     bg: '#0F0F13',
@@ -408,6 +416,7 @@ Conheça em [inserir link]
 
   ecosys: {
     name: 'Ecosys Auto',
+    comingSoon: true,
     tagline: 'A IA que atende sua revenda 24/7',
     accent: '#22D3EE',
     bg: '#0A1628',
@@ -1351,7 +1360,26 @@ function EcosysRender({ slide }) {
 // ROTEADORES E COMPONENTES VISUAIS
 // ============================================================
 
+// Exibe um criativo pronto (imagem) em retrato, sempre completo
+function SlideImage({ src }) {
+  return (
+    <div style={{
+      width: '100%', aspectRatio: '3 / 4', borderRadius: '14px',
+      overflow: 'hidden', background: '#101010',
+      display: 'flex', alignItems: 'center', justifyContent: 'center'
+    }}>
+      <img
+        src={src}
+        alt=""
+        loading="lazy"
+        style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }}
+      />
+    </div>
+  );
+}
+
 function renderSlide(slide, brand) {
+  if (slide.image) return <SlideImage src={slide.image} />;
   if (brand === 'juspilot') return <JusPilotRender slide={slide} />;
   if (brand === 'octalab') return <OctalabRender slide={slide} />;
   if (brand === 'ecosys') return <EcosysRender slide={slide} />;
@@ -1512,7 +1540,7 @@ function PostCard({ post, brand, brandData, review, onReview }) {
         </div>
         <div style={{
           fontSize: '13px', lineHeight: 1.6, color: 'rgba(0,0,0,0.78)',
-          whiteSpace: 'pre-wrap', fontFamily: 'system-ui, sans-serif',
+          whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', fontFamily: 'system-ui, sans-serif',
           maxHeight: showCaption ? 'none' : '90px',
           overflow: 'hidden', position: 'relative'
         }}>
@@ -2004,19 +2032,23 @@ export default function App() {
           }}>
             {Object.entries(clients).map(([key, c]) => {
               const active = activeBrand === key;
+              const disabled = c.comingSoon;
               return (
                 <button
                   key={key}
-                  onClick={() => { setActiveBrand(key); setActiveDay('all'); setActiveKind('all'); }}
-                  onMouseEnter={e => { if (!active) e.currentTarget.style.background = 'rgba(255,255,255,0.45)'; }}
-                  onMouseLeave={e => { if (!active) e.currentTarget.style.background = 'transparent'; }}
+                  onClick={() => { if (disabled) return; setActiveBrand(key); setActiveDay('all'); setActiveKind('all'); }}
+                  disabled={disabled}
+                  title={disabled ? 'Conteúdo em breve' : undefined}
+                  onMouseEnter={e => { if (!active && !disabled) e.currentTarget.style.background = 'rgba(255,255,255,0.45)'; }}
+                  onMouseLeave={e => { if (!active && !disabled) e.currentTarget.style.background = 'transparent'; }}
                   style={{
                     background: active ? 'rgba(255,255,255,0.85)' : 'transparent',
                     backdropFilter: active ? 'blur(10px) saturate(180%)' : 'none',
                     WebkitBackdropFilter: active ? 'blur(10px) saturate(180%)' : 'none',
                     color: active ? '#0a0a0a' : 'rgba(0,0,0,0.55)',
                     border: active ? '1px solid rgba(255,255,255,0.9)' : '1px solid transparent',
-                    cursor: 'pointer',
+                    cursor: disabled ? 'not-allowed' : 'pointer',
+                    opacity: disabled ? 0.4 : 1,
                     padding: '10px 22px',
                     fontSize: '13.5px', fontWeight: 600,
                     letterSpacing: '-0.01em',
@@ -2036,6 +2068,14 @@ export default function App() {
                     transition: 'box-shadow 0.28s'
                   }}/>
                   {c.name}
+                  {disabled && (
+                    <span style={{
+                      fontSize: '8.5px', fontWeight: 700, letterSpacing: '0.08em',
+                      textTransform: 'uppercase', opacity: 0.8,
+                      background: 'rgba(0,0,0,0.08)', borderRadius: '999px',
+                      padding: '2px 7px', marginLeft: '2px'
+                    }}>em breve</span>
+                  )}
                 </button>
               );
             })}
@@ -2110,7 +2150,7 @@ export default function App() {
         ) : (
           <div style={{
             display: 'grid',
-            gridTemplateColumns: posts.length === 1 ? '1fr' : 'repeat(auto-fit, minmax(420px, 1fr))',
+            gridTemplateColumns: posts.length === 1 ? '1fr' : 'repeat(auto-fit, minmax(min(100%, 420px), 1fr))',
             gap: '22px'
           }}>
             {posts.map(({ post, originalIndex }) => {
