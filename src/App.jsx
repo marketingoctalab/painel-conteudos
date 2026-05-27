@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import { ChevronLeft, ChevronRight, Calendar, Copy, Check, ArrowRight, Newspaper, Megaphone, Layers } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { ChevronLeft, ChevronRight, Calendar, Copy, Check, ArrowRight, Newspaper, Megaphone, Layers, X } from 'lucide-react';
+import { supabase, supabaseReady } from './supabase';
 
 // ============================================================
 // DADOS — 3 MARCAS × 4 POSTS (3 estáticos + 1 carrossel)
@@ -1402,9 +1403,13 @@ function KindBadge({ kind }) {
   );
 }
 
-function PostCard({ post, brand, brandData }) {
+function PostCard({ post, brand, brandData, review, onReview }) {
   const [showCaption, setShowCaption] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [showReproveBox, setShowReproveBox] = useState(false);
+  const [draft, setDraft] = useState('');
+  const status = review?.status || 'pending'; // 'pending' | 'approved' | 'reproved'
+  const suggestion = review?.suggestion || '';
   const copy = () => {
     navigator.clipboard.writeText(post.caption);
     setCopied(true);
@@ -1506,6 +1511,113 @@ function PostCard({ post, brand, brandData }) {
           </a>
         )}
       </div>
+
+      {/* APROVAR / REPROVAR */}
+      <div style={{ marginTop: '18px', borderTop: '1px solid rgba(0,0,0,0.06)', paddingTop: '18px' }}>
+        {status === 'approved' ? (
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: '8px',
+            background: '#ecfdf5', color: '#047857',
+            borderRadius: '8px', padding: '12px 14px',
+            fontSize: '13px', fontWeight: 600
+          }}>
+            <Check size={15} /> Conteúdo aprovado
+            <button
+              onClick={() => onReview({ status: 'pending', suggestion: '' })}
+              style={{
+                marginLeft: 'auto', background: 'none', border: 'none',
+                color: '#047857', fontSize: '11px', cursor: 'pointer',
+                textDecoration: 'underline', opacity: 0.7
+              }}
+            >desfazer</button>
+          </div>
+        ) : status === 'reproved' ? (
+          <div style={{
+            background: '#fef2f2', color: '#b91c1c',
+            borderRadius: '8px', padding: '12px 14px'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', fontWeight: 600, marginBottom: '8px' }}>
+              <X size={15} /> Conteúdo reprovado
+              <button
+                onClick={() => onReview({ status: 'pending', suggestion: '' })}
+                style={{
+                  marginLeft: 'auto', background: 'none', border: 'none',
+                  color: '#b91c1c', fontSize: '11px', cursor: 'pointer',
+                  textDecoration: 'underline', opacity: 0.7
+                }}
+              >desfazer</button>
+            </div>
+            <div style={{ fontSize: '12px', color: 'rgba(0,0,0,0.6)', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>
+              <strong style={{ color: '#b91c1c' }}>Sugestão:</strong> {suggestion}
+            </div>
+          </div>
+        ) : showReproveBox ? (
+          <div>
+            <label style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(0,0,0,0.6)', display: 'block', marginBottom: '8px' }}>
+              Sugestão de melhoria
+            </label>
+            <textarea
+              value={draft}
+              onChange={e => setDraft(e.target.value)}
+              placeholder="Descreva o que precisa melhorar neste conteúdo..."
+              rows={3}
+              autoFocus
+              style={{
+                width: '100%', boxSizing: 'border-box',
+                border: '1px solid rgba(0,0,0,0.15)', borderRadius: '8px',
+                padding: '10px 12px', fontSize: '13px', lineHeight: 1.5,
+                fontFamily: 'inherit', resize: 'vertical', outline: 'none'
+              }}
+            />
+            <div style={{ display: 'flex', gap: '8px', marginTop: '10px', justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => { setShowReproveBox(false); setDraft(''); }}
+                style={{
+                  background: 'none', border: '1px solid rgba(0,0,0,0.15)',
+                  borderRadius: '8px', padding: '9px 16px',
+                  fontSize: '12.5px', fontWeight: 600, cursor: 'pointer', color: '#0a0a0a'
+                }}
+              >Cancelar</button>
+              <button
+                onClick={() => { onReview({ status: 'reproved', suggestion: draft.trim() }); setShowReproveBox(false); setDraft(''); }}
+                disabled={draft.trim() === ''}
+                style={{
+                  background: draft.trim() === '' ? 'rgba(0,0,0,0.12)' : '#dc2626',
+                  color: draft.trim() === '' ? 'rgba(0,0,0,0.4)' : '#fff',
+                  border: 'none', borderRadius: '8px', padding: '9px 16px',
+                  fontSize: '12.5px', fontWeight: 600,
+                  cursor: draft.trim() === '' ? 'not-allowed' : 'pointer'
+                }}
+              >Enviar sugestão</button>
+            </div>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <button
+              onClick={() => onReview({ status: 'approved', suggestion: '' })}
+              style={{
+                flex: 1, background: '#16a34a', color: '#fff',
+                border: 'none', borderRadius: '8px', padding: '12px',
+                fontSize: '13.5px', fontWeight: 600, cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '7px'
+              }}
+            >
+              <Check size={15} /> Aprovar
+            </button>
+            <button
+              onClick={() => setShowReproveBox(true)}
+              style={{
+                flex: 1, background: '#fff', color: '#dc2626',
+                border: '1px solid rgba(220,38,38,0.4)', borderRadius: '8px', padding: '12px',
+                fontSize: '13.5px', fontWeight: 600, cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '7px'
+              }}
+            >
+              <X size={15} /> Reprovar
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -1515,14 +1627,276 @@ function PostCard({ post, brand, brandData }) {
 // ============================================================
 
 export default function App() {
+  const [view, setView] = useState('landing');
   const [activeBrand, setActiveBrand] = useState('juspilot');
   const [activeDay, setActiveDay] = useState('all');
   const [activeKind, setActiveKind] = useState('all');
+  const [reviews, setReviews] = useState({}); // { 'juspilot-0': { status, suggestion } }
+
+  // Carrega as avaliações do Supabase e escuta mudanças em tempo real
+  useEffect(() => {
+    if (!supabaseReady) return;
+    let mounted = true;
+
+    supabase.from('reviews').select('*').then(({ data, error }) => {
+      if (!mounted || error || !data) return;
+      const map = {};
+      data.forEach(r => { map[r.id] = { status: r.status, suggestion: r.suggestion || '' }; });
+      setReviews(map);
+    });
+
+    const channel = supabase
+      .channel('reviews-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'reviews' }, payload => {
+        setReviews(prev => {
+          const next = { ...prev };
+          if (payload.eventType === 'DELETE') {
+            delete next[payload.old.id];
+          } else {
+            const r = payload.new;
+            next[r.id] = { status: r.status, suggestion: r.suggestion || '' };
+          }
+          return next;
+        });
+      })
+      .subscribe();
+
+    return () => { mounted = false; supabase.removeChannel(channel); };
+  }, []);
+
+  const setReview = async (id, data) => {
+    // Atualização otimista na tela
+    setReviews(prev => ({ ...prev, [id]: { ...prev[id], ...data } }));
+    if (!supabaseReady) return;
+    await supabase.from('reviews').upsert({
+      id,
+      status: data.status,
+      suggestion: data.suggestion ?? '',
+      updated_at: new Date().toISOString()
+    });
+  };
+
+  const resetReviews = async () => {
+    if (!window.confirm('Tem certeza? Isso vai apagar TODAS as aprovações e reprovações.')) return;
+    setReviews({});
+    if (!supabaseReady) return;
+    await supabase.from('reviews').delete().neq('id', '');
+  };
 
   const brand = clients[activeBrand];
-  let posts = brand.posts;
-  if (activeDay !== 'all') posts = posts.filter((_, i) => i === parseInt(activeDay));
-  if (activeKind !== 'all') posts = posts.filter(p => p.kind === activeKind);
+  let posts = brand.posts.map((post, i) => ({ post, originalIndex: i }));
+  if (activeDay !== 'all') posts = posts.filter(({ originalIndex }) => originalIndex === parseInt(activeDay));
+  if (activeKind !== 'all') posts = posts.filter(({ post }) => post.kind === activeKind);
+
+  // ─── TELA INICIAL ───
+  if (view === 'landing') {
+    return (
+      <div style={{
+        minHeight: '100vh',
+        background: '#0a0a0a',
+        color: '#fafafa',
+        fontFamily: 'Geist, -apple-system, BlinkMacSystemFont, system-ui, sans-serif',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        textAlign: 'center',
+        padding: '24px'
+      }}>
+        <div style={{ fontSize: '11px', letterSpacing: '0.3em', opacity: 0.5, marginBottom: '24px', fontWeight: 600 }}>
+          4 DIAS · 3 MARCAS
+        </div>
+        <h1 style={{
+          fontSize: 'clamp(48px, 9vw, 104px)',
+          fontWeight: 600,
+          margin: 0,
+          letterSpacing: '-0.04em',
+          lineHeight: 1.02
+        }}>
+          Painel de Conteúdos
+        </h1>
+        <p style={{ fontSize: '15px', opacity: 0.55, marginTop: '20px', maxWidth: '480px', lineHeight: 1.6 }}>
+          Notícia, descoberta e venda. Cada um no seu lugar.
+        </p>
+        <button
+          onClick={() => setView('content')}
+          style={{
+            marginTop: '40px',
+            background: '#fafafa',
+            color: '#0a0a0a',
+            border: 'none',
+            borderRadius: '999px',
+            padding: '15px 30px',
+            fontSize: '15px',
+            fontWeight: 600,
+            cursor: 'pointer',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '9px',
+            transition: 'transform 0.15s ease'
+          }}
+          onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.04)'}
+          onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
+        >
+          Ver conteúdos <ArrowRight size={17} />
+        </button>
+        <button
+          onClick={() => setView('admin')}
+          style={{
+            marginTop: '20px', background: 'none', border: 'none',
+            color: '#fafafa', opacity: 0.4, fontSize: '12px',
+            cursor: 'pointer', textDecoration: 'underline'
+          }}
+        >
+          Painel admin
+        </button>
+      </div>
+    );
+  }
+
+  // ─── PAINEL ADMIN ───
+  if (view === 'admin') {
+    const allItems = Object.entries(clients).flatMap(([brandKey, c]) =>
+      c.posts.map((post, i) => {
+        const id = `${brandKey}-${i}`;
+        const r = reviews[id] || {};
+        return {
+          id, brandKey, brandName: c.name, accent: c.accent,
+          theme: post.theme, kind: post.kind, day: post.day,
+          status: r.status || 'pending',
+          suggestion: r.suggestion || ''
+        };
+      })
+    );
+    const total = allItems.length;
+    const approved = allItems.filter(it => it.status === 'approved').length;
+    const reproved = allItems.filter(it => it.status === 'reproved').length;
+    const pending = allItems.filter(it => it.status === 'pending').length;
+
+    const statusBadge = (status) => {
+      const map = {
+        approved: { label: 'Aprovado', bg: '#dcfce7', color: '#166534' },
+        reproved: { label: 'Reprovado', bg: '#fee2e2', color: '#b91c1c' },
+        pending: { label: 'Pendente', bg: '#f1f5f9', color: '#64748b' }
+      };
+      const v = map[status];
+      return (
+        <span style={{
+          background: v.bg, color: v.color,
+          padding: '3px 10px', borderRadius: '999px',
+          fontSize: '11px', fontWeight: 700, whiteSpace: 'nowrap'
+        }}>{v.label}</span>
+      );
+    };
+
+    const Stat = ({ label, value, color }) => (
+      <div style={{
+        background: '#FFFFFF', borderRadius: '14px', padding: '20px 24px',
+        border: '1px solid rgba(0,0,0,0.06)', flex: 1, minWidth: '140px'
+      }}>
+        <div style={{ fontSize: '34px', fontWeight: 700, color, letterSpacing: '-0.02em', lineHeight: 1 }}>{value}</div>
+        <div style={{ fontSize: '12px', color: 'rgba(0,0,0,0.5)', marginTop: '6px', fontWeight: 600 }}>{label}</div>
+      </div>
+    );
+
+    return (
+      <div style={{
+        minHeight: '100vh',
+        background: '#f5f5f3',
+        fontFamily: 'Geist, -apple-system, BlinkMacSystemFont, system-ui, sans-serif',
+        paddingBottom: '60px'
+      }}>
+        {/* HEADER ADMIN */}
+        <div style={{ background: '#0a0a0a', color: '#fafafa', padding: '44px 28px 32px 28px' }}>
+          <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
+            <button
+              onClick={() => setView('content')}
+              style={{
+                background: 'none', border: 'none', cursor: 'pointer',
+                color: '#fafafa', opacity: 0.55,
+                display: 'inline-flex', alignItems: 'center', gap: '5px',
+                fontSize: '12px', fontWeight: 500, padding: 0, marginBottom: '18px'
+              }}
+            >
+              <ChevronLeft size={14} /> Voltar aos conteúdos
+            </button>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap' }}>
+              <h1 style={{ fontSize: '34px', fontWeight: 600, margin: 0, letterSpacing: '-0.03em' }}>
+                Painel Admin
+              </h1>
+              <button
+                onClick={resetReviews}
+                style={{
+                  background: 'transparent', color: '#fca5a5',
+                  border: '1px solid rgba(252,165,165,0.4)', cursor: 'pointer',
+                  borderRadius: '8px', padding: '9px 16px',
+                  fontSize: '12.5px', fontWeight: 600,
+                  display: 'inline-flex', alignItems: 'center', gap: '7px'
+                }}
+              >
+                <X size={14} /> Resetar avaliações
+              </button>
+            </div>
+            <p style={{ fontSize: '13.5px', opacity: 0.6, marginTop: '8px' }}>
+              Status de aprovação e comentários de cada conteúdo.
+            </p>
+          </div>
+        </div>
+
+        <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '28px' }}>
+          {/* RESUMO */}
+          <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap', marginBottom: '32px' }}>
+            <Stat label="Total" value={total} color="#0a0a0a" />
+            <Stat label="Aprovados" value={approved} color="#16a34a" />
+            <Stat label="Reprovados" value={reproved} color="#dc2626" />
+            <Stat label="Pendentes" value={pending} color="#64748b" />
+          </div>
+
+          {/* LISTA POR MARCA */}
+          {Object.entries(clients).map(([brandKey, c]) => {
+            const items = allItems.filter(it => it.brandKey === brandKey);
+            return (
+              <div key={brandKey} style={{ marginBottom: '32px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px' }}>
+                  <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: c.accent }} />
+                  <h2 style={{ fontSize: '18px', fontWeight: 700, margin: 0, letterSpacing: '-0.01em' }}>{c.name}</h2>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {items.map(it => (
+                    <div key={it.id} style={{
+                      background: '#FFFFFF', borderRadius: '12px',
+                      border: '1px solid rgba(0,0,0,0.06)', padding: '16px 18px'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px' }}>
+                        <div>
+                          <div style={{ fontSize: '11px', color: 'rgba(0,0,0,0.45)', fontWeight: 600, marginBottom: '3px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                            {it.day} · {it.kind}
+                          </div>
+                          <div style={{ fontSize: '14.5px', fontWeight: 600, color: '#0a0a0a', lineHeight: 1.35 }}>
+                            {it.theme}
+                          </div>
+                        </div>
+                        {statusBadge(it.status)}
+                      </div>
+                      {it.status === 'reproved' && it.suggestion && (
+                        <div style={{
+                          marginTop: '12px', background: '#fef2f2', borderRadius: '8px',
+                          padding: '10px 12px', fontSize: '12.5px', color: 'rgba(0,0,0,0.7)',
+                          lineHeight: 1.5, whiteSpace: 'pre-wrap'
+                        }}>
+                          <strong style={{ color: '#b91c1c' }}>Comentário:</strong> {it.suggestion}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{
@@ -1537,50 +1911,89 @@ export default function App() {
         padding: '44px 28px 32px 28px'
       }}>
         <div style={{ maxWidth: '1280px', margin: '0 auto' }}>
-          <div style={{ fontSize: '10.5px', letterSpacing: '0.25em', opacity: 0.55, marginBottom: '14px', fontWeight: 600 }}>
-            PAINEL DE CONTEÚDOS · 4 DIAS · 3 MARCAS
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '18px' }}>
+            <button
+              onClick={() => setView('landing')}
+              style={{
+                background: 'none', border: 'none', cursor: 'pointer',
+                color: '#fafafa', opacity: 0.55,
+                display: 'inline-flex', alignItems: 'center', gap: '5px',
+                fontSize: '12px', fontWeight: 500, padding: 0
+              }}
+            >
+              <ChevronLeft size={14} /> Voltar
+            </button>
+            <button
+              onClick={() => setView('admin')}
+              style={{
+                background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)',
+                cursor: 'pointer', color: '#fafafa',
+                borderRadius: '999px', padding: '7px 14px',
+                fontSize: '12px', fontWeight: 600
+              }}
+            >
+              Painel admin
+            </button>
           </div>
-          <h1 style={{ fontSize: '38px', fontWeight: 600, margin: 0, letterSpacing: '-0.03em', lineHeight: 1.05 }}>
-            Notícia, descoberta e venda. <br/>
-            <span style={{ opacity: 0.5 }}>Cada um no seu lugar.</span>
-          </h1>
           <p style={{ fontSize: '13.5px', opacity: 0.65, marginTop: '12px', maxWidth: '600px', lineHeight: 1.55 }}>
             Para cada marca: 2 posts de notícia (descoberta), 1 post comercial (anúncio do produto), 1 carrossel desdobrando uma notícia. As notícias são reais e verificáveis — link da fonte em cada post.
           </p>
         </div>
       </div>
 
-      {/* TABS DE MARCA */}
+      {/* TABS DE MARCA — liquid glass */}
       <div style={{
-        background: '#FFFFFF',
+        background: 'rgba(255,255,255,0.6)',
+        backdropFilter: 'blur(20px) saturate(180%)',
+        WebkitBackdropFilter: 'blur(20px) saturate(180%)',
         borderBottom: '1px solid rgba(0,0,0,0.06)',
         position: 'sticky', top: 0, zIndex: 10
       }}>
-        <div style={{ maxWidth: '1280px', margin: '0 auto', padding: '0 28px' }}>
-          <div style={{ display: 'flex', gap: '2px', overflowX: 'auto' }}>
-            {Object.entries(clients).map(([key, c]) => (
-              <button
-                key={key}
-                onClick={() => { setActiveBrand(key); setActiveDay('all'); setActiveKind('all'); }}
-                style={{
-                  background: activeBrand === key ? c.bg : 'transparent',
-                  color: activeBrand === key ? c.text : 'rgba(0,0,0,0.6)',
-                  border: 'none', cursor: 'pointer',
-                  padding: '16px 24px',
-                  fontSize: '13.5px', fontWeight: 600,
-                  letterSpacing: '-0.01em',
-                  borderRadius: activeBrand === key ? '8px 8px 0 0' : 0,
-                  display: 'flex', alignItems: 'center', gap: '8px',
-                  whiteSpace: 'nowrap'
-                }}
-              >
-                <span style={{
-                  width: '8px', height: '8px', borderRadius: '50%',
-                  background: c.accent
-                }}/>
-                {c.name}
-              </button>
-            ))}
+        <div style={{ maxWidth: '1280px', margin: '0 auto', padding: '12px 28px' }}>
+          <div style={{
+            display: 'inline-flex', gap: '4px', padding: '5px',
+            background: 'rgba(120,120,128,0.10)',
+            borderRadius: '999px', maxWidth: '100%', overflowX: 'auto',
+            border: '1px solid rgba(255,255,255,0.5)',
+            boxShadow: 'inset 0 1px 1px rgba(255,255,255,0.6)'
+          }}>
+            {Object.entries(clients).map(([key, c]) => {
+              const active = activeBrand === key;
+              return (
+                <button
+                  key={key}
+                  onClick={() => { setActiveBrand(key); setActiveDay('all'); setActiveKind('all'); }}
+                  onMouseEnter={e => { if (!active) e.currentTarget.style.background = 'rgba(255,255,255,0.45)'; }}
+                  onMouseLeave={e => { if (!active) e.currentTarget.style.background = 'transparent'; }}
+                  style={{
+                    background: active ? 'rgba(255,255,255,0.85)' : 'transparent',
+                    backdropFilter: active ? 'blur(10px) saturate(180%)' : 'none',
+                    WebkitBackdropFilter: active ? 'blur(10px) saturate(180%)' : 'none',
+                    color: active ? '#0a0a0a' : 'rgba(0,0,0,0.55)',
+                    border: active ? '1px solid rgba(255,255,255,0.9)' : '1px solid transparent',
+                    cursor: 'pointer',
+                    padding: '10px 22px',
+                    fontSize: '13.5px', fontWeight: 600,
+                    letterSpacing: '-0.01em',
+                    borderRadius: '999px',
+                    boxShadow: active
+                      ? `0 1px 3px rgba(0,0,0,0.12), 0 6px 18px ${c.accent}40, inset 0 1px 1px rgba(255,255,255,0.95)`
+                      : 'none',
+                    display: 'flex', alignItems: 'center', gap: '8px',
+                    whiteSpace: 'nowrap',
+                    transition: 'all 0.28s cubic-bezier(0.4,0,0.2,1)'
+                  }}
+                >
+                  <span style={{
+                    width: '8px', height: '8px', borderRadius: '50%',
+                    background: c.accent,
+                    boxShadow: active ? `0 0 8px ${c.accent}` : 'none',
+                    transition: 'box-shadow 0.28s'
+                  }}/>
+                  {c.name}
+                </button>
+              );
+            })}
           </div>
         </div>
       </div>
@@ -1673,14 +2086,19 @@ export default function App() {
             gridTemplateColumns: posts.length === 1 ? '1fr' : 'repeat(auto-fit, minmax(420px, 1fr))',
             gap: '22px'
           }}>
-            {posts.map((post, i) => (
-              <PostCard
-                key={`${activeBrand}-${i}-${post.day}`}
-                post={post}
-                brand={activeBrand}
-                brandData={brand}
-              />
-            ))}
+            {posts.map(({ post, originalIndex }) => {
+              const id = `${activeBrand}-${originalIndex}`;
+              return (
+                <PostCard
+                  key={id}
+                  post={post}
+                  brand={activeBrand}
+                  brandData={brand}
+                  review={reviews[id]}
+                  onReview={data => setReview(id, data)}
+                />
+              );
+            })}
           </div>
         )}
       </div>
