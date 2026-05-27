@@ -3,6 +3,32 @@ import { ChevronLeft, ChevronRight, Calendar, Copy, Check, ArrowRight, Newspaper
 import { supabase, supabaseReady } from './supabase';
 
 // ============================================================
+// ESTILOS LIQUID GLASS REUTILIZÁVEIS
+// ============================================================
+const glassLight = {
+  background: 'rgba(255,255,255,0.55)',
+  backdropFilter: 'blur(12px) saturate(180%)',
+  WebkitBackdropFilter: 'blur(12px) saturate(180%)',
+  border: '1px solid rgba(255,255,255,0.7)',
+  boxShadow: '0 1px 2px rgba(0,0,0,0.05), inset 0 1px 1px rgba(255,255,255,0.85)'
+};
+const glassDark = {
+  background: 'rgba(255,255,255,0.08)',
+  backdropFilter: 'blur(12px) saturate(180%)',
+  WebkitBackdropFilter: 'blur(12px) saturate(180%)',
+  border: '1px solid rgba(255,255,255,0.16)',
+  boxShadow: 'inset 0 1px 1px rgba(255,255,255,0.12)'
+};
+// Glass tingido por cor (ex.: verde/vermelho), em fundo claro
+const glassTint = (rgb) => ({
+  background: `rgba(${rgb},0.10)`,
+  backdropFilter: 'blur(12px) saturate(180%)',
+  WebkitBackdropFilter: 'blur(12px) saturate(180%)',
+  border: `1px solid rgba(${rgb},0.28)`,
+  boxShadow: 'inset 0 1px 1px rgba(255,255,255,0.4)'
+});
+
+// ============================================================
 // DADOS — 3 MARCAS × 4 POSTS (3 estáticos + 1 carrossel)
 // Tipos: 'noticia' (descobrimento) | 'comercial' (venda direta) | 'carrossel'
 // ============================================================
@@ -1341,26 +1367,26 @@ function Carousel({ slides, brand }) {
         <button
           onClick={() => setIndex((index - 1 + total) % total)}
           style={{
+            ...glassLight,
             position: 'absolute', left: '-18px', top: '50%', transform: 'translateY(-50%)',
-            width: '36px', height: '36px', borderRadius: '50%',
-            background: 'rgba(255,255,255,0.95)', border: 'none', cursor: 'pointer',
+            width: '36px', height: '36px', borderRadius: '50%', cursor: 'pointer',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
+            boxShadow: '0 4px 16px rgba(0,0,0,0.12), inset 0 1px 1px rgba(255,255,255,0.85)'
           }}
         >
-          <ChevronLeft size={16} color="#000" />
+          <ChevronLeft size={16} color="#0a0a0a" />
         </button>
         <button
           onClick={() => setIndex((index + 1) % total)}
           style={{
+            ...glassLight,
             position: 'absolute', right: '-18px', top: '50%', transform: 'translateY(-50%)',
-            width: '36px', height: '36px', borderRadius: '50%',
-            background: 'rgba(255,255,255,0.95)', border: 'none', cursor: 'pointer',
+            width: '36px', height: '36px', borderRadius: '50%', cursor: 'pointer',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
+            boxShadow: '0 4px 16px rgba(0,0,0,0.12), inset 0 1px 1px rgba(255,255,255,0.85)'
           }}
         >
-          <ChevronRight size={16} color="#000" />
+          <ChevronRight size={16} color="#0a0a0a" />
         </button>
       </div>
       <div style={{ display: 'flex', justifyContent: 'center', gap: '6px', marginTop: '14px' }}>
@@ -1386,16 +1412,17 @@ function Carousel({ slides, brand }) {
 
 function KindBadge({ kind }) {
   const map = {
-    noticia: { label: 'NOTÍCIA · DESCOBERTA', icon: <Newspaper size={11} />, bg: '#0a0a0a', color: '#fafafa' },
-    comercial: { label: 'COMERCIAL · ANÚNCIO', icon: <Megaphone size={11} />, bg: '#16a34a', color: '#fff' },
-    carrossel: { label: 'CARROSSEL · NOTÍCIA DESDOBRADA', icon: <Layers size={11} />, bg: '#7c3aed', color: '#fff' }
+    noticia: { label: 'NOTÍCIA · DESCOBERTA', icon: <Newspaper size={11} />, rgb: '10,10,10' },
+    comercial: { label: 'COMERCIAL · ANÚNCIO', icon: <Megaphone size={11} />, rgb: '22,163,74' },
+    carrossel: { label: 'CARROSSEL · NOTÍCIA DESDOBRADA', icon: <Layers size={11} />, rgb: '124,58,237' }
   };
   const v = map[kind];
   return (
     <div style={{
       display: 'inline-flex', alignItems: 'center', gap: '5px',
-      background: v.bg, color: v.color,
-      padding: '4px 9px', borderRadius: '4px',
+      background: `rgba(${v.rgb},0.07)`, color: `rgb(${v.rgb})`,
+      border: `1px solid rgba(${v.rgb},0.18)`,
+      padding: '4px 9px', borderRadius: '999px',
       fontSize: '9.5px', fontWeight: 700, letterSpacing: '0.07em'
     }}>
       {v.icon} {v.label}
@@ -1428,7 +1455,8 @@ function PostCard({ post, brand, brandData, review, onReview }) {
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px', flexWrap: 'wrap' }}>
           <div style={{
             display: 'inline-flex', alignItems: 'center', gap: '5px',
-            background: brandData.bg, color: brandData.text,
+            background: 'rgba(0,0,0,0.05)', color: 'rgba(0,0,0,0.6)',
+            border: '1px solid rgba(0,0,0,0.08)',
             padding: '4px 10px', borderRadius: '999px',
             fontSize: '10.5px', fontWeight: 600, letterSpacing: '0.03em'
           }}>
@@ -1461,9 +1489,9 @@ function PostCard({ post, brand, brandData, review, onReview }) {
             <button
               onClick={() => setShowCaption(!showCaption)}
               style={{
-                background: 'none', border: '1px solid rgba(0,0,0,0.15)',
-                borderRadius: '6px', padding: '5px 10px',
-                fontSize: '11px', cursor: 'pointer', color: '#0a0a0a'
+                ...glassLight,
+                borderRadius: '999px', padding: '6px 12px',
+                fontSize: '11px', fontWeight: 600, cursor: 'pointer', color: 'rgba(0,0,0,0.7)'
               }}
             >
               {showCaption ? 'Esconder' : 'Ver completa'}
@@ -1471,10 +1499,10 @@ function PostCard({ post, brand, brandData, review, onReview }) {
             <button
               onClick={copy}
               style={{
-                background: copied ? '#10b981' : '#0a0a0a',
-                color: '#fff', border: 'none',
-                borderRadius: '6px', padding: '5px 10px',
-                fontSize: '11px', cursor: 'pointer',
+                ...(copied ? glassTint('16,185,129') : glassLight),
+                color: copied ? '#047857' : 'rgba(0,0,0,0.7)',
+                borderRadius: '999px', padding: '6px 12px',
+                fontSize: '11px', fontWeight: 600, cursor: 'pointer',
                 display: 'flex', alignItems: 'center', gap: '5px'
               }}
             >
@@ -1516,9 +1544,10 @@ function PostCard({ post, brand, brandData, review, onReview }) {
       <div style={{ marginTop: '18px', borderTop: '1px solid rgba(0,0,0,0.06)', paddingTop: '18px' }}>
         {status === 'approved' ? (
           <div style={{
+            ...glassTint('22,163,74'),
             display: 'flex', alignItems: 'center', gap: '8px',
-            background: '#ecfdf5', color: '#047857',
-            borderRadius: '8px', padding: '12px 14px',
+            color: '#047857',
+            borderRadius: '12px', padding: '12px 14px',
             fontSize: '13px', fontWeight: 600
           }}>
             <Check size={15} /> Conteúdo aprovado
@@ -1533,8 +1562,8 @@ function PostCard({ post, brand, brandData, review, onReview }) {
           </div>
         ) : status === 'reproved' ? (
           <div style={{
-            background: '#fef2f2', color: '#b91c1c',
-            borderRadius: '8px', padding: '12px 14px'
+            ...glassTint('220,38,38'), color: '#b91c1c',
+            borderRadius: '12px', padding: '12px 14px'
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', fontWeight: 600, marginBottom: '8px' }}>
               <X size={15} /> Conteúdo reprovado
@@ -1573,18 +1602,19 @@ function PostCard({ post, brand, brandData, review, onReview }) {
               <button
                 onClick={() => { setShowReproveBox(false); setDraft(''); }}
                 style={{
-                  background: 'none', border: '1px solid rgba(0,0,0,0.15)',
-                  borderRadius: '8px', padding: '9px 16px',
-                  fontSize: '12.5px', fontWeight: 600, cursor: 'pointer', color: '#0a0a0a'
+                  ...glassLight,
+                  borderRadius: '999px', padding: '9px 18px',
+                  fontSize: '12.5px', fontWeight: 600, cursor: 'pointer', color: 'rgba(0,0,0,0.7)'
                 }}
               >Cancelar</button>
               <button
                 onClick={() => { onReview({ status: 'reproved', suggestion: draft.trim() }); setShowReproveBox(false); setDraft(''); }}
                 disabled={draft.trim() === ''}
                 style={{
-                  background: draft.trim() === '' ? 'rgba(0,0,0,0.12)' : '#dc2626',
-                  color: draft.trim() === '' ? 'rgba(0,0,0,0.4)' : '#fff',
-                  border: 'none', borderRadius: '8px', padding: '9px 16px',
+                  ...glassTint('220,38,38'),
+                  opacity: draft.trim() === '' ? 0.4 : 1,
+                  color: '#dc2626',
+                  borderRadius: '999px', padding: '9px 18px',
                   fontSize: '12.5px', fontWeight: 600,
                   cursor: draft.trim() === '' ? 'not-allowed' : 'pointer'
                 }}
@@ -1596,8 +1626,8 @@ function PostCard({ post, brand, brandData, review, onReview }) {
             <button
               onClick={() => onReview({ status: 'approved', suggestion: '' })}
               style={{
-                flex: 1, background: '#16a34a', color: '#fff',
-                border: 'none', borderRadius: '8px', padding: '12px',
+                ...glassTint('22,163,74'), color: '#15803d',
+                flex: 1, borderRadius: '12px', padding: '12px',
                 fontSize: '13.5px', fontWeight: 600, cursor: 'pointer',
                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '7px'
               }}
@@ -1607,8 +1637,8 @@ function PostCard({ post, brand, brandData, review, onReview }) {
             <button
               onClick={() => setShowReproveBox(true)}
               style={{
-                flex: 1, background: '#fff', color: '#dc2626',
-                border: '1px solid rgba(220,38,38,0.4)', borderRadius: '8px', padding: '12px',
+                ...glassTint('220,38,38'), color: '#dc2626',
+                flex: 1, borderRadius: '12px', padding: '12px',
                 fontSize: '13.5px', fontWeight: 600, cursor: 'pointer',
                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '7px'
               }}
@@ -1683,6 +1713,20 @@ export default function App() {
     await supabase.from('reviews').delete().neq('id', '');
   };
 
+  // Pílula de filtro liquid glass (sobre o fundo escuro da marca)
+  const filterPill = (active) => ({
+    background: active ? 'rgba(255,255,255,0.18)' : 'rgba(255,255,255,0.05)',
+    backdropFilter: active ? 'blur(10px) saturate(180%)' : 'none',
+    WebkitBackdropFilter: active ? 'blur(10px) saturate(180%)' : 'none',
+    color: brand.text,
+    opacity: active ? 1 : 0.65,
+    border: `1px solid ${active ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.12)'}`,
+    boxShadow: active ? 'inset 0 1px 1px rgba(255,255,255,0.25)' : 'none',
+    borderRadius: '999px', padding: '6px 14px',
+    fontSize: '11px', fontWeight: 600, cursor: 'pointer',
+    transition: 'all 0.2s ease'
+  });
+
   const brand = clients[activeBrand];
   let posts = brand.posts.map((post, i) => ({ post, originalIndex: i }));
   if (activeDay !== 'all') posts = posts.filter(({ originalIndex }) => originalIndex === parseInt(activeDay));
@@ -1721,10 +1765,10 @@ export default function App() {
         <button
           onClick={() => setView('content')}
           style={{
+            ...glassDark,
             marginTop: '40px',
-            background: '#fafafa',
-            color: '#0a0a0a',
-            border: 'none',
+            background: 'rgba(255,255,255,0.12)',
+            color: '#fafafa',
             borderRadius: '999px',
             padding: '15px 30px',
             fontSize: '15px',
@@ -1733,10 +1777,10 @@ export default function App() {
             display: 'inline-flex',
             alignItems: 'center',
             gap: '9px',
-            transition: 'transform 0.15s ease'
+            transition: 'transform 0.15s ease, background 0.2s ease'
           }}
-          onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.04)'}
-          onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
+          onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.04)'; e.currentTarget.style.background = 'rgba(255,255,255,0.18)'; }}
+          onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.background = 'rgba(255,255,255,0.12)'; }}
         >
           Ver conteúdos <ArrowRight size={17} />
         </button>
@@ -1791,8 +1835,8 @@ export default function App() {
 
     const Stat = ({ label, value, color }) => (
       <div style={{
-        background: '#FFFFFF', borderRadius: '14px', padding: '20px 24px',
-        border: '1px solid rgba(0,0,0,0.06)', flex: 1, minWidth: '140px'
+        ...glassLight, borderRadius: '16px', padding: '20px 24px',
+        flex: 1, minWidth: '140px'
       }}>
         <div style={{ fontSize: '34px', fontWeight: 700, color, letterSpacing: '-0.02em', lineHeight: 1 }}>{value}</div>
         <div style={{ fontSize: '12px', color: 'rgba(0,0,0,0.5)', marginTop: '6px', fontWeight: 600 }}>{label}</div>
@@ -1827,9 +1871,12 @@ export default function App() {
               <button
                 onClick={resetReviews}
                 style={{
-                  background: 'transparent', color: '#fca5a5',
-                  border: '1px solid rgba(252,165,165,0.4)', cursor: 'pointer',
-                  borderRadius: '8px', padding: '9px 16px',
+                  background: 'rgba(252,165,165,0.10)',
+                  backdropFilter: 'blur(12px) saturate(180%)',
+                  WebkitBackdropFilter: 'blur(12px) saturate(180%)',
+                  color: '#fca5a5',
+                  border: '1px solid rgba(252,165,165,0.28)', cursor: 'pointer',
+                  borderRadius: '999px', padding: '9px 16px',
                   fontSize: '12.5px', fontWeight: 600,
                   display: 'inline-flex', alignItems: 'center', gap: '7px'
                 }}
@@ -1864,8 +1911,7 @@ export default function App() {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                   {items.map(it => (
                     <div key={it.id} style={{
-                      background: '#FFFFFF', borderRadius: '12px',
-                      border: '1px solid rgba(0,0,0,0.06)', padding: '16px 18px'
+                      ...glassLight, borderRadius: '14px', padding: '16px 18px'
                     }}>
                       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px' }}>
                         <div>
@@ -1926,9 +1972,8 @@ export default function App() {
             <button
               onClick={() => setView('admin')}
               style={{
-                background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)',
-                cursor: 'pointer', color: '#fafafa',
-                borderRadius: '999px', padding: '7px 14px',
+                ...glassDark, cursor: 'pointer', color: '#fafafa',
+                borderRadius: '999px', padding: '8px 16px',
                 fontSize: '12px', fontWeight: 600
               }}
             >
@@ -2022,25 +2067,13 @@ export default function App() {
             <span style={{ fontSize: '10px', opacity: 0.55, letterSpacing: '0.1em', alignSelf: 'center', marginRight: '6px' }}>DIA:</span>
             <button
               onClick={() => setActiveDay('all')}
-              style={{
-                background: activeDay === 'all' ? brand.accent : 'transparent',
-                color: activeDay === 'all' ? brand.bg : brand.text,
-                border: `1px solid ${activeDay === 'all' ? brand.accent : 'rgba(255,255,255,0.18)'}`,
-                borderRadius: '999px', padding: '5px 12px',
-                fontSize: '11px', fontWeight: 600, cursor: 'pointer'
-              }}
+              style={filterPill(activeDay === 'all')}
             >Todos</button>
             {brand.posts.map((post, i) => (
               <button
                 key={i}
                 onClick={() => setActiveDay(i.toString())}
-                style={{
-                  background: activeDay === i.toString() ? brand.accent : 'transparent',
-                  color: activeDay === i.toString() ? brand.bg : brand.text,
-                  border: `1px solid ${activeDay === i.toString() ? brand.accent : 'rgba(255,255,255,0.18)'}`,
-                  borderRadius: '999px', padding: '5px 12px',
-                  fontSize: '11px', fontWeight: 600, cursor: 'pointer'
-                }}
+                style={filterPill(activeDay === i.toString())}
               >
                 {post.day}{i === 3 ? ' (S2)' : ''}
               </button>
@@ -2058,13 +2091,7 @@ export default function App() {
               <button
                 key={k}
                 onClick={() => setActiveKind(k)}
-                style={{
-                  background: activeKind === k ? brand.accent : 'transparent',
-                  color: activeKind === k ? brand.bg : brand.text,
-                  border: `1px solid ${activeKind === k ? brand.accent : 'rgba(255,255,255,0.18)'}`,
-                  borderRadius: '999px', padding: '5px 12px',
-                  fontSize: '11px', fontWeight: 600, cursor: 'pointer'
-                }}
+                style={filterPill(activeKind === k)}
               >{label}</button>
             ))}
           </div>
