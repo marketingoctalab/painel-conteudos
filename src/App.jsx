@@ -1360,21 +1360,18 @@ function EcosysRender({ slide }) {
 // ROTEADORES E COMPONENTES VISUAIS
 // ============================================================
 
-// Exibe um criativo pronto (imagem) em retrato, sempre completo
+// Exibe um criativo pronto (imagem) na proporção natural — nunca corta ou distorce
 function SlideImage({ src }) {
   return (
-    <div style={{
-      width: '100%', aspectRatio: '3 / 4', borderRadius: '14px',
-      overflow: 'hidden', background: '#101010',
-      display: 'flex', alignItems: 'center', justifyContent: 'center'
-    }}>
-      <img
-        src={src}
-        alt=""
-        loading="lazy"
-        style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }}
-      />
-    </div>
+    <img
+      src={src}
+      alt=""
+      loading="lazy"
+      style={{
+        display: 'block', width: '100%', height: 'auto',
+        borderRadius: '14px', background: '#101010'
+      }}
+    />
   );
 }
 
