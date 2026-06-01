@@ -221,7 +221,6 @@ Agende uma demonstração de 15 minutos: [inserir link]
 
   octalab: {
     name: 'Octalab',
-    comingSoon: true,
     tagline: 'We build tomorrow\'s tech.',
     accent: '#F4EFE5',
     bg: '#0F0F13',
@@ -416,7 +415,6 @@ Conheça em [inserir link]
 
   ecosys: {
     name: 'Ecosys Auto',
-    comingSoon: true,
     tagline: 'A IA que atende sua revenda 24/7',
     accent: '#22D3EE',
     bg: '#0A1628',
