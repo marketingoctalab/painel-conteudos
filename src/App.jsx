@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, Calendar, Copy, Check, ArrowRight, Newspaper, Megaphone, Layers, X } from 'lucide-react';
 import { supabase, supabaseReady } from './supabase';
+import PeepsCanvas from './PeepsCanvas';
 
 // ============================================================
 // ESTILOS LIQUID GLASS REUTILIZÁVEIS
@@ -237,6 +238,7 @@ Agende uma demonstração de 15 minutos: [inserir link]
         sourceLabel: 'Fonte: Seu Dinheiro / TI Inside, fev/2026',
         sourceUrl: 'https://www.seudinheiro.com/2026/internacional/armageddon-da-ia-e-o-fim-das-empresas-de-software-como-servico-saas-ou-a-maior-promocao-de-acoes-do-setor-da-decada-ccgg/',
         slide: {
+          image: '/octalab/1-noticia.png',
           type: 'oct-news',
           chip: '"SAASPOCALIPSE" · FEV/2026',
           title: 'Mercado de SaaS viveu',
@@ -245,13 +247,11 @@ Agende uma demonstração de 15 minutos: [inserir link]
           source: 'Seu Dinheiro · fevereiro de 2026',
           cta: 'LEIA A LEGENDA'
         },
-        caption: `Em fevereiro de 2026 o mercado batizou o evento de "SaaSpocalipse": ações de empresas de software como serviço despencaram. O gatilho foi a maturação de agentes autônomos de IA capazes de executar fluxos de trabalho inteiros — não só conversar sobre eles.
+        caption: `Em fevereiro de 2026, o mercado batizou o evento de "SaaSpocalipse": ações de empresas de software como serviço despencaram, e cerca de US$ 285 bilhões evaporaram das avaliações em poucas horas. O termo foi cunhado por traders da Jefferies. O gatilho foi a maturação de agentes autônomos de IA capazes de executar fluxos de trabalho inteiros, não só conversar sobre eles. (Imprensa financeira, fev/2026)
 
-A Deloitte projeta que o mercado de agentes autônomos pode chegar a US$ 8,5 bilhões em 2026 e US$ 35 bilhões em 2030. O Gartner é mais cauteloso: 40% dos projetos serão cancelados até 2027 — mas 60% chegam à produção. Em 2026, a pergunta deixou de ser "vamos usar agentes?" e virou "qual processo já está pronto?".
+O movimento tem base em projeções que já circulavam. A Deloitte estima que o mercado de agentes autônomos pode chegar a US$ 8,5 bilhões em 2026 e US$ 35 bilhões em 2030 (TI Inside, fev/2026). O Gartner, por outro lado, traz a dose de realismo: mais de 40% dos projetos de IA agêntica devem ser cancelados até 2027, por custos altos, valor de negócio incerto ou controles de risco frágeis (Gartner, jun/2025).
 
-O recado do mercado é claro: software de prateleira que apenas espera o humano clicar virou commodity. O valor migra para sistemas que decidem e executam.
-
-Por isso a Octalab nasceu como casa de produtos AI-Native. Não é software com IA acoplada. É software onde IA é a base:
+O recado do mercado, no entanto, é claro: software de prateleira que apenas espera por um clique virou commodity. O valor migra para sistemas que decidem e executam. Em 2026, a pergunta deixou de ser "vamos usar agentes?" e passou a ser "qual processo já está pronto?". Por isso a Octalab nasceu como casa de produtos AI-Native. Não é software com IA acoplada. É software onde IA é a base:
 
 — Modelos multimodais por padrão
 — Agentes com ferramentas just-in-time
@@ -261,9 +261,7 @@ Construímos, operamos e somos donos dos produtos: Octamind.ai, PlacaPay, JusPil
 
 We build tomorrow's tech.
 
-Conheça em [inserir link]
-
-— Octalab.ai`
+🔗 Conheça em Octalab.ai`
       },
 
       // ───────── DIA 2 — SEGUNDA ─────────
@@ -276,6 +274,7 @@ Conheça em [inserir link]
         sourceLabel: 'Fonte: IT Forum, mai/2026',
         sourceUrl: 'https://itforum.com.br/noticias/zappts-cresce-33-substituir-softwares-agentes-ia',
         slide: {
+          image: '/octalab/2-noticia.png',
           type: 'oct-news',
           chip: 'TRANSFORMAÇÃO AGÊNTICA',
           title: 'Empresa cresce 33%',
@@ -284,30 +283,18 @@ Conheça em [inserir link]
           source: 'IT Forum · maio de 2026',
           cta: 'LEIA A LEGENDA'
         },
-        caption: `A Zappts cresceu 33% depois de substituir softwares passivos por agentes autônomos de IA na própria operação. Time-to-market dos projetos caiu mais de 50%. (IT Forum, mai/2026)
+        caption: `A Zappts relata ter crescido 33% depois de substituir softwares passivos por agentes autônomos de IA na própria operação. O time-to-market dos projetos caiu mais de 50%. (IT Forum, mai/2026)
 
-O CEO Pablo Augusto resumiu bem: "Não se trata só de automatizar tarefas, mas de delegar decisão e execução de processos críticos para agentes que operam com autonomia, governança e escalabilidade."
+O CEO Pablo Augusto resumiu bem:
+
+"Não se trata somente de automatizar tarefas, mas de delegar decisão e execução de processos críticos para agentes que operam com autonomia, governança e escalabilidade."
 
 A diferença é categórica:
 
 — Software passivo = espera instrução, executa, devolve.
 — Agente autônomo = recebe objetivo, decide o caminho, executa de ponta a ponta.
 
-Para chegar lá, a Zappts teve que criar um Agentic Transformation Office, contratar 47% mais profissionais de dados e IA, e estabelecer governança. Não é trivial.
-
-E é exatamente esse o trabalho da Octalab. Construir produtos que já nascem assim — sem precisar do ATO interno, sem precisar formar time de IA do zero, sem precisar refazer arquitetura.
-
-Nossas soluções já operam com:
-→ Modelos multimodais por padrão
-→ Observabilidade nativa
-→ RLS multi-tenant obrigatório
-→ Operação 24/7 em produção
-
-Donos. Operadores. Construtores.
-
-Conheça em [inserir link]
-
-— Octalab.ai`
+O movimento, batizado de "Transformação Agêntica", começou em setembro de 2024 e a meta da empresa é dobrar a unidade de agentes inteligentes até o fim de 2026. Não é um piloto: é operação real, com governança montada em volta. Esse é o ponto que muita empresa ainda discute em comitê.`
       },
 
       // ───────── DIA 3 — QUARTA (CARROSSEL) ─────────
@@ -321,24 +308,28 @@ Conheça em [inserir link]
         sourceUrl: 'https://tiinside.com.br/25/02/2026/2026-sera-o-ano-da-consolidacao-da-ia-em-larga-escala-aponta-deloitte/',
         slides: [
           {
+            image: '/octalab/3-carrossel-1.png',
             type: 'oct-manifesto',
             line1: 'IA não é',
             line2: 'feature.',
             line3: 'É base.'
           },
           {
+            image: '/octalab/3-carrossel-2.png',
             type: 'oct-light-card',
             number: '01 / 03',
             title: 'O dado',
             body: 'Investimentos em IA no Brasil ultrapassam US$ 3,4 bilhões em 2026, crescendo +30% ao ano. 78% das empresas ampliarão investimentos. (IDC / IBM)\n\nE 47% dos profissionais já usam IA "por fora" — sem aprovação oficial. Shadow AI virou padrão. O mercado sabe que precisa.'
           },
           {
+            image: '/octalab/3-carrossel-3.png',
             type: 'oct-dark-card',
             number: '02 / 03',
             title: 'O problema',
             body: 'A maioria ainda trata IA como camada. Plugin em CRM. Botão de "resumir" no editor. Chat lateral. Quando o agente autônomo aparece, vira retrabalho de arquitetura.\n\nSoftware passivo + IA acoplada = dívida técnica disfarçada.'
           },
           {
+            image: '/octalab/3-carrossel-4.png',
             type: 'oct-signature',
             line1: 'AI-Native',
             line2: 'não é estilo.',
@@ -346,11 +337,11 @@ Conheça em [inserir link]
             cta: 'Conheça nossas soluções'
           }
         ],
-        caption: `Em 2026 o investimento em IA no Brasil ultrapassa US$ 3,4 bilhões — crescendo mais de 30% ao ano. (IDC)
+        caption: `Em 2026, os gastos com IA no Brasil — somando software, serviços e infraestrutura — devem ultrapassar US$ 3,4 bilhões, crescendo mais de 30% ao ano (IDC). No setor privado, 78% das empresas planejam ampliar os investimentos em IA (IBM).
 
-78% das empresas planejam ampliar (IBM). 47% dos profissionais já usam IA sem aprovação formal — o "Shadow AI". (Pesquisa Abiacom)
+Mas a maturidade não acompanha o apetite. Segundo pesquisa da Abiacom (com 200 profissionais, fim de 2025), 47% já usam IA sem aprovação formal — o chamado "Shadow AI" — e 59% das empresas ainda não têm diretrizes formais para o uso da tecnologia.
 
-O mercado entendeu que precisa de IA. Mas a maioria está implementando errado: acoplando IA a softwares passivos legados. Quando o agente autônomo entra em cena, vira retrabalho.
+O mercado entendeu que precisa de IA. O que falta é fazer direito. Boa parte das empresas está apenas acoplando IA a softwares passivos e legados, e quando o agente autônomo entra em cena, esse arranjo vira retrabalho.
 
 Por isso a Octalab opera como casa de produtos AI-Native. Cada produto nasce com:
 
@@ -365,56 +356,14 @@ Não é "tem IA". É "é IA".
 
 Nossas soluções: Octamind.ai, PlacaPay, Octagym.ai, Octalife.ai, Octalk.ai, Octabuild.ai, JusPilot, Ecosys Auto, Sonar.
 
-We build tomorrow's tech.
-
-Conheça em [inserir link]
-
-— Octalab.ai`
-      },
-
-      // ───────── DIA 4 — SEXTA (COMERCIAL) ─────────
-      {
-        day: 'Sexta',
-        date: 'Sex • Semana 2',
-        kind: 'comercial',
-        theme: 'Anúncio institucional — casa de produtos',
-        format: 'Post estático — capa única',
-        slide: {
-          type: 'oct-comercial',
-          line1: 'Não somos agência.',
-          line2: 'Não somos consultoria.',
-          line3: 'Não vendemos hora.',
-          divider: 'Somos casa de produtos.',
-          cta: 'LEIA A LEGENDA'
-        },
-        caption: `A Octalab nasceu de oito pessoas com um objetivo claro: criar softwares próprios que realmente transformam indústrias.
-
-Não somos agência. Não somos consultoria. Não vendemos hora.
-
-Somos casa de produtos AI-Native. Construímos, lançamos, operamos e somos donos do que entregamos ao mercado.
-
-Oito mentes. Quatro obsessões:
-
-— AI-Native: IA não é feature, é base.
-— Velocidade: da ideia ao deploy antes do mercado.
-— Escala: pensado para crescer desde o primeiro commit.
-— Ownership: operação 24/7 em produção, roadmap guiado por dados.
-
-Nossas soluções: Octamind.ai, PlacaPay, Octagym.ai, Octalife.ai, Octalk.ai, Octabuild.ai, JusPilot, Ecosys Auto, Sonar.
-
-Donos. Operadores. Construtores.
-
-We build tomorrow's tech.
-
-Conheça em [inserir link]
-
-— Octalab.ai`
+We build tomorrow's tech. Conheça pelo link da bio.`
       }
     ]
   },
 
   ecosys: {
     name: 'Ecosys Auto',
+    comingSoon: true,
     tagline: 'A IA que atende sua revenda 24/7',
     accent: '#22D3EE',
     bg: '#0A1628',
@@ -1681,7 +1630,7 @@ function PostCard({ post, brand, brandData, review, onReview }) {
 
 export default function App() {
   const [view, setView] = useState('landing');
-  const [activeBrand, setActiveBrand] = useState('juspilot');
+  const [activeBrand, setActiveBrand] = useState('octalab');
   const [activeDay, setActiveDay] = useState('all');
   const [activeKind, setActiveKind] = useState('all');
   const [reviews, setReviews] = useState({}); // { 'juspilot-0': { status, suggestion } }
@@ -1760,63 +1709,63 @@ export default function App() {
     return (
       <div style={{
         minHeight: '100vh',
-        background: '#0a0a0a',
-        color: '#fafafa',
+        background: '#ffffff',
+        color: '#0a0a0a',
         fontFamily: 'Geist, -apple-system, BlinkMacSystemFont, system-ui, sans-serif',
+        position: 'relative',
+        overflow: 'hidden',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        justifyContent: 'center',
+        justifyContent: 'flex-start',
         textAlign: 'center',
-        padding: '24px'
+        padding: 'clamp(80px, 22vh, 200px) 24px 24px'
       }}>
-        <div style={{ fontSize: '11px', letterSpacing: '0.3em', opacity: 0.5, marginBottom: '24px', fontWeight: 600 }}>
-          4 DIAS · 3 MARCAS
-        </div>
-        <h1 style={{
-          fontSize: 'clamp(48px, 9vw, 104px)',
-          fontWeight: 600,
-          margin: 0,
-          letterSpacing: '-0.04em',
-          lineHeight: 1.02
-        }}>
-          Painel de Conteúdos
-        </h1>
-        <p style={{ fontSize: '15px', opacity: 0.55, marginTop: '20px', maxWidth: '480px', lineHeight: 1.6 }}>
-          Notícia, descoberta e venda. Cada um no seu lugar.
-        </p>
-        <button
-          onClick={() => setView('content')}
-          style={{
-            ...glassDark,
-            marginTop: '40px',
-            background: 'rgba(255,255,255,0.12)',
-            color: '#fafafa',
-            borderRadius: '999px',
-            padding: '15px 30px',
-            fontSize: '15px',
+        <PeepsCanvas />
+        <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+          <h1 style={{
+            fontSize: 'clamp(48px, 9vw, 104px)',
             fontWeight: 600,
-            cursor: 'pointer',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '9px',
-            transition: 'transform 0.15s ease, background 0.2s ease'
-          }}
-          onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.04)'; e.currentTarget.style.background = 'rgba(255,255,255,0.18)'; }}
-          onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.background = 'rgba(255,255,255,0.12)'; }}
-        >
-          Ver conteúdos <ArrowRight size={17} />
-        </button>
-        <button
-          onClick={() => setView('admin')}
-          style={{
-            marginTop: '20px', background: 'none', border: 'none',
-            color: '#fafafa', opacity: 0.4, fontSize: '12px',
-            cursor: 'pointer', textDecoration: 'underline'
-          }}
-        >
-          Painel admin
-        </button>
+            margin: 0,
+            letterSpacing: '-0.04em',
+            lineHeight: 1.02
+          }}>
+            Painel de Conteúdos
+          </h1>
+          <button
+            onClick={() => setView('content')}
+            style={{
+              marginTop: '20px',
+              background: '#0a0a0a',
+              color: '#ffffff',
+              border: 'none',
+              borderRadius: '999px',
+              padding: '15px 30px',
+              fontSize: '15px',
+              fontWeight: 600,
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '9px',
+              boxShadow: '0 4px 14px rgba(0,0,0,0.15)',
+              transition: 'transform 0.15s ease, box-shadow 0.2s ease'
+            }}
+            onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.04)'; e.currentTarget.style.boxShadow = '0 8px 22px rgba(0,0,0,0.22)'; }}
+            onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.boxShadow = '0 4px 14px rgba(0,0,0,0.15)'; }}
+          >
+            Ver conteúdos <ArrowRight size={17} />
+          </button>
+          <button
+            onClick={() => setView('admin')}
+            style={{
+              marginTop: '10px', background: 'none', border: 'none',
+              color: '#0a0a0a', opacity: 0.45, fontSize: '12px',
+              cursor: 'pointer', textDecoration: 'underline'
+            }}
+          >
+            Painel admin
+          </button>
+        </div>
       </div>
     );
   }
@@ -2094,7 +2043,13 @@ export default function App() {
               </p>
             </div>
             <div style={{ fontSize: '11px', opacity: 0.6 }}>
-              <strong>4 posts</strong> · 2 notícia · 1 comercial · 1 carrossel
+              {(() => {
+                const labels = { noticia: 'notícia', comercial: 'comercial', carrossel: 'carrossel' };
+                const parts = ['noticia', 'comercial', 'carrossel']
+                  .map(k => { const c = brand.posts.filter(p => p.kind === k).length; return c ? `${c} ${labels[k]}` : null; })
+                  .filter(Boolean);
+                return <><strong>{brand.posts.length} posts</strong>{parts.length ? ` · ${parts.join(' · ')}` : ''}</>;
+              })()}
             </div>
           </div>
 
