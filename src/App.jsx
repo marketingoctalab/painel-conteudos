@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, Calendar, Copy, Check, ArrowRight, Newspaper, Megaphone, Layers, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar, Copy, Check, ArrowRight, Newspaper, Megaphone, Layers, X, Target, AlertTriangle } from 'lucide-react';
 import { supabase, supabaseReady } from './supabase';
 import PeepsCanvas from './PeepsCanvas';
 
@@ -566,6 +566,337 @@ powered by Octalab.ai
 #ecosysauto #revenda #seminovos #multimarca`
       }
     ]
+  },
+
+  octagym: {
+    name: 'Octagym',
+    tagline: 'O sistema operacional da academia moderna',
+    accent: '#EF0A36',
+    bg: '#0F0F13',
+    text: '#F4EFE5',
+    link: 'octagym.ai',
+    posts: [
+      // ───────── POST 1 — ANÚNCIO ÂNCORA ─────────
+      {
+        day: 'Post 1',
+        date: 'Lançamento',
+        kind: 'comercial',
+        theme: 'Anúncio âncora — Octagym + Ironberg Brasília',
+        format: 'Post estático — capa única',
+        slide: {
+          type: 'ogy-launch',
+          chip: 'LANÇAMENTO · BRASÍLIA-DF',
+          line1: 'A maior academia',
+          highlight: 'do mundo',
+          line2: 'não vai ser operada',
+          line3: 'como uma academia comum.',
+          subline: '11.000 m². Ironberg chega ao Brasil. Octagym é o sistema por trás.',
+          cta: 'LEIA A LEGENDA'
+        },
+        caption: `A maior academia do mundo não será operada como uma academia comum.
+
+A Ironberg chega ao Brasil com uma operação histórica para o mercado fitness: 11.000 m² em Brasília-DF.
+
+E a Octagym estará por trás dessa estrutura, conectando tecnologia, inteligência e escala em uma única plataforma.
+
+Do anúncio ao aluno fiel.
+Marketing. Vendas. Atendimento. Cobrança. Retenção.
+Tudo conectado. Tudo no lugar.
+
+O futuro da gestão de alta performance começou.
+
+Conheça em [inserir link]
+
+powered by Octalab.ai
+
+#octagym #ironberg #academia #fitness #sistemaoperacional`
+      },
+
+      // ───────── POST 2 — PROVA DE POTÊNCIA COMERCIAL ─────────
+      {
+        day: 'Post 2',
+        date: 'Prova de produto',
+        kind: 'comercial',
+        theme: '+R$ 150 mil na pré-venda sem time comercial',
+        format: 'Post estático — capa única',
+        slide: {
+          type: 'ogy-proof',
+          chip: 'PRÉ-VENDA IRONBERG · 2026',
+          data: '+R$ 150 mil',
+          label: 'vendidos na pré-venda',
+          divider: 'sem',
+          highlight: 'um único vendedor.',
+          subline: 'Só o módulo financeiro do Octagym. Matrícula, pagamento e contrato — por dentro do sistema.',
+          cta: 'LEIA A LEGENDA'
+        },
+        caption: `Mais de R$ 150 mil em matrículas vendidas na pré-venda da Ironberg Brasília.
+
+Sem time comercial. Sem corretor. Sem ligação fria. Sem CRM externo.
+
+Só o módulo financeiro do Octagym fazendo o trabalho: cliente entra, conhece o plano, paga e recebe o contrato — tudo por dentro do sistema.
+
+A gente fala muito de "sistema completo". Esse é o teste real: receita acontecendo antes mesmo da academia abrir a porta.
+
+Você vê o faturamento no celular antes do café.
+
+O futuro da gestão de alta performance começou.
+
+Conheça em [inserir link]
+
+powered by Octalab.ai
+
+#octagym #fitness #academia #vendas #financeiro`
+      },
+
+      // ───────── POST 3 — POSICIONAMENTO DE PRODUTO ─────────
+      {
+        day: 'Post 3',
+        date: 'O que é o Octagym',
+        kind: 'comercial',
+        theme: 'Sistema operacional, não plataforma',
+        format: 'Post estático — capa única',
+        slide: {
+          type: 'ogy-positioning',
+          eyebrow: 'OCTAGYM.AI',
+          title1: 'Do anúncio',
+          title2: 'ao aluno fiel.',
+          subline: 'Marketing, vendas, atendimento, cobrança e retenção conectados em uma única plataforma.',
+          modules: ['Marketing', 'Vendas', 'Atendimento', 'Cobrança', 'Retenção'],
+          cta: 'LEIA A LEGENDA'
+        },
+        caption: `Sua academia roda em 7 sistemas diferentes? Em planilhas que ninguém atualiza? Em WhatsApps individuais que perdem cliente todo dia?
+
+Octagym não é um app de check-in. Não é só um CRM. Não é um gateway de pagamento.
+
+É o sistema operacional da academia. O software que opera o negócio do começo ao fim.
+
+→ Marketing — campanhas, captura de lead, atribuição
+→ Vendas — matrícula, plano, contrato e pagamento por dentro
+→ Atendimento — cada conversa amarrada ao aluno
+→ Cobrança — recorrência, inadimplência, retentativa
+→ Retenção — frequência, churn previsto, ação no tempo certo
+
+Uma operação. Uma base de dados. Uma fonte da verdade.
+
+Conheça em [inserir link]
+
+powered by Octalab.ai
+
+#octagym #fitness #academia #gestao`
+      },
+
+      // ───────── POST 4 — MANIFESTO DE CATEGORIA ─────────
+      {
+        day: 'Post 4',
+        date: 'Manifesto',
+        kind: 'comercial',
+        theme: 'A academia moderna precisa de um SO',
+        format: 'Post estático — capa única',
+        slide: {
+          type: 'ogy-manifesto',
+          line1: 'A academia moderna',
+          line2: 'precisa de',
+          line3: 'inteligência.',
+          line4: 'Automação.',
+          line5: 'Controle.',
+          line6: 'Escala.',
+          divider: 'Ela precisa de um',
+          highlight: 'sistema operacional.',
+          cta: 'LEIA A LEGENDA'
+        },
+        caption: `Academia hoje não compete por equipamento. Compete por operação.
+
+Quem retém mais aluno por mais tempo, ganha. Quem antecipa o churn, ganha. Quem responde lead em segundos, ganha. Quem cobra automático sem perder cliente, ganha.
+
+Nada disso acontece em planilha. Nada disso acontece em 7 sistemas desconectados.
+
+A academia moderna precisa de inteligência, automação, controle e escala em uma única plataforma.
+
+Ela precisa de um sistema operacional.
+
+Octagym.ai — construído para academias que não querem mais ser operadas como uma academia comum.
+
+Conheça em [inserir link]
+
+powered by Octalab.ai
+
+#octagym #fitness #academia #gestao #tecnologia`
+      }
+    ]
+  },
+
+  juspilotTrafego: {
+    name: 'JusPilot · Tráfego',
+    tagline: 'Campanha de aquisição — 4 ângulos de tráfego',
+    accent: '#D97757',
+    bg: '#101010',
+    text: '#FFFEEE',
+    link: 'juspilot.ai',
+    posts: [
+      // ───────── AD 01 — VELOCIDADE ─────────
+      {
+        day: 'Ad 01',
+        date: 'Velocidade',
+        kind: 'campanha',
+        theme: 'Velocidade & Contraste Temporal',
+        format: 'Estático único 1:1 · Tráfego/Conversão · Funil topo–meio',
+        slide: {
+          type: 'ad-velocidade',
+          eyebrow: 'JUSPILOT · IA JURÍDICA',
+          title1: '72 horas.',
+          title2: 'Ou 34 segundos.',
+          subline: 'Leitura integral dos autos, Resumo Analítico, Linha do Tempo e Jurisprudência Correlata real. Em segundos.',
+          cta: 'COMEÇAR AGORA'
+        },
+        caption: `Quanto tempo seu escritório perde lendo autos antes de chegar à tese?
+
+O JusPilot lê o processo inteiro e devolve, em até 34 segundos:
+
+→ Resumo Analítico da demanda
+→ Linha do Tempo Processual
+→ Pontos Controvertidos e Riscos da Demanda
+→ Jurisprudência Correlata real dos tribunais
+
+Crie sua conta gratuita e teste com um processo seu hoje. Sem cartão.
+
+[inserir link]
+
+— — — — META ADS — — — —
+Headline: 72 horas viraram 34 segundos.
+Description: IA jurídica que lê os autos e devolve análise estruturada. Trial gratuito.
+Botão: Cadastre-se
+
+Público: Sócios e gestores de operações · Médios escritórios (5–30 advogados)
+Objetivo: Trial direto · Cadastro na plataforma
+Ângulo: Velocidade
+Gatilho: Contraste numérico extremo (72h × 34s)`
+      },
+
+      // ───────── AD 02 — ALUCINAÇÃO ─────────
+      {
+        day: 'Ad 02',
+        date: 'Risco / Segurança',
+        kind: 'campanha',
+        theme: 'Alucinação de IA × Fundamentação Real',
+        format: 'Estático único 1:1 · Tráfego/Conversão · Funil meio',
+        slide: {
+          type: 'ad-alucinacao',
+          eyebrow: 'JUSPILOT · IA JURÍDICA',
+          title1: 'Outra IA inventou',
+          title2: 'jurisprudência?',
+          title3: 'O JusPilot não.',
+          subline: 'Base curada de STF, STJ, TJDFT, TJSP. Cada citação vem com link para o acórdão.',
+          proof: '20 salários-mínimos · TRT-2 · OAB-SP. As multas começaram.',
+          cta: 'TESTAR GRÁTIS'
+        },
+        caption: `Em 2026 já temos casos de multa por jurisprudência inventada por IA em todos esses tribunais: TRT-2, TJ-SC, TJ-GO, 2ª Vara Federal de Londrina. A Recomendação 001/2024 da OAB existe — e os juízes começaram a aplicar.
+
+O problema não é "usar IA". É usar IA generalista que não diferencia tribunal de blog jurídico.
+
+O JusPilot opera com base curada de STF, STJ, TJDFT, TJSP. Cada citação que aparece no Resumo vem com link direto para o acórdão. Você confere antes de submeter.
+
+Crie sua conta gratuita e teste com um processo seu hoje.
+
+[inserir link]
+
+— — — — META ADS — — — —
+Headline: A IA jurídica que respeita o ônus argumentativo.
+Description: Base curada dos tribunais. Cada citação com link para o acórdão. Trial gratuito.
+Botão: Cadastre-se
+
+Público: Sócios e gestores de operações · Médios escritórios (5–30 advogados)
+Objetivo: Trial direto · Cadastro na plataforma
+Ângulo: Risco / Segurança jurídica
+Gatilho: Notícia em alta (multas da OAB) + diferencial técnico`
+      },
+
+      // ───────── AD 03 — OUTPUTS ─────────
+      {
+        day: 'Ad 03',
+        date: 'Outputs do produto',
+        kind: 'campanha',
+        theme: 'Outputs do produto — o que você recebe',
+        format: 'Estático único 1:1 · Tráfego/Conversão · Funil meio–fundo',
+        slide: {
+          type: 'ad-outputs',
+          eyebrow: 'JUSPILOT · IA JURÍDICA',
+          title1: 'Anexe o processo.',
+          title2: 'Receba 5 análises.',
+          outputs: [
+            '01 · Resumo Analítico',
+            '02 · Linha do Tempo Processual',
+            '03 · Pontos Controvertidos e Riscos',
+            '04 · Jurisprudência Correlata',
+            '05 · Próximos Passos Estratégicos'
+          ],
+          subline: 'Em até 34 segundos. Com fundamentação dos tribunais.',
+          cta: 'CRIAR CONTA GRATUITA'
+        },
+        caption: `Você anexa o processo. O JusPilot devolve cinco análises estruturadas em até 34 segundos:
+
+→ Resumo Analítico da demanda
+→ Linha do Tempo Processual
+→ Pontos Controvertidos e Riscos da Demanda
+→ Jurisprudência Correlata real dos tribunais (com link para o acórdão)
+→ Próximos Passos Estratégicos
+
+Sua próxima petição começa com o trabalho braçal pronto.
+
+Teste hoje, sem cartão.
+
+[inserir link]
+
+— — — — META ADS — — — —
+Headline: 5 análises estruturadas. Em 34 segundos.
+Description: Resumo, linha do tempo, riscos, jurisprudência e estratégia. Anexe o processo.
+Botão: Experimentar
+
+Público: Sócios e gestores de operações · Médios escritórios (5–30 advogados)
+Objetivo: Trial direto · Cadastro na plataforma
+Ângulo: Demonstração de valor concreto
+Gatilho: Lista de entregáveis tangíveis · "o que recebo se assinar"`
+      },
+
+      // ───────── AD 04 — MANIFESTO ─────────
+      {
+        day: 'Ad 04',
+        date: 'Manifesto',
+        kind: 'campanha',
+        theme: 'Manifesto — decidir × procurar',
+        format: 'Estático único 1:1 · Tráfego/Conversão · Funil topo',
+        slide: {
+          type: 'ad-manifesto',
+          eyebrow: 'JUSPILOT',
+          line1: 'Advogados não deveriam',
+          line2: 'perder tempo',
+          line3: 'procurando informação.',
+          divider: 'Deveriam usar tempo',
+          highlight: 'tomando decisões.',
+          cta: 'CONHECER'
+        },
+        caption: `O que define o trabalho do advogado sócio? A tese. A estratégia. A leitura fina do caso. A decisão.
+
+E o que toma o tempo dele todo dia? Ler 800 páginas, marcar trecho, copiar para o Word, procurar jurisprudência em 4 bases.
+
+O JusPilot devolve o tempo da tese. Lê os autos integralmente, estrutura a análise, entrega Jurisprudência Correlata real dos tribunais — em até 34 segundos.
+
+Você decide com mais clareza. E mais rápido.
+
+Crie sua conta. Sem cartão.
+
+[inserir link]
+
+— — — — META ADS — — — —
+Headline: Decisão em vez de busca.
+Description: O JusPilot lê os autos. Você decide a tese. Trial gratuito.
+Botão: Cadastre-se
+
+Público: Sócios e gestores de operações · Médios escritórios (5–30 advogados)
+Objetivo: Trial direto · Cadastro na plataforma
+Ângulo: Posicionamento / identitário
+Gatilho: Frase-manifesto · identificação do sócio com o problema`
+      }
+    ]
   }
 };
 
@@ -738,6 +1069,135 @@ function JusPilotRender({ slide }) {
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', opacity: 0.5 }}>
           <span>juspilot.ai</span>
+        </div>
+      </div>
+    );
+  }
+
+  // AD 01 — VELOCIDADE
+  if (slide.type === 'ad-velocidade') {
+    return (
+      <div style={{ ...base, background: 'radial-gradient(circle at 75% 25%, #2a1810 0%, #101010 65%)' }}>
+        {logo}
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+          <div style={{ fontSize: '10px', letterSpacing: '0.25em', color: '#D97757', marginBottom: '14px', fontWeight: 700 }}>
+            {slide.eyebrow}
+          </div>
+          <h1 style={{ fontSize: '74px', fontWeight: 700, lineHeight: 0.92, margin: 0, letterSpacing: '-0.05em', color: '#FFFEEE', textShadow: '0 4px 30px rgba(217,119,87,0.15)' }}>
+            {slide.title1}
+          </h1>
+          <h2 style={{ fontSize: '56px', fontWeight: 400, lineHeight: 0.98, margin: '6px 0 22px 0', letterSpacing: '-0.04em', color: '#D97757', fontStyle: 'italic' }}>
+            {slide.title2}
+          </h2>
+          <p style={{ fontSize: '13.5px', lineHeight: 1.55, opacity: 0.85, margin: 0, maxWidth: '95%' }}>
+            {slide.subline}
+          </p>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span style={{ fontSize: '10.5px', opacity: 0.5 }}>juspilot.ai</span>
+          <div style={{ background: '#D97757', color: '#101010', borderRadius: '6px', padding: '11px 16px', fontSize: '11px', fontWeight: 800, letterSpacing: '0.1em', display: 'inline-flex', alignItems: 'center', gap: '7px' }}>
+            {slide.cta} <ArrowRight size={12} />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // AD 02 — ALUCINAÇÃO
+  if (slide.type === 'ad-alucinacao') {
+    return (
+      <div style={{ ...base, background: '#101010' }}>
+        <div style={{ position: 'absolute', top: '-10%', left: '-10%', width: '50%', height: '50%', background: 'radial-gradient(circle, rgba(220,38,38,0.18) 0%, transparent 65%)', filter: 'blur(40px)' }} />
+        {logo}
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', position: 'relative', zIndex: 1 }}>
+          <div style={{ fontSize: '10px', letterSpacing: '0.25em', color: '#D97757', marginBottom: '14px', fontWeight: 700 }}>
+            {slide.eyebrow}
+          </div>
+          <h2 style={{ fontSize: '32px', fontWeight: 500, lineHeight: 1.1, margin: 0, letterSpacing: '-0.02em', color: 'rgba(255,254,238,0.75)' }}>
+            {slide.title1}
+          </h2>
+          <h2 style={{ fontSize: '40px', fontWeight: 700, lineHeight: 1.05, margin: '2px 0 4px 0', letterSpacing: '-0.03em', color: '#FCA5A5' }}>
+            {slide.title2}
+          </h2>
+          <h1 style={{ fontSize: '34px', fontWeight: 600, lineHeight: 1.1, margin: '8px 0 18px 0', letterSpacing: '-0.02em', color: '#D97757' }}>
+            {slide.title3}
+          </h1>
+          <p style={{ fontSize: '12.5px', lineHeight: 1.55, opacity: 0.85, margin: '0 0 14px 0', maxWidth: '95%' }}>
+            {slide.subline}
+          </p>
+          <div style={{ display: 'inline-flex', alignSelf: 'flex-start', alignItems: 'center', gap: '8px', border: '1px solid rgba(252,165,165,0.3)', background: 'rgba(220,38,38,0.08)', borderRadius: '6px', padding: '8px 12px', fontSize: '11px', color: '#FCA5A5', fontWeight: 500 }}>
+            <AlertTriangle size={12} /> {slide.proof}
+          </div>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', zIndex: 1, position: 'relative' }}>
+          <span style={{ fontSize: '10.5px', opacity: 0.5 }}>juspilot.ai</span>
+          <div style={{ background: '#D97757', color: '#101010', borderRadius: '6px', padding: '11px 16px', fontSize: '11px', fontWeight: 800, letterSpacing: '0.1em', display: 'inline-flex', alignItems: 'center', gap: '7px' }}>
+            {slide.cta} <ArrowRight size={12} />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // AD 03 — OUTPUTS
+  if (slide.type === 'ad-outputs') {
+    return (
+      <div style={{ ...base, background: 'linear-gradient(160deg, #101010 0%, #1a0e09 100%)' }}>
+        {logo}
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+          <div style={{ fontSize: '10px', letterSpacing: '0.25em', color: '#D97757', marginBottom: '14px', fontWeight: 700 }}>
+            {slide.eyebrow}
+          </div>
+          <h2 style={{ fontSize: '30px', fontWeight: 500, lineHeight: 1.1, margin: 0, letterSpacing: '-0.02em' }}>
+            {slide.title1}
+          </h2>
+          <h1 style={{ fontSize: '38px', fontWeight: 700, lineHeight: 1.05, margin: '4px 0 18px 0', letterSpacing: '-0.03em', color: '#D97757' }}>
+            {slide.title2}
+          </h1>
+          <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 16px 0' }}>
+            {slide.outputs.map((o, i) => (
+              <li key={i} style={{ fontSize: '12px', padding: '7px 0', borderTop: i === 0 ? '1px solid rgba(217,119,87,0.25)' : 'none', borderBottom: '1px solid rgba(217,119,87,0.15)', display: 'flex', alignItems: 'center', gap: '10px', letterSpacing: '0.02em', fontWeight: 500 }}>
+                <span style={{ color: '#D97757', fontWeight: 700, minWidth: '24px' }}>{o.split(' · ')[0]}</span>
+                <span style={{ opacity: 0.9 }}>{o.split(' · ')[1]}</span>
+              </li>
+            ))}
+          </ul>
+          <p style={{ fontSize: '12px', lineHeight: 1.5, opacity: 0.75, margin: 0, fontStyle: 'italic' }}>
+            {slide.subline}
+          </p>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span style={{ fontSize: '10.5px', opacity: 0.5 }}>juspilot.ai</span>
+          <div style={{ background: '#D97757', color: '#101010', borderRadius: '6px', padding: '11px 16px', fontSize: '10.5px', fontWeight: 800, letterSpacing: '0.1em', display: 'inline-flex', alignItems: 'center', gap: '7px' }}>
+            {slide.cta} <ArrowRight size={12} />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // AD 04 — MANIFESTO
+  if (slide.type === 'ad-manifesto') {
+    return (
+      <div style={{ ...base, background: '#101010' }}>
+        <div style={{ position: 'absolute', top: '12%', bottom: '20%', left: '34px', width: '2px', background: 'linear-gradient(180deg, transparent, #D97757, transparent)', opacity: 0.5 }} />
+        {logo}
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', paddingLeft: '14px' }}>
+          <div style={{ fontSize: '10px', letterSpacing: '0.3em', color: '#D97757', marginBottom: '20px', fontWeight: 700 }}>
+            {slide.eyebrow}
+          </div>
+          <h2 style={{ fontSize: '26px', fontWeight: 400, lineHeight: 1.2, margin: 0, letterSpacing: '-0.02em', opacity: 0.7 }}>{slide.line1}</h2>
+          <h2 style={{ fontSize: '32px', fontWeight: 600, lineHeight: 1.15, margin: '2px 0', letterSpacing: '-0.02em', color: '#D97757' }}>{slide.line2}</h2>
+          <h2 style={{ fontSize: '26px', fontWeight: 400, lineHeight: 1.2, margin: '0 0 18px 0', letterSpacing: '-0.02em', opacity: 0.7 }}>{slide.line3}</h2>
+          <div style={{ height: '1px', width: '40px', background: '#D97757', marginBottom: '18px' }} />
+          <h2 style={{ fontSize: '26px', fontWeight: 400, lineHeight: 1.2, margin: 0, letterSpacing: '-0.02em' }}>{slide.divider}</h2>
+          <h1 style={{ fontSize: '34px', fontWeight: 700, lineHeight: 1.1, margin: '2px 0', letterSpacing: '-0.025em', color: '#D97757' }}>{slide.highlight}</h1>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span style={{ fontSize: '10.5px', opacity: 0.5 }}>juspilot.ai</span>
+          <div style={{ border: '1px solid #D97757', color: '#D97757', borderRadius: '6px', padding: '10px 16px', fontSize: '11px', fontWeight: 700, letterSpacing: '0.12em', display: 'inline-flex', alignItems: 'center', gap: '7px' }}>
+            {slide.cta} <ArrowRight size={12} />
+          </div>
         </div>
       </div>
     );
@@ -1303,6 +1763,184 @@ function EcosysRender({ slide }) {
   return <div style={base}>...</div>;
 }
 
+// ─── OCTAGYM ───
+function OctagymRender({ slide }) {
+  const base = {
+    width: '100%',
+    aspectRatio: '1 / 1',
+    background: '#0F0F13',
+    color: '#F4EFE5',
+    fontFamily: 'Geist, system-ui, sans-serif',
+    borderRadius: '14px',
+    padding: '36px 32px',
+    display: 'flex',
+    flexDirection: 'column',
+    position: 'relative',
+    overflow: 'hidden'
+  };
+
+  const Octagon = ({ size = 18, color = '#EF0A36' }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <path d="M7 2L17 2L22 7L22 17L17 22L7 22L2 17L2 7L7 2Z" stroke={color} strokeWidth="1.5" fill="none"/>
+      <path d="M9 5.5L15 5.5L18.5 9L18.5 15L15 18.5L9 18.5L5.5 15L5.5 9L9 5.5Z" stroke={color} strokeWidth="0.8" fill="none"/>
+    </svg>
+  );
+
+  const logo = (
+    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', position: 'relative', zIndex: 2 }}>
+      <Octagon />
+      <span>
+        <strong style={{ color: '#F4EFE5' }}>Octa</strong>
+        <span style={{ color: '#EF0A36', fontWeight: 700 }}>gym</span>
+        <span style={{ opacity: 0.55, fontWeight: 300 }}>.ai</span>
+      </span>
+    </div>
+  );
+
+  // Atmosfera "academia" — luz vermelha vinda de cima
+  const GymAtmosphere = () => (
+    <div style={{ position: 'absolute', inset: 0, opacity: 0.55 }}>
+      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '35%', background: 'radial-gradient(ellipse at center top, rgba(239,10,54,0.35), transparent 70%)' }}/>
+      <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '50%', background: 'linear-gradient(180deg, transparent, rgba(0,0,0,0.7))' }}/>
+      <svg style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '30%', opacity: 0.3 }} viewBox="0 0 400 120">
+        <line x1="0" y1="20" x2="400" y2="20" stroke="#EF0A36" strokeWidth="0.5"/>
+        <line x1="0" y1="50" x2="400" y2="50" stroke="#EF0A36" strokeWidth="0.5"/>
+        <line x1="80" y1="0" x2="80" y2="120" stroke="#EF0A36" strokeWidth="0.5"/>
+        <line x1="200" y1="0" x2="200" y2="120" stroke="#EF0A36" strokeWidth="0.5"/>
+        <line x1="320" y1="0" x2="320" y2="120" stroke="#EF0A36" strokeWidth="0.5"/>
+      </svg>
+    </div>
+  );
+
+  // POST 1 — LANÇAMENTO
+  if (slide.type === 'ogy-launch') {
+    return (
+      <div style={base}>
+        <GymAtmosphere />
+        {logo}
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', position: 'relative', zIndex: 2 }}>
+          <div style={{ display: 'inline-flex', alignSelf: 'flex-start', border: '1px solid rgba(239,10,54,0.55)', background: 'rgba(239,10,54,0.1)', borderRadius: '999px', padding: '5px 12px', fontSize: '9.5px', letterSpacing: '0.18em', fontWeight: 700, color: '#EF0A36', marginBottom: '20px' }}>
+            {slide.chip}
+          </div>
+          <h2 style={{ fontSize: '30px', fontWeight: 500, lineHeight: 1.1, margin: 0, letterSpacing: '-0.02em' }}>{slide.line1}</h2>
+          <h1 style={{ fontSize: '46px', fontWeight: 700, lineHeight: 1, margin: '2px 0 4px 0', letterSpacing: '-0.03em', color: '#EF0A36' }}>{slide.highlight}</h1>
+          <h2 style={{ fontSize: '24px', fontWeight: 500, lineHeight: 1.15, margin: '6px 0 0 0', letterSpacing: '-0.02em' }}>{slide.line2}</h2>
+          <h2 style={{ fontSize: '24px', fontWeight: 700, lineHeight: 1.15, margin: '0 0 18px 0', letterSpacing: '-0.02em' }}>{slide.line3}</h2>
+          <p style={{ fontSize: '13px', lineHeight: 1.55, margin: 0, opacity: 0.85, maxWidth: '95%' }}>{slide.subline}</p>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'relative', zIndex: 2 }}>
+          <div style={{ background: '#EF0A36', color: '#F4EFE5', borderRadius: '6px', padding: '9px 14px', fontSize: '10px', fontWeight: 800, letterSpacing: '0.12em', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+            {slide.cta} <ArrowRight size={11} />
+          </div>
+          <span style={{ fontSize: '9px', opacity: 0.55 }}>powered by <strong style={{ color: '#F4EFE5' }}>Octalab.ai</strong></span>
+        </div>
+      </div>
+    );
+  }
+
+  // POST 2 — PROVA
+  if (slide.type === 'ogy-proof') {
+    return (
+      <div style={{ ...base, background: 'linear-gradient(135deg, #0F0F13 0%, #1a0510 100%)' }}>
+        <div style={{ position: 'absolute', top: '-15%', right: '-15%', width: '60%', height: '60%', background: 'radial-gradient(circle, rgba(239,10,54,0.25) 0%, transparent 60%)', filter: 'blur(30px)', zIndex: 1 }}/>
+        {logo}
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', position: 'relative', zIndex: 2 }}>
+          <div style={{ display: 'inline-flex', alignSelf: 'flex-start', border: '1px solid rgba(239,10,54,0.55)', background: 'rgba(239,10,54,0.1)', borderRadius: '999px', padding: '5px 12px', fontSize: '9.5px', letterSpacing: '0.18em', fontWeight: 700, color: '#EF0A36', marginBottom: '18px' }}>
+            {slide.chip}
+          </div>
+          <div style={{ fontSize: '64px', fontWeight: 700, lineHeight: 0.95, margin: 0, letterSpacing: '-0.04em', color: '#F4EFE5', textShadow: '0 4px 30px rgba(239,10,54,0.25)' }}>
+            {slide.data}
+          </div>
+          <div style={{ fontSize: '14px', opacity: 0.85, margin: '6px 0 18px 0', fontWeight: 500 }}>{slide.label}</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '14px' }}>
+            <div style={{ height: '1px', flex: 1, background: 'rgba(239,10,54,0.4)' }}/>
+            <div style={{ fontSize: '11px', letterSpacing: '0.2em', fontWeight: 700, color: '#EF0A36', textTransform: 'uppercase' }}>{slide.divider}</div>
+            <div style={{ height: '1px', flex: 1, background: 'rgba(239,10,54,0.4)' }}/>
+          </div>
+          <h2 style={{ fontSize: '36px', fontWeight: 700, lineHeight: 1.05, margin: '0 0 18px 0', letterSpacing: '-0.03em', color: '#EF0A36' }}>{slide.highlight}</h2>
+          <p style={{ fontSize: '12.5px', lineHeight: 1.55, margin: 0, opacity: 0.85, maxWidth: '95%' }}>{slide.subline}</p>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'relative', zIndex: 2 }}>
+          <div style={{ background: '#EF0A36', color: '#F4EFE5', borderRadius: '6px', padding: '9px 14px', fontSize: '10px', fontWeight: 800, letterSpacing: '0.12em', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+            {slide.cta} <ArrowRight size={11} />
+          </div>
+          <span style={{ fontSize: '9px', opacity: 0.55 }}>powered by <strong style={{ color: '#F4EFE5' }}>Octalab.ai</strong></span>
+        </div>
+      </div>
+    );
+  }
+
+  // POST 3 — POSICIONAMENTO
+  if (slide.type === 'ogy-positioning') {
+    return (
+      <div style={{ ...base, background: '#F4EFE5', color: '#0F0F13' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', position: 'relative', zIndex: 2 }}>
+          <Octagon color="#EF0A36" />
+          <span>
+            <strong style={{ color: '#0F0F13' }}>Octa</strong>
+            <span style={{ color: '#EF0A36', fontWeight: 700 }}>gym</span>
+            <span style={{ opacity: 0.45, fontWeight: 300 }}>.ai</span>
+          </span>
+        </div>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', position: 'relative', zIndex: 2 }}>
+          <div style={{ fontSize: '10px', letterSpacing: '0.25em', color: '#EF0A36', marginBottom: '16px', fontWeight: 700 }}>{slide.eyebrow}</div>
+          <h1 style={{ fontSize: '44px', fontWeight: 600, lineHeight: 1, margin: 0, letterSpacing: '-0.03em', color: '#0F0F13' }}>{slide.title1}</h1>
+          <h1 style={{ fontSize: '44px', fontWeight: 700, lineHeight: 1, margin: '2px 0 18px 0', letterSpacing: '-0.03em', color: '#EF0A36' }}>{slide.title2}</h1>
+          <p style={{ fontSize: '13px', lineHeight: 1.55, margin: '0 0 20px 0', opacity: 0.78, maxWidth: '92%' }}>{slide.subline}</p>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+            {slide.modules.map((m, i) => (
+              <div key={i} style={{ background: i % 2 === 0 ? '#0F0F13' : '#EF0A36', color: '#F4EFE5', borderRadius: '999px', padding: '6px 12px', fontSize: '11px', fontWeight: 600, letterSpacing: '0.02em' }}>{m}</div>
+            ))}
+          </div>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'relative', zIndex: 2 }}>
+          <div style={{ background: '#0F0F13', color: '#F4EFE5', borderRadius: '6px', padding: '9px 14px', fontSize: '10px', fontWeight: 800, letterSpacing: '0.12em', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+            {slide.cta} <ArrowRight size={11} />
+          </div>
+          <span style={{ fontSize: '9px', opacity: 0.55 }}>powered by <strong style={{ color: '#0F0F13' }}>Octalab.ai</strong></span>
+        </div>
+      </div>
+    );
+  }
+
+  // POST 4 — MANIFESTO
+  if (slide.type === 'ogy-manifesto') {
+    return (
+      <div style={{ ...base, background: '#EF0A36', color: '#F4EFE5' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', position: 'relative', zIndex: 2 }}>
+          <Octagon color="#F4EFE5" />
+          <span>
+            <strong style={{ color: '#F4EFE5' }}>Octa</strong>
+            <span style={{ color: '#F4EFE5', fontWeight: 700, opacity: 0.75 }}>gym</span>
+            <span style={{ opacity: 0.55, fontWeight: 300 }}>.ai</span>
+          </span>
+        </div>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', position: 'relative', zIndex: 2 }}>
+          <h2 style={{ fontSize: '24px', fontWeight: 400, lineHeight: 1.15, margin: 0, letterSpacing: '-0.02em', opacity: 0.85 }}>{slide.line1}</h2>
+          <h2 style={{ fontSize: '24px', fontWeight: 400, lineHeight: 1.15, margin: '0 0 14px 0', letterSpacing: '-0.02em', opacity: 0.85 }}>{slide.line2}</h2>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', marginBottom: '18px' }}>
+            <h1 style={{ fontSize: '34px', fontWeight: 700, lineHeight: 1.05, margin: 0, letterSpacing: '-0.03em' }}>{slide.line3}</h1>
+            <h1 style={{ fontSize: '34px', fontWeight: 700, lineHeight: 1.05, margin: 0, letterSpacing: '-0.03em' }}>{slide.line4}</h1>
+            <h1 style={{ fontSize: '34px', fontWeight: 700, lineHeight: 1.05, margin: 0, letterSpacing: '-0.03em' }}>{slide.line5}</h1>
+            <h1 style={{ fontSize: '34px', fontWeight: 700, lineHeight: 1.05, margin: 0, letterSpacing: '-0.03em' }}>{slide.line6}</h1>
+          </div>
+          <div style={{ height: '1px', width: '50px', background: '#F4EFE5', opacity: 0.5, marginBottom: '14px' }}/>
+          <h2 style={{ fontSize: '22px', fontWeight: 400, lineHeight: 1.2, margin: 0, letterSpacing: '-0.02em', opacity: 0.85 }}>{slide.divider}</h2>
+          <h1 style={{ fontSize: '34px', fontWeight: 700, lineHeight: 1.05, margin: '2px 0', letterSpacing: '-0.03em', color: '#0F0F13' }}>{slide.highlight}</h1>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'relative', zIndex: 2 }}>
+          <div style={{ background: '#0F0F13', color: '#F4EFE5', borderRadius: '6px', padding: '9px 14px', fontSize: '10px', fontWeight: 800, letterSpacing: '0.12em', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+            {slide.cta} <ArrowRight size={11} />
+          </div>
+          <span style={{ fontSize: '9px', opacity: 0.6 }}>powered by <strong style={{ color: '#F4EFE5' }}>Octalab.ai</strong></span>
+        </div>
+      </div>
+    );
+  }
+
+  return <div style={base}>...</div>;
+}
+
 // ============================================================
 // ROTEADORES E COMPONENTES VISUAIS
 // ============================================================
@@ -1324,9 +1962,10 @@ function SlideImage({ src }) {
 
 function renderSlide(slide, brand) {
   if (slide.image) return <SlideImage src={slide.image} />;
-  if (brand === 'juspilot') return <JusPilotRender slide={slide} />;
+  if (brand === 'juspilot' || brand === 'juspilotTrafego') return <JusPilotRender slide={slide} />;
   if (brand === 'octalab') return <OctalabRender slide={slide} />;
   if (brand === 'ecosys') return <EcosysRender slide={slide} />;
+  if (brand === 'octagym') return <OctagymRender slide={slide} />;
 }
 
 function Carousel({ slides, brand }) {
@@ -1386,7 +2025,8 @@ function KindBadge({ kind }) {
   const map = {
     noticia: { label: 'NOTÍCIA · DESCOBERTA', icon: <Newspaper size={11} />, rgb: '10,10,10' },
     comercial: { label: 'COMERCIAL · ANÚNCIO', icon: <Megaphone size={11} />, rgb: '22,163,74' },
-    carrossel: { label: 'CARROSSEL · NOTÍCIA DESDOBRADA', icon: <Layers size={11} />, rgb: '124,58,237' }
+    carrossel: { label: 'CARROSSEL · NOTÍCIA DESDOBRADA', icon: <Layers size={11} />, rgb: '124,58,237' },
+    campanha: { label: 'CAMPANHA · TRÁFEGO', icon: <Target size={11} />, rgb: '217,119,87' }
   };
   const v = map[kind];
   return (
@@ -2044,8 +2684,8 @@ export default function App() {
             </div>
             <div style={{ fontSize: '11px', opacity: 0.6 }}>
               {(() => {
-                const labels = { noticia: 'notícia', comercial: 'comercial', carrossel: 'carrossel' };
-                const parts = ['noticia', 'comercial', 'carrossel']
+                const labels = { noticia: 'notícia', comercial: 'comercial', carrossel: 'carrossel', campanha: 'campanha' };
+                const parts = ['noticia', 'comercial', 'carrossel', 'campanha']
                   .map(k => { const c = brand.posts.filter(p => p.kind === k).length; return c ? `${c} ${labels[k]}` : null; })
                   .filter(Boolean);
                 return <><strong>{brand.posts.length} posts</strong>{parts.length ? ` · ${parts.join(' · ')}` : ''}</>;
@@ -2076,7 +2716,8 @@ export default function App() {
               { k: 'all', label: 'Todos' },
               { k: 'noticia', label: 'Notícia' },
               { k: 'comercial', label: 'Comercial' },
-              { k: 'carrossel', label: 'Carrossel' }
+              { k: 'carrossel', label: 'Carrossel' },
+              { k: 'campanha', label: 'Campanha' }
             ].map(({ k, label }) => (
               <button
                 key={k}
