@@ -2373,7 +2373,7 @@ export default function App() {
             Painel de Conteúdos
           </h1>
           <button
-            onClick={() => setView('content')}
+            onClick={() => setView('select')}
             style={{
               marginTop: '20px',
               background: '#0a0a0a',
@@ -2405,6 +2405,161 @@ export default function App() {
           >
             Painel admin
           </button>
+        </div>
+      </div>
+    );
+  }
+
+  // ─── SELEÇÃO DE MARCA ───
+  if (view === 'select') {
+    return (
+      <div style={{
+        minHeight: '100vh',
+        background: '#ffffff',
+        color: '#0a0a0a',
+        fontFamily: 'Geist, -apple-system, BlinkMacSystemFont, system-ui, sans-serif',
+        padding: 'clamp(28px, 6vh, 64px) 24px',
+        display: 'flex', flexDirection: 'column', alignItems: 'center'
+      }}>
+        {/* Cabeçalho */}
+        <div style={{
+          width: '100%', maxWidth: '960px',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          marginBottom: 'clamp(28px, 5vh, 56px)'
+        }}>
+          <button
+            onClick={() => setView('landing')}
+            style={{
+              background: 'none', border: 'none', cursor: 'pointer',
+              color: '#0a0a0a', opacity: 0.55,
+              display: 'inline-flex', alignItems: 'center', gap: '5px',
+              fontSize: '12px', fontWeight: 500, padding: 0
+            }}
+          >
+            <ChevronLeft size={14} /> Voltar
+          </button>
+          <button
+            onClick={() => setView('admin')}
+            style={{
+              background: 'none', border: 'none', cursor: 'pointer',
+              color: '#0a0a0a', opacity: 0.45, fontSize: '12px',
+              textDecoration: 'underline'
+            }}
+          >
+            Painel admin
+          </button>
+        </div>
+
+        {/* Título */}
+        <div style={{ textAlign: 'center', marginBottom: 'clamp(28px, 4vh, 44px)' }}>
+          <h1 style={{
+            fontSize: 'clamp(32px, 5vw, 52px)',
+            fontWeight: 600, margin: 0,
+            letterSpacing: '-0.03em', lineHeight: 1.05
+          }}>
+            Escolha uma marca
+          </h1>
+          <p style={{ fontSize: '14px', opacity: 0.55, margin: '12px 0 0 0' }}>
+            Selecione a marca para ver seus conteúdos.
+          </p>
+        </div>
+
+        {/* Grid de cards */}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))',
+          gap: '20px',
+          width: '100%',
+          maxWidth: '880px'
+        }}>
+          {Object.entries(clients).map(([key, c]) => {
+            const disabled = c.comingSoon;
+            return (
+              <button
+                key={key}
+                onClick={() => {
+                  if (disabled) return;
+                  setActiveBrand(key);
+                  setActiveDay('all');
+                  setActiveKind('all');
+                  setView('content');
+                }}
+                disabled={disabled}
+                title={disabled ? 'Conteúdo em breve' : undefined}
+                onMouseEnter={e => {
+                  if (disabled) return;
+                  e.currentTarget.style.transform = 'translateY(-4px)';
+                  e.currentTarget.style.boxShadow = '0 6px 16px rgba(0,0,0,0.08), 0 18px 36px rgba(0,0,0,0.10)';
+                }}
+                onMouseLeave={e => {
+                  if (disabled) return;
+                  e.currentTarget.style.transform = 'none';
+                  e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.05), 0 8px 24px rgba(0,0,0,0.06)';
+                }}
+                style={{
+                  aspectRatio: '1 / 1',
+                  background: c.bg,
+                  color: c.text,
+                  borderRadius: '24px',
+                  border: 'none',
+                  padding: '26px',
+                  display: 'flex', flexDirection: 'column',
+                  justifyContent: 'space-between',
+                  textAlign: 'left',
+                  cursor: disabled ? 'not-allowed' : 'pointer',
+                  opacity: disabled ? 0.45 : 1,
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.05), 0 8px 24px rgba(0,0,0,0.06)',
+                  transition: 'transform 0.2s cubic-bezier(0.4,0,0.2,1), box-shadow 0.2s ease',
+                  position: 'relative', overflow: 'hidden',
+                  font: 'inherit'
+                }}
+              >
+                {/* Topo: pontinho da marca + posts/em-breve */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span style={{
+                    width: '14px', height: '14px', borderRadius: '50%',
+                    background: c.accent,
+                    boxShadow: `0 0 14px ${c.accent}aa`
+                  }} />
+                  {disabled ? (
+                    <span style={{
+                      fontSize: '9.5px', fontWeight: 700, letterSpacing: '0.12em',
+                      textTransform: 'uppercase',
+                      background: 'rgba(255,255,255,0.10)',
+                      border: '1px solid rgba(255,255,255,0.18)',
+                      padding: '4px 10px', borderRadius: '999px'
+                    }}>em breve</span>
+                  ) : (
+                    <span style={{ fontSize: '11px', opacity: 0.6 }}>
+                      {c.posts.length} {c.posts.length === 1 ? 'post' : 'posts'}
+                    </span>
+                  )}
+                </div>
+
+                {/* Base: nome + tagline + seta */}
+                <div>
+                  <h3 style={{
+                    fontSize: 'clamp(22px, 2.6vw, 28px)',
+                    fontWeight: 600, margin: '0 0 8px 0',
+                    letterSpacing: '-0.02em', lineHeight: 1.1
+                  }}>
+                    {c.name}
+                  </h3>
+                  <p style={{ fontSize: '12.5px', opacity: 0.65, margin: '0 0 16px 0', lineHeight: 1.4 }}>
+                    {c.tagline}
+                  </p>
+                  {!disabled && (
+                    <div style={{
+                      display: 'inline-flex', alignItems: 'center', gap: '6px',
+                      fontSize: '12px', fontWeight: 600, opacity: 0.85
+                    }}>
+                      Acessar <ArrowRight size={13} />
+                    </div>
+                  )}
+                </div>
+              </button>
+            );
+          })}
         </div>
       </div>
     );
@@ -2571,7 +2726,7 @@ export default function App() {
         <div style={{ maxWidth: '1280px', margin: '0 auto' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '18px' }}>
             <button
-              onClick={() => setView('landing')}
+              onClick={() => setView('select')}
               style={{
                 background: 'none', border: 'none', cursor: 'pointer',
                 color: '#fafafa', opacity: 0.55,
