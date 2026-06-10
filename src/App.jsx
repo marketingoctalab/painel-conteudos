@@ -2814,6 +2814,159 @@ function AdminGate({ expected, onSuccess, onCancel }) {
   );
 }
 
+// Selo de status (pendente / aprovado / reprovado)
+function StatusBadge({ status }) {
+  const map = {
+    approved: { label: 'Aprovado', bg: '#dcfce7', color: '#166534' },
+    reproved: { label: 'Reprovado', bg: '#fee2e2', color: '#b91c1c' },
+    pending: { label: 'Pendente', bg: '#f1f5f9', color: '#64748b' }
+  };
+  const v = map[status] || map.pending;
+  return (
+    <span style={{ background: v.bg, color: v.color, padding: '3px 10px', borderRadius: '999px', fontSize: '11px', fontWeight: 700, whiteSpace: 'nowrap' }}>
+      {v.label}
+    </span>
+  );
+}
+
+// Barra de progresso de aprovação: verde = aprovado, vermelho = reprovado, resto = pendente
+function ProgressBar({ approved, reproved, total, height = 10 }) {
+  const pct = (n) => (total ? (n / total) * 100 : 0);
+  return (
+    <div style={{ display: 'flex', height: `${height}px`, borderRadius: '999px', overflow: 'hidden', background: 'rgba(0,0,0,0.07)' }}>
+      <div style={{ width: `${pct(approved)}%`, background: STATUS_COLOR.approved, transition: 'width 0.45s ease' }} />
+      <div style={{ width: `${pct(reproved)}%`, background: STATUS_COLOR.reproved, transition: 'width 0.45s ease' }} />
+    </div>
+  );
+}
+
+// Aviso flutuante (substitui window.alert) — some sozinho
+function Toast({ message, onClose }) {
+  useEffect(() => {
+    const t = setTimeout(onClose, 3500);
+    return () => clearTimeout(t);
+  }, [message]); // eslint-disable-line react-hooks/exhaustive-deps
+  if (!message) return null;
+  return (
+    <div style={{ position: 'fixed', bottom: '24px', left: '50%', transform: 'translateX(-50%)', background: '#0a0a0a', color: '#fafafa', padding: '13px 22px', borderRadius: '12px', fontSize: '13px', fontWeight: 500, boxShadow: '0 12px 36px rgba(0,0,0,0.32)', zIndex: 1000, maxWidth: '90vw', textAlign: 'center' }}>
+      {message}
+    </div>
+  );
+}
+
+// Diálogo de confirmação no estilo do painel (substitui window.confirm)
+function ConfirmDialog({ message, confirmLabel = 'Confirmar', onConfirm, onClose }) {
+  return (
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px', zIndex: 1001, fontFamily: 'Geist, -apple-system, BlinkMacSystemFont, system-ui, sans-serif' }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: '18px', maxWidth: '380px', width: '100%', padding: '26px', boxShadow: '0 24px 60px rgba(0,0,0,0.3)' }}>
+        <div style={{ width: '42px', height: '42px', borderRadius: '12px', background: '#fef2f2', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginBottom: '14px' }}>
+          <AlertTriangle size={20} color="#dc2626" />
+        </div>
+        <p style={{ fontSize: '14.5px', color: '#0a0a0a', lineHeight: 1.5, margin: '0 0 22px' }}>{message}</p>
+        <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+          <button onClick={onClose} style={{ background: 'rgba(0,0,0,0.05)', border: '1px solid rgba(0,0,0,0.1)', color: 'rgba(0,0,0,0.7)', borderRadius: '10px', padding: '10px 16px', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>Cancelar</button>
+          <button onClick={() => { onConfirm(); onClose(); }} style={{ background: '#dc2626', border: 'none', color: '#fff', borderRadius: '10px', padding: '10px 16px', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>{confirmLabel}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Um conteúdo na lista do admin: miniatura, status, aprovar/reprovar inline, agenda e upload de criativos
+function AdminItem({ it, scheduledDate, urls = [], uploading, onReview, onUpload, onRemove }) {
+  const [showReprove, setShowReprove] = useState(false);
+  const [draft, setDraft] = useState('');
+  const hasUpload = urls.length > 0;
+  const thumb = hasUpload ? urls[0] : it.image;       // upload tem prioridade; senão usa o criativo padrão
+  const count = hasUpload ? urls.length : it.defaultCount;
+
+  const approve = () => onReview(it.id, { status: 'approved', suggestion: '' });
+  const undo = () => { onReview(it.id, { status: 'pending', suggestion: '' }); setShowReprove(false); setDraft(''); };
+  const sendReprove = () => { onReview(it.id, { status: 'reproved', suggestion: draft.trim() }); setShowReprove(false); setDraft(''); };
+
+  const actionBtn = (bg, color, border) => ({
+    display: 'inline-flex', alignItems: 'center', gap: '5px',
+    background: bg, color, border: border || 'none',
+    borderRadius: '999px', padding: '7px 13px', fontSize: '12px', fontWeight: 600, cursor: 'pointer'
+  });
+
+  return (
+    <div
+      style={{ background: '#fff', borderRadius: '16px', border: '1px solid rgba(0,0,0,0.06)', borderLeft: `3px solid ${STATUS_COLOR[it.status]}`, boxShadow: '0 1px 2px rgba(0,0,0,0.04)', padding: '16px 18px', transition: 'box-shadow 0.18s ease' }}
+      onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 6px 22px rgba(0,0,0,0.08)'; }}
+      onMouseLeave={e => { e.currentTarget.style.boxShadow = '0 1px 2px rgba(0,0,0,0.04)'; }}
+    >
+      <div style={{ display: 'flex', gap: '14px', alignItems: 'flex-start' }}>
+        {!it.comingSoon && (
+          <div style={{ position: 'relative', flexShrink: 0, width: '58px', height: '58px', borderRadius: '10px', overflow: 'hidden', background: thumb ? '#101010' : 'rgba(0,0,0,0.04)', border: '1px solid rgba(0,0,0,0.07)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            {thumb ? <img src={thumb} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <Layers size={18} color="rgba(0,0,0,0.25)" />}
+            {count > 1 && (
+              <span style={{ position: 'absolute', bottom: '2px', right: '2px', background: 'rgba(0,0,0,0.7)', color: '#fff', fontSize: '9.5px', fontWeight: 700, borderRadius: '5px', padding: '1px 5px' }}>+{count - 1}</span>
+            )}
+          </div>
+        )}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px' }}>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: '10.5px', color: 'rgba(0,0,0,0.45)', fontWeight: 600, marginBottom: '3px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                {it.day} · {KIND_LABEL[it.kind] || it.kind}
+              </div>
+              <div style={{ fontSize: '14.5px', fontWeight: 600, color: '#0a0a0a', lineHeight: 1.35 }}>{it.theme}</div>
+            </div>
+            <StatusBadge status={it.status} />
+          </div>
+
+          {it.comingSoon ? (
+            <div style={{ marginTop: '10px', fontSize: '12px', color: 'rgba(0,0,0,0.4)', fontWeight: 600 }}>Em breve</div>
+          ) : (
+            <>
+              {/* Ações de aprovação */}
+              <div style={{ marginTop: '12px', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                {it.status !== 'approved' && (
+                  <button onClick={approve} style={actionBtn('rgba(22,163,74,0.1)', '#15803d', '1px solid rgba(22,163,74,0.25)')}><Check size={13} /> Aprovar</button>
+                )}
+                {it.status !== 'reproved' && (
+                  <button onClick={() => setShowReprove(v => !v)} style={actionBtn('rgba(220,38,38,0.08)', '#b91c1c', '1px solid rgba(220,38,38,0.22)')}><X size={13} /> Reprovar</button>
+                )}
+                {it.status !== 'pending' && (
+                  <button onClick={undo} style={{ background: 'none', border: 'none', color: 'rgba(0,0,0,0.5)', fontSize: '11.5px', cursor: 'pointer', textDecoration: 'underline' }}>desfazer</button>
+                )}
+                <span style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '11.5px', fontWeight: 600, color: scheduledDate ? '#0a0a0a' : 'rgba(0,0,0,0.4)' }}>
+                  <Calendar size={12} /> {scheduledDate ? `Agendado · ${ddmm(scheduledDate)}` : 'Não agendado'}
+                </span>
+              </div>
+
+              {showReprove && (
+                <div style={{ marginTop: '12px' }}>
+                  <textarea
+                    value={draft}
+                    onChange={e => setDraft(e.target.value)}
+                    placeholder="O que precisa ser ajustado neste conteúdo?"
+                    rows={2}
+                    style={{ width: '100%', boxSizing: 'border-box', resize: 'vertical', borderRadius: '10px', border: '1px solid rgba(0,0,0,0.14)', padding: '10px 12px', fontSize: '13px', fontFamily: 'inherit', outline: 'none' }}
+                  />
+                  <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
+                    <button disabled={!draft.trim()} onClick={sendReprove} style={{ ...actionBtn('#dc2626', '#fff'), opacity: draft.trim() ? 1 : 0.4, cursor: draft.trim() ? 'pointer' : 'not-allowed' }}>Enviar reprovação</button>
+                    <button onClick={() => { setShowReprove(false); setDraft(''); }} style={actionBtn('rgba(0,0,0,0.05)', 'rgba(0,0,0,0.6)', '1px solid rgba(0,0,0,0.1)')}>Cancelar</button>
+                  </div>
+                </div>
+              )}
+
+              {it.status === 'reproved' && it.suggestion && !showReprove && (
+                <div style={{ marginTop: '12px', background: '#fef2f2', borderRadius: '8px', padding: '10px 12px', fontSize: '12.5px', color: 'rgba(0,0,0,0.7)', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>
+                  <strong style={{ color: '#b91c1c' }}>Comentário:</strong> {it.suggestion}
+                </div>
+              )}
+
+              <CreativeUploader id={it.id} urls={urls} uploading={uploading} onUpload={onUpload} onRemove={onRemove} />
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ============================================================
 // APP PRINCIPAL
 // ============================================================
@@ -2830,6 +2983,13 @@ export default function App() {
   const [calBrand, setCalBrand] = useState('all'); // filtro de marca no calendário
   const [selectedDay, setSelectedDay] = useState(null); // dia aberto no calendário público (ver/aprovar)
   const [adminDay, setAdminDay] = useState(null); // dia aberto no admin (montar/atribuir conteúdos)
+  const [adminFilter, setAdminFilter] = useState('all'); // filtro de status no admin
+  const [adminSearch, setAdminSearch] = useState(''); // busca por tema/marca no admin
+  const [toast, setToast] = useState(null); // aviso flutuante
+  const [confirmBox, setConfirmBox] = useState(null); // { message, confirmLabel, onConfirm }
+
+  const notify = (message) => setToast(message);
+  const askConfirm = (message, onConfirm, confirmLabel) => setConfirmBox({ message, onConfirm, confirmLabel });
 
   // Carrega as avaliações do Supabase e escuta mudanças em tempo real
   useEffect(() => {
@@ -2874,11 +3034,12 @@ export default function App() {
     });
   };
 
-  const resetReviews = async () => {
-    if (!window.confirm('Tem certeza? Isso vai apagar TODAS as aprovações e reprovações.')) return;
-    setReviews({});
-    if (!supabaseReady) return;
-    await supabase.from('reviews').delete().neq('id', '');
+  const resetReviews = () => {
+    askConfirm('Tem certeza? Isso vai apagar TODAS as aprovações e reprovações.', async () => {
+      setReviews({});
+      if (!supabaseReady) return;
+      await supabase.from('reviews').delete().neq('id', '');
+    }, 'Resetar tudo');
   };
 
   // Carrega os agendamentos do Supabase e escuta mudanças em tempo real
@@ -2979,7 +3140,7 @@ export default function App() {
     const list = Array.from(files || []).filter(f => f && f.type.startsWith('image/'));
     if (!list.length) return;
     if (!supabaseReady) {
-      window.alert('Supabase não configurado — não foi possível subir o criativo.');
+      notify('Supabase não configurado — não foi possível subir o criativo.');
       return;
     }
     setUploadingId(id);
@@ -2996,11 +3157,12 @@ export default function App() {
         if (data?.publicUrl) uploaded.push(data.publicUrl);
       }
       if (!uploaded.length) {
-        window.alert('Falha ao subir os criativos. Verifique se o bucket "creatives" existe e é público.');
+        notify('Falha ao subir os criativos. Verifique se o bucket "creatives" existe e é público.');
         return;
       }
       const current = creatives[id] || [];
       await setCreativeUrls(id, append ? [...current, ...uploaded] : uploaded);
+      notify(uploaded.length > 1 ? `${uploaded.length} criativos enviados.` : 'Criativo enviado.');
     } finally {
       setUploadingId(null);
     }
@@ -3393,7 +3555,10 @@ export default function App() {
           theme: post.theme, kind: post.kind, day: post.day,
           comingSoon: !!c.comingSoon,
           status: r.status || 'pending',
-          suggestion: r.suggestion || ''
+          suggestion: r.suggestion || '',
+          // criativo padrão da marca (imagem em /public), usado como miniatura quando não há upload
+          image: post.slide?.image || post.slides?.[0]?.image || null,
+          defaultCount: post.slides?.length || 1
         };
       })
     );
@@ -3401,22 +3566,22 @@ export default function App() {
     const approved = allItems.filter(it => it.status === 'approved').length;
     const reproved = allItems.filter(it => it.status === 'reproved').length;
     const pending = allItems.filter(it => it.status === 'pending').length;
+    const donePct = total ? Math.round(((approved + reproved) / total) * 100) : 0;
 
-    const statusBadge = (status) => {
-      const map = {
-        approved: { label: 'Aprovado', bg: '#dcfce7', color: '#166534' },
-        reproved: { label: 'Reprovado', bg: '#fee2e2', color: '#b91c1c' },
-        pending: { label: 'Pendente', bg: '#f1f5f9', color: '#64748b' }
-      };
-      const v = map[status];
-      return (
-        <span style={{
-          background: v.bg, color: v.color,
-          padding: '3px 10px', borderRadius: '999px',
-          fontSize: '11px', fontWeight: 700, whiteSpace: 'nowrap'
-        }}>{v.label}</span>
-      );
-    };
+    // Filtro de status + busca
+    const q = adminSearch.trim().toLowerCase();
+    const filtered = allItems.filter(it => {
+      if (adminFilter !== 'all' && it.status !== adminFilter) return false;
+      if (q && !`${it.theme} ${it.brandName} ${KIND_LABEL[it.kind] || it.kind}`.toLowerCase().includes(q)) return false;
+      return true;
+    });
+
+    const filterPills = [
+      ['all', 'Todos', total],
+      ['pending', 'Pendentes', pending],
+      ['approved', 'Aprovados', approved],
+      ['reproved', 'Reprovados', reproved]
+    ];
 
     const Stat = ({ label, value, color }) => (
       <div style={{
@@ -3453,21 +3618,34 @@ export default function App() {
               <h1 style={{ fontSize: '34px', fontWeight: 600, margin: 0, letterSpacing: '-0.03em' }}>
                 Painel Admin
               </h1>
-              <button
-                onClick={resetReviews}
-                style={{
-                  background: 'rgba(252,165,165,0.10)',
-                  backdropFilter: 'blur(12px) saturate(180%)',
-                  WebkitBackdropFilter: 'blur(12px) saturate(180%)',
-                  color: '#fca5a5',
-                  border: '1px solid rgba(252,165,165,0.28)', cursor: 'pointer',
-                  borderRadius: '999px', padding: '9px 16px',
-                  fontSize: '12.5px', fontWeight: 600,
-                  display: 'inline-flex', alignItems: 'center', gap: '7px'
-                }}
-              >
-                <X size={14} /> Resetar avaliações
-              </button>
+              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                <button
+                  onClick={resetReviews}
+                  style={{
+                    background: 'rgba(252,165,165,0.10)',
+                    backdropFilter: 'blur(12px) saturate(180%)',
+                    WebkitBackdropFilter: 'blur(12px) saturate(180%)',
+                    color: '#fca5a5',
+                    border: '1px solid rgba(252,165,165,0.28)', cursor: 'pointer',
+                    borderRadius: '999px', padding: '9px 16px',
+                    fontSize: '12.5px', fontWeight: 600,
+                    display: 'inline-flex', alignItems: 'center', gap: '7px'
+                  }}
+                >
+                  <X size={14} /> Resetar avaliações
+                </button>
+                <button
+                  onClick={() => setView('select')}
+                  style={{
+                    ...glassDark, cursor: 'pointer', color: '#fafafa',
+                    borderRadius: '999px', padding: '9px 16px',
+                    fontSize: '12.5px', fontWeight: 600,
+                    display: 'inline-flex', alignItems: 'center', gap: '7px'
+                  }}
+                >
+                  <Lock size={13} /> Travar
+                </button>
+              </div>
             </div>
             <p style={{ fontSize: '13.5px', opacity: 0.6, marginTop: '8px' }}>
               Status de aprovação e comentários de cada conteúdo.
@@ -3491,64 +3669,83 @@ export default function App() {
             />
           </div>
 
-          {/* RESUMO */}
-          <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap', marginBottom: '32px' }}>
-            <Stat label="Total" value={total} color="#0a0a0a" />
-            <Stat label="Aprovados" value={approved} color="#16a34a" />
-            <Stat label="Reprovados" value={reproved} color="#dc2626" />
-            <Stat label="Pendentes" value={pending} color="#64748b" />
+          {/* DASHBOARD: progresso geral + números */}
+          <div style={{ background: '#fff', borderRadius: '18px', border: '1px solid rgba(0,0,0,0.06)', boxShadow: '0 1px 3px rgba(0,0,0,0.04), 0 6px 20px rgba(0,0,0,0.05)', padding: '24px', marginBottom: '24px' }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '12px', marginBottom: '14px', flexWrap: 'wrap' }}>
+              <h2 style={{ fontSize: '18px', fontWeight: 700, margin: 0, letterSpacing: '-0.01em' }}>Andamento da revisão</h2>
+              <div style={{ fontSize: '13px', color: 'rgba(0,0,0,0.55)', fontWeight: 600 }}>
+                {approved + reproved}/{total} revisados · <span style={{ color: '#0a0a0a' }}>{donePct}%</span>
+              </div>
+            </div>
+            <ProgressBar approved={approved} reproved={reproved} total={total} height={12} />
+            <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap', marginTop: '20px' }}>
+              <Stat label="Total" value={total} color="#0a0a0a" />
+              <Stat label="Aprovados" value={approved} color="#16a34a" />
+              <Stat label="Reprovados" value={reproved} color="#dc2626" />
+              <Stat label="Pendentes" value={pending} color="#64748b" />
+            </div>
           </div>
 
-          {/* LISTA POR MARCA */}
-          {Object.entries(clients).map(([brandKey, c]) => {
-            const items = allItems.filter(it => it.brandKey === brandKey);
+          {/* FILTROS + BUSCA */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', marginBottom: '22px' }}>
+            <div style={{ display: 'flex', gap: '7px', flexWrap: 'wrap' }}>
+              {filterPills.map(([k, label, count]) => {
+                const on = adminFilter === k;
+                return (
+                  <button key={k} onClick={() => setAdminFilter(k)} style={{
+                    display: 'inline-flex', alignItems: 'center', gap: '6px',
+                    background: on ? '#0a0a0a' : 'rgba(0,0,0,0.04)', color: on ? '#fff' : 'rgba(0,0,0,0.65)',
+                    border: '1px solid ' + (on ? '#0a0a0a' : 'rgba(0,0,0,0.08)'),
+                    borderRadius: '999px', padding: '7px 14px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.18s ease'
+                  }}>
+                    {label}
+                    <span style={{ background: on ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.07)', borderRadius: '999px', padding: '0 7px', fontSize: '11px', fontWeight: 700 }}>{count}</span>
+                  </button>
+                );
+              })}
+            </div>
+            <div style={{ position: 'relative', flex: '1 1 220px', maxWidth: '300px' }}>
+              <input
+                value={adminSearch}
+                onChange={e => setAdminSearch(e.target.value)}
+                placeholder="Buscar por tema ou marca…"
+                style={{ width: '100%', boxSizing: 'border-box', padding: '9px 14px 9px 14px', borderRadius: '999px', border: '1px solid rgba(0,0,0,0.12)', background: '#fff', fontSize: '12.5px', outline: 'none', fontFamily: 'inherit' }}
+              />
+            </div>
+          </div>
+
+          {/* LISTA POR MARCA (com filtro/busca aplicados) */}
+          {filtered.length === 0 ? (
+            <div style={{ textAlign: 'center', color: 'rgba(0,0,0,0.45)', fontSize: '14px', padding: '48px 0' }}>
+              Nenhum conteúdo encontrado com esse filtro.
+            </div>
+          ) : Object.entries(clients).map(([brandKey, c]) => {
+            const items = filtered.filter(it => it.brandKey === brandKey);
+            if (items.length === 0) return null;
+            const bAppr = items.filter(it => it.status === 'approved').length;
+            const bRepr = items.filter(it => it.status === 'reproved').length;
             return (
-              <div key={brandKey} style={{ marginBottom: '32px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px' }}>
+              <div key={brandKey} style={{ marginBottom: '34px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '14px' }}>
                   <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: c.accent }} />
                   <h2 style={{ fontSize: '18px', fontWeight: 700, margin: 0, letterSpacing: '-0.01em' }}>{c.name}</h2>
+                  <span style={{ fontSize: '12px', color: 'rgba(0,0,0,0.4)', fontWeight: 600 }}>{items.length} {items.length === 1 ? 'conteúdo' : 'conteúdos'}</span>
+                  <div style={{ flex: 1, maxWidth: '180px', marginLeft: 'auto' }}>
+                    <ProgressBar approved={bAppr} reproved={bRepr} total={items.length} height={6} />
+                  </div>
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                   {items.map(it => (
-                    <div key={it.id} style={{
-                      ...glassLight, borderRadius: '14px', padding: '16px 18px'
-                    }}>
-                      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px' }}>
-                        <div>
-                          <div style={{ fontSize: '11px', color: 'rgba(0,0,0,0.45)', fontWeight: 600, marginBottom: '3px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                            {it.day} · {it.kind}
-                          </div>
-                          <div style={{ fontSize: '14.5px', fontWeight: 600, color: '#0a0a0a', lineHeight: 1.35 }}>
-                            {it.theme}
-                          </div>
-                        </div>
-                        {statusBadge(it.status)}
-                      </div>
-                      {it.status === 'reproved' && it.suggestion && (
-                        <div style={{
-                          marginTop: '12px', background: '#fef2f2', borderRadius: '8px',
-                          padding: '10px 12px', fontSize: '12.5px', color: 'rgba(0,0,0,0.7)',
-                          lineHeight: 1.5, whiteSpace: 'pre-wrap'
-                        }}>
-                          <strong style={{ color: '#b91c1c' }}>Comentário:</strong> {it.suggestion}
-                        </div>
-                      )}
-                      {!it.comingSoon && (
-                        <div style={{ marginTop: '10px', display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '11.5px', fontWeight: 600, color: schedule[it.id] ? '#0a0a0a' : 'rgba(0,0,0,0.4)' }}>
-                          <Calendar size={12} />
-                          {schedule[it.id] ? `Agendado · ${ddmm(schedule[it.id])}` : 'Não agendado'}
-                        </div>
-                      )}
-                      {!it.comingSoon && (
-                        <CreativeUploader
-                          id={it.id}
-                          urls={creatives[it.id]}
-                          uploading={uploadingId === it.id}
-                          onUpload={uploadCreatives}
-                          onRemove={removeCreativeAt}
-                        />
-                      )}
-                    </div>
+                    <AdminItem
+                      key={it.id}
+                      it={it}
+                      scheduledDate={schedule[it.id]}
+                      urls={creatives[it.id]}
+                      uploading={uploadingId === it.id}
+                      onReview={setReview}
+                      onUpload={uploadCreatives}
+                      onRemove={removeCreativeAt}
+                    />
                   ))}
                 </div>
               </div>
@@ -3565,6 +3762,16 @@ export default function App() {
             onClose={() => setAdminDay(null)}
           />
         )}
+
+        {confirmBox && (
+          <ConfirmDialog
+            message={confirmBox.message}
+            confirmLabel={confirmBox.confirmLabel}
+            onConfirm={confirmBox.onConfirm}
+            onClose={() => setConfirmBox(null)}
+          />
+        )}
+        {toast && <Toast message={toast} onClose={() => setToast(null)} />}
       </div>
     );
   }
