@@ -2069,39 +2069,34 @@ function TagChips({ tags, dark }) {
   );
 }
 
-// Renderiza o criativo do post. Se o admin subiu criativos (customSlides),
-// eles têm prioridade sobre o criativo padrão da marca. 1 imagem = capa única; várias = carrossel.
+// Renderiza o criativo do post. Só mostra imagem real quando o admin subiu
+// um criativo do computador (customSlides). Sem upload → placeholder "criativo a subir".
 function PostCreative({ post, brand, customSlides, portrait }) {
   const custom = customSlides && customSlides.length ? customSlides.map(u => ({ image: u })) : null;
-  const builtinSlides = (!custom && post.kind === 'carrossel' && post.slides) ? post.slides : null;
-  const slides = custom
-    ? (custom.length > 1 ? custom : null)         // 1 upload = capa única; vários = carrossel
-    : builtinSlides;
 
-  if (slides) {
-    return portrait
-      ? <div style={{ width: '100%', maxWidth: '400px' }}><Carousel slides={slides} brand={brand} portrait /></div>
-      : <Carousel slides={slides} brand={brand} />;
+  if (custom) {
+    if (custom.length > 1) {  // vários uploads = carrossel
+      return portrait
+        ? <div style={{ width: '100%', maxWidth: '400px' }}><Carousel slides={custom} brand={brand} portrait /></div>
+        : <Carousel slides={custom} brand={brand} />;
+    }
+    return portrait    // 1 upload = capa única
+      ? <div style={{ width: '100%', maxWidth: '320px', aspectRatio: '3 / 4', borderRadius: '14px', overflow: 'hidden', background: '#101010' }}>{renderSlide(custom[0], brand, true)}</div>
+      : <div style={{ maxWidth: '460px', margin: '0 auto' }}>{renderSlide(custom[0], brand)}</div>;
   }
-  const single = custom ? custom[0] : post.slide;
 
-  // Post customizado ainda sem criativo: mostra um placeholder com a headline
-  if (!single) {
-    const box = portrait
-      ? { width: '100%', maxWidth: '320px', aspectRatio: '3 / 4' }
-      : { width: '100%', maxWidth: '460px', margin: '0 auto', aspectRatio: '4 / 5' };
-    return (
-      <div style={{ ...box, borderRadius: '14px', background: 'linear-gradient(150deg, #1a1a1a, #0a0a0a)', color: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: '24px', gap: '10px' }}>
-        <ImageIcon size={26} color="rgba(255,255,255,0.35)" />
-        <div style={{ fontSize: portrait ? '17px' : '20px', fontWeight: 600, letterSpacing: '-0.02em', lineHeight: 1.25 }}>{post.headline || post.theme}</div>
-        {post.subtitle && <div style={{ fontSize: '13px', opacity: 0.6, lineHeight: 1.4 }}>{post.subtitle}</div>}
-        <div style={{ marginTop: '6px', fontSize: '10.5px', opacity: 0.4, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Criativo a subir</div>
-      </div>
-    );
-  }
-  return portrait
-    ? <div style={{ width: '100%', maxWidth: '320px', aspectRatio: '3 / 4', borderRadius: '14px', overflow: 'hidden', background: '#101010' }}>{renderSlide(single, brand, true)}</div>
-    : <div style={{ maxWidth: '460px', margin: '0 auto' }}>{renderSlide(single, brand)}</div>;
+  // Sem criativo anexado: pré-visualização padrão com headline/subtítulo
+  const box = portrait
+    ? { width: '100%', maxWidth: '320px', aspectRatio: '3 / 4' }
+    : { width: '100%', maxWidth: '460px', margin: '0 auto', aspectRatio: '4 / 5' };
+  return (
+    <div style={{ ...box, borderRadius: '14px', background: 'linear-gradient(150deg, #1a1a1a, #0a0a0a)', color: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: '24px', gap: '10px' }}>
+      <ImageIcon size={26} color="rgba(255,255,255,0.35)" />
+      <div style={{ fontSize: portrait ? '17px' : '20px', fontWeight: 600, letterSpacing: '-0.02em', lineHeight: 1.25 }}>{post.headline || post.theme}</div>
+      {post.subtitle && <div style={{ fontSize: '13px', opacity: 0.6, lineHeight: 1.4 }}>{post.subtitle}</div>}
+      <div style={{ marginTop: '6px', fontSize: '10.5px', opacity: 0.4, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Criativo a subir</div>
+    </div>
+  );
 }
 
 function PostCard({ post, brand, brandData, review, onReview, customSlides }) {
@@ -3005,8 +3000,8 @@ function AdminItem({ it, scheduledDate, urls = [], uploading, onReview, onUpload
   const [showReprove, setShowReprove] = useState(false);
   const [draft, setDraft] = useState('');
   const hasUpload = urls.length > 0;
-  const thumb = hasUpload ? urls[0] : it.image;       // upload tem prioridade; senão usa o criativo padrão
-  const count = hasUpload ? urls.length : it.defaultCount;
+  const thumb = hasUpload ? urls[0] : null;            // miniatura só com criativo anexado pelo usuário
+  const count = hasUpload ? urls.length : 0;
 
   const approve = () => onReview(it.id, { status: 'approved', suggestion: '' });
   const undo = () => { onReview(it.id, { status: 'pending', suggestion: '' }); setShowReprove(false); setDraft(''); };
