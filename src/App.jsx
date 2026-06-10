@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, Calendar, Copy, Check, ArrowRight, Newspaper, Megaphone, Layers, X, Target, AlertTriangle, Lock } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar, Copy, Check, ArrowRight, Newspaper, Megaphone, Layers, X, Target, AlertTriangle, Lock, Plus, Trash2, Pencil, Video, Image as ImageIcon, Tag as TagIcon } from 'lucide-react';
 import { supabase, supabaseReady } from './supabase';
 
 // Senha do Painel Admin. Vem do .env (VITE_ADMIN_PASSWORD); se não houver, usa o padrão abaixo.
@@ -2031,10 +2031,12 @@ function KindBadge({ kind }) {
   const map = {
     noticia: { label: 'NOTÍCIA · DESCOBERTA', icon: <Newspaper size={11} />, rgb: '10,10,10' },
     comercial: { label: 'COMERCIAL · ANÚNCIO', icon: <Megaphone size={11} />, rgb: '22,163,74' },
-    carrossel: { label: 'CARROSSEL · NOTÍCIA DESDOBRADA', icon: <Layers size={11} />, rgb: '124,58,237' },
-    campanha: { label: 'CAMPANHA · TRÁFEGO', icon: <Target size={11} />, rgb: '217,119,87' }
+    carrossel: { label: 'CARROSSEL', icon: <Layers size={11} />, rgb: '124,58,237' },
+    campanha: { label: 'CAMPANHA · TRÁFEGO', icon: <Target size={11} />, rgb: '217,119,87' },
+    video: { label: 'VÍDEO', icon: <Video size={11} />, rgb: '37,99,235' },
+    estatico: { label: 'POST ESTÁTICO', icon: <ImageIcon size={11} />, rgb: '15,118,110' }
   };
-  const v = map[kind];
+  const v = map[kind] || { label: String(kind || '').toUpperCase(), icon: <TagIcon size={11} />, rgb: '100,116,139' };
   return (
     <div style={{
       display: 'inline-flex', alignItems: 'center', gap: '5px',
@@ -2048,13 +2050,34 @@ function KindBadge({ kind }) {
   );
 }
 
+// Chips das tags livres de um post
+function TagChips({ tags, dark }) {
+  if (!tags || !tags.length) return null;
+  return (
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '8px' }}>
+      {tags.map((t, i) => (
+        <span key={i} style={{
+          display: 'inline-flex', alignItems: 'center', gap: '4px',
+          background: dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
+          color: dark ? 'rgba(255,255,255,0.8)' : 'rgba(0,0,0,0.6)',
+          border: '1px solid ' + (dark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.08)'),
+          borderRadius: '999px', padding: '3px 9px', fontSize: '10.5px', fontWeight: 600
+        }}>
+          <TagIcon size={9} /> {t}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 // Renderiza o criativo do post. Se o admin subiu criativos (customSlides),
 // eles têm prioridade sobre o criativo padrão da marca. 1 imagem = capa única; várias = carrossel.
 function PostCreative({ post, brand, customSlides, portrait }) {
   const custom = customSlides && customSlides.length ? customSlides.map(u => ({ image: u })) : null;
+  const builtinSlides = (!custom && post.kind === 'carrossel' && post.slides) ? post.slides : null;
   const slides = custom
     ? (custom.length > 1 ? custom : null)         // 1 upload = capa única; vários = carrossel
-    : (post.kind === 'carrossel' ? post.slides : null);
+    : builtinSlides;
 
   if (slides) {
     return portrait
@@ -2062,6 +2085,21 @@ function PostCreative({ post, brand, customSlides, portrait }) {
       : <Carousel slides={slides} brand={brand} />;
   }
   const single = custom ? custom[0] : post.slide;
+
+  // Post customizado ainda sem criativo: mostra um placeholder com a headline
+  if (!single) {
+    const box = portrait
+      ? { width: '100%', maxWidth: '320px', aspectRatio: '3 / 4' }
+      : { width: '100%', maxWidth: '460px', margin: '0 auto', aspectRatio: '4 / 5' };
+    return (
+      <div style={{ ...box, borderRadius: '14px', background: 'linear-gradient(150deg, #1a1a1a, #0a0a0a)', color: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: '24px', gap: '10px' }}>
+        <ImageIcon size={26} color="rgba(255,255,255,0.35)" />
+        <div style={{ fontSize: portrait ? '17px' : '20px', fontWeight: 600, letterSpacing: '-0.02em', lineHeight: 1.25 }}>{post.headline || post.theme}</div>
+        {post.subtitle && <div style={{ fontSize: '13px', opacity: 0.6, lineHeight: 1.4 }}>{post.subtitle}</div>}
+        <div style={{ marginTop: '6px', fontSize: '10.5px', opacity: 0.4, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Criativo a subir</div>
+      </div>
+    );
+  }
   return portrait
     ? <div style={{ width: '100%', maxWidth: '320px', aspectRatio: '3 / 4', borderRadius: '14px', overflow: 'hidden', background: '#101010' }}>{renderSlide(single, brand, true)}</div>
     : <div style={{ maxWidth: '460px', margin: '0 auto' }}>{renderSlide(single, brand)}</div>;
@@ -2104,9 +2142,13 @@ function PostCard({ post, brand, brandData, review, onReview, customSlides }) {
         <h3 style={{ fontSize: '17px', fontWeight: 600, margin: '0 0 4px 0', color: '#0a0a0a', letterSpacing: '-0.01em', lineHeight: 1.3 }}>
           {post.theme}
         </h3>
+        {post.subtitle && (
+          <div style={{ fontSize: '13px', color: 'rgba(0,0,0,0.6)', margin: '0 0 4px 0', lineHeight: 1.4 }}>{post.subtitle}</div>
+        )}
         <div style={{ fontSize: '11.5px', color: 'rgba(0,0,0,0.5)' }}>
           {post.format}{post.sourceLabel ? ` · ${post.sourceLabel}` : ''}
         </div>
+        <TagChips tags={post.tags} />
       </div>
 
       <PostCreative post={post} brand={brand} customSlides={customSlides} />
@@ -2335,9 +2377,13 @@ function PostCardWide({ post, brand, brandData, review, onReview, customSlides }
           <h3 style={{ fontSize: '18px', fontWeight: 600, margin: '0 0 4px 0', color: '#0a0a0a', letterSpacing: '-0.01em', lineHeight: 1.3 }}>
             {post.theme}
           </h3>
+          {post.subtitle && (
+            <div style={{ fontSize: '13px', color: 'rgba(0,0,0,0.6)', margin: '0 0 4px 0', lineHeight: 1.4 }}>{post.subtitle}</div>
+          )}
           <div style={{ fontSize: '11.5px', color: 'rgba(0,0,0,0.5)' }}>
             {post.format}{post.sourceLabel ? ` · ${post.sourceLabel}` : ''}
           </div>
+          <TagChips tags={post.tags} />
         </div>
 
         {/* Legenda */}
@@ -2429,7 +2475,38 @@ function PostCardWide({ post, brand, brandData, review, onReview, customSlides }
 
 const WEEKDAYS = ['dom.', 'seg.', 'ter.', 'qua.', 'qui.', 'sex.', 'sáb.'];
 const STATUS_COLOR = { approved: '#16a34a', reproved: '#dc2626', pending: '#9ca3af' };
-const KIND_LABEL = { noticia: 'Notícia', comercial: 'Comercial', carrossel: 'Carrossel', campanha: 'Campanha' };
+const KIND_LABEL = { noticia: 'Notícia', comercial: 'Comercial', carrossel: 'Carrossel', campanha: 'Campanha', video: 'Vídeo', estatico: 'Estático' };
+// Tipos disponíveis ao criar um post no admin
+const POST_TYPES = [
+  { key: 'estatico', label: 'Estático', icon: <ImageIcon size={15} /> },
+  { key: 'carrossel', label: 'Carrossel', icon: <Layers size={15} /> },
+  { key: 'video', label: 'Vídeo', icon: <Video size={15} /> }
+];
+// Tags sugeridas (o admin também pode digitar as próprias)
+const TAG_SUGGESTIONS = ['Reels', 'Feed', 'Stories', 'Urgente', 'Institucional', 'Promoção', 'Campanha'];
+
+// Converte um post customizado (do Supabase) para o formato usado pelos cards
+function customToPost(p) {
+  return {
+    day: p.day || 'Avulso',
+    date: 'Criado no admin',
+    kind: p.kind || 'estatico',
+    theme: p.headline || '(sem título)',
+    headline: p.headline || '',
+    subtitle: p.subtitle || '',
+    format: KIND_LABEL[p.kind] || 'Post',
+    caption: p.caption || '',
+    tags: Array.isArray(p.tags) ? p.tags : [],
+    custom: true
+  };
+}
+
+// Posts de uma marca: fixos (do código) + customizados (do Supabase), no mesmo formato
+function postsOf(brandKey, customList = []) {
+  const builtin = (clients[brandKey]?.posts || []).map((post, i) => ({ id: `${brandKey}-${i}`, post, custom: false }));
+  const custom = customList.filter(p => p.brand === brandKey).map(p => ({ id: p.id, post: customToPost(p), custom: true }));
+  return [...builtin, ...custom];
+}
 
 function iso(y, m, d) {
   return `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
@@ -2437,15 +2514,14 @@ function iso(y, m, d) {
 
 // Calendário de junho/2026 — quadrados de mesmo tamanho, tags clipadas dentro do dia.
 // Mostra apenas o que está agendado em `schedule`. onDayClick(iso) ao clicar num dia.
-function MonthCalendar({ schedule, reviews, calBrand, setCalBrand, onDayClick }) {
+function MonthCalendar({ schedule, reviews, calBrand, setCalBrand, onDayClick, customPosts = [] }) {
   const activeBrands = Object.entries(clients).filter(([, c]) => !c.comingSoon);
 
-  // Agrupa por data (respeitando o filtro de marca)
+  // Agrupa por data (respeitando o filtro de marca) — inclui posts criados no admin
   const byDate = {};
   activeBrands.forEach(([brandKey, c]) => {
     if (calBrand !== 'all' && calBrand !== brandKey) return;
-    c.posts.forEach((post, i) => {
-      const id = `${brandKey}-${i}`;
+    postsOf(brandKey, customPosts).forEach(({ id, post }) => {
       const date = schedule[id];
       if (!date) return;
       (byDate[date] ||= []).push({ id, c, post, status: reviews[id]?.status || 'pending' });
@@ -2551,11 +2627,10 @@ function dayLabel(isoStr) {
 }
 
 // Painel de detalhe de um dia: lista os conteúdos agendados nele e reutiliza PostCard (ver + aprovar)
-function DayDetail({ day, schedule, reviews, setReview, onClose, creatives = {} }) {
+function DayDetail({ day, schedule, reviews, setReview, onClose, creatives = {}, customPosts = [] }) {
   const items = [];
   Object.entries(clients).filter(([, c]) => !c.comingSoon).forEach(([brandKey, c]) => {
-    c.posts.forEach((post, i) => {
-      const id = `${brandKey}-${i}`;
+    postsOf(brandKey, customPosts).forEach(({ id, post }) => {
       if (schedule[id] === day) items.push({ id, brandKey, c, post });
     });
   });
@@ -2597,11 +2672,11 @@ function DayDetail({ day, schedule, reviews, setReview, onClose, creatives = {} 
             <div style={{ textAlign: 'center', color: 'rgba(0,0,0,0.5)', fontSize: '14px', padding: '24px' }}>
               Nenhum conteúdo neste dia.
             </div>
-          ) : items.map(({ id, c, post }) => (
+          ) : items.map(({ id, brandKey, c, post }) => (
             <PostCardWide
               key={id}
               post={post}
-              brand={id.split('-')[0]}
+              brand={brandKey}
               brandData={c}
               review={reviews[id]}
               onReview={data => setReview(id, data)}
@@ -2620,7 +2695,7 @@ function ddmm(isoStr) {
 }
 
 // Modal do admin: clicar num dia abre a lista de conteúdos disponíveis para colocar/tirar do dia
-function DayAssign({ day, schedule, reviews, setSchedulePost, onClose }) {
+function DayAssign({ day, schedule, reviews, setSchedulePost, onClose, customPosts = [] }) {
   const activeBrands = Object.entries(clients).filter(([, c]) => !c.comingSoon);
   const countHere = Object.entries(schedule).filter(([, d]) => d === day).length;
 
@@ -2657,8 +2732,7 @@ function DayAssign({ day, schedule, reviews, setSchedulePost, onClose }) {
                 <span style={{ fontSize: '13px', fontWeight: 700 }}>{c.name}</span>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                {c.posts.map((post, i) => {
-                  const id = `${brandKey}-${i}`;
+                {postsOf(brandKey, customPosts).map(({ id, post }) => {
                   const assignedDate = schedule[id];
                   const here = assignedDate === day;
                   const elsewhere = assignedDate && !here;
@@ -2904,7 +2978,7 @@ function ConfirmDialog({ message, confirmLabel = 'Confirmar', onConfirm, onClose
 }
 
 // Um conteúdo na lista do admin: miniatura, status, aprovar/reprovar inline, agenda e upload de criativos
-function AdminItem({ it, scheduledDate, urls = [], uploading, onReview, onUpload, onRemove }) {
+function AdminItem({ it, scheduledDate, urls = [], uploading, onReview, onUpload, onRemove, onEdit, onDelete }) {
   const [showReprove, setShowReprove] = useState(false);
   const [draft, setDraft] = useState('');
   const hasUpload = urls.length > 0;
@@ -2939,10 +3013,12 @@ function AdminItem({ it, scheduledDate, urls = [], uploading, onReview, onUpload
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px' }}>
             <div style={{ minWidth: 0 }}>
-              <div style={{ fontSize: '10.5px', color: 'rgba(0,0,0,0.45)', fontWeight: 600, marginBottom: '3px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                {it.day} · {KIND_LABEL[it.kind] || it.kind}
+              <div style={{ fontSize: '10.5px', color: 'rgba(0,0,0,0.45)', fontWeight: 600, marginBottom: '3px', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '7px', flexWrap: 'wrap' }}>
+                <span>{it.day} · {KIND_LABEL[it.kind] || it.kind}</span>
+                {it.custom && <span style={{ background: 'rgba(37,99,235,0.1)', color: '#2563eb', borderRadius: '999px', padding: '1px 8px', fontSize: '9.5px', fontWeight: 700, letterSpacing: '0.04em' }}>CRIADO</span>}
               </div>
               <div style={{ fontSize: '14.5px', fontWeight: 600, color: '#0a0a0a', lineHeight: 1.35 }}>{it.theme}</div>
+              <TagChips tags={it.tags} />
             </div>
             <StatusBadge status={it.status} />
           </div>
@@ -2968,6 +3044,12 @@ function AdminItem({ it, scheduledDate, urls = [], uploading, onReview, onUpload
                 )}
                 {it.status !== 'pending' && (
                   <button onClick={undo} style={{ background: 'none', border: 'none', color: 'rgba(0,0,0,0.5)', fontSize: '11.5px', cursor: 'pointer', textDecoration: 'underline' }}>desfazer</button>
+                )}
+                {it.custom && (
+                  <>
+                    <button onClick={() => onEdit(it.id)} style={actionBtn('rgba(0,0,0,0.05)', 'rgba(0,0,0,0.65)', '1px solid rgba(0,0,0,0.1)')}><Pencil size={12} /> Editar</button>
+                    <button onClick={() => onDelete(it.id)} style={actionBtn('rgba(220,38,38,0.06)', '#b91c1c', '1px solid rgba(220,38,38,0.18)')}><Trash2 size={12} /> Excluir</button>
+                  </>
                 )}
                 <span style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '11.5px', fontWeight: 600, color: scheduledDate ? '#0a0a0a' : 'rgba(0,0,0,0.4)' }}>
                   <Calendar size={12} /> {scheduledDate ? `Agendado · ${ddmm(scheduledDate)}` : 'Não agendado'}
@@ -3005,6 +3087,122 @@ function AdminItem({ it, scheduledDate, urls = [], uploading, onReview, onUpload
   );
 }
 
+// Modal de criar/editar um post no admin
+function PostEditor({ initial, brands, onSave, onClose }) {
+  const [brand, setBrand] = useState(initial?.brand || brands[0]?.[0] || '');
+  const [headline, setHeadline] = useState(initial?.headline || '');
+  const [subtitle, setSubtitle] = useState(initial?.subtitle || '');
+  const [caption, setCaption] = useState(initial?.caption || '');
+  const [kind, setKind] = useState(initial?.kind || 'estatico');
+  const [tags, setTags] = useState(Array.isArray(initial?.tags) ? initial.tags : []);
+  const [tagInput, setTagInput] = useState('');
+
+  const addTag = (t) => {
+    const v = (t || '').trim();
+    if (!v) return;
+    if (!tags.some(x => x.toLowerCase() === v.toLowerCase())) setTags([...tags, v]);
+    setTagInput('');
+  };
+  const removeTag = (t) => setTags(tags.filter(x => x !== t));
+
+  const canSave = brand && headline.trim();
+  const save = () => { if (canSave) onSave({ ...(initial || {}), brand, headline: headline.trim(), subtitle: subtitle.trim(), caption, kind, tags }); };
+
+  const field = { width: '100%', boxSizing: 'border-box', borderRadius: '10px', border: '1px solid rgba(0,0,0,0.14)', padding: '11px 13px', fontSize: '14px', fontFamily: 'inherit', outline: 'none', background: '#fff' };
+  const label = { fontSize: '11.5px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'rgba(0,0,0,0.5)', marginBottom: '7px', display: 'block' };
+
+  return (
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 1001, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)', display: 'flex', justifyContent: 'center', alignItems: 'flex-start', padding: '24px', overflowY: 'auto', fontFamily: 'Geist, -apple-system, BlinkMacSystemFont, system-ui, sans-serif' }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: '#f5f5f3', borderRadius: '20px', width: '100%', maxWidth: '600px', margin: 'auto', overflow: 'hidden', boxShadow: '0 24px 60px rgba(0,0,0,0.3)' }}>
+        <div style={{ background: '#0a0a0a', color: '#fafafa', padding: '20px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <h2 style={{ fontSize: '19px', fontWeight: 600, margin: 0, letterSpacing: '-0.02em' }}>{initial ? 'Editar conteúdo' : 'Novo conteúdo'}</h2>
+          <button onClick={onClose} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', cursor: 'pointer', color: '#fafafa', borderRadius: '999px', width: '32px', height: '32px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+            <X size={16} />
+          </button>
+        </div>
+
+        <div style={{ padding: '22px 24px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
+          <div>
+            <label style={label}>Marca</label>
+            <select value={brand} onChange={e => setBrand(e.target.value)} style={{ ...field, cursor: 'pointer' }}>
+              {brands.map(([k, c]) => <option key={k} value={k}>{c.name}</option>)}
+            </select>
+          </div>
+
+          <div>
+            <label style={label}>Tipo do conteúdo</label>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              {POST_TYPES.map(t => {
+                const on = kind === t.key;
+                return (
+                  <button key={t.key} onClick={() => setKind(t.key)} style={{
+                    display: 'inline-flex', alignItems: 'center', gap: '7px', flex: 1, minWidth: '120px', justifyContent: 'center',
+                    background: on ? '#0a0a0a' : '#fff', color: on ? '#fff' : 'rgba(0,0,0,0.7)',
+                    border: '1px solid ' + (on ? '#0a0a0a' : 'rgba(0,0,0,0.14)'),
+                    borderRadius: '10px', padding: '11px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s ease'
+                  }}>
+                    {t.icon} {t.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div>
+            <label style={label}>Headline do criativo</label>
+            <input value={headline} onChange={e => setHeadline(e.target.value)} placeholder="Título principal do criativo" style={field} autoFocus />
+          </div>
+
+          <div>
+            <label style={label}>Subtítulo</label>
+            <input value={subtitle} onChange={e => setSubtitle(e.target.value)} placeholder="Complemento da headline" style={field} />
+          </div>
+
+          <div>
+            <label style={label}>Legenda</label>
+            <textarea value={caption} onChange={e => setCaption(e.target.value)} placeholder="Texto da publicação…" rows={5} style={{ ...field, resize: 'vertical', lineHeight: 1.5 }} />
+          </div>
+
+          <div>
+            <label style={label}>Tags</label>
+            {tags.length > 0 && (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '7px', marginBottom: '10px' }}>
+                {tags.map(t => (
+                  <span key={t} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: '#0a0a0a', color: '#fff', borderRadius: '999px', padding: '4px 6px 4px 11px', fontSize: '12px', fontWeight: 600 }}>
+                    {t}
+                    <button onClick={() => removeTag(t)} style={{ background: 'rgba(255,255,255,0.2)', border: 'none', color: '#fff', borderRadius: '50%', width: '16px', height: '16px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', lineHeight: 1 }}>×</button>
+                  </span>
+                ))}
+              </div>
+            )}
+            <input
+              value={tagInput}
+              onChange={e => setTagInput(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addTag(tagInput); } }}
+              placeholder="Digite uma tag e tecle Enter"
+              style={field}
+            />
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '10px' }}>
+              {TAG_SUGGESTIONS.filter(s => !tags.some(t => t.toLowerCase() === s.toLowerCase())).map(s => (
+                <button key={s} onClick={() => addTag(s)} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: 'rgba(0,0,0,0.04)', border: '1px solid rgba(0,0,0,0.1)', color: 'rgba(0,0,0,0.6)', borderRadius: '999px', padding: '4px 10px', fontSize: '11.5px', fontWeight: 600, cursor: 'pointer' }}>
+                  <Plus size={10} /> {s}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div style={{ padding: '16px 24px', borderTop: '1px solid rgba(0,0,0,0.08)', display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+          <button onClick={onClose} style={{ background: 'rgba(0,0,0,0.05)', border: '1px solid rgba(0,0,0,0.1)', color: 'rgba(0,0,0,0.7)', borderRadius: '10px', padding: '11px 18px', fontSize: '13.5px', fontWeight: 600, cursor: 'pointer' }}>Cancelar</button>
+          <button onClick={save} disabled={!canSave} style={{ background: '#0a0a0a', border: 'none', color: '#fff', borderRadius: '10px', padding: '11px 20px', fontSize: '13.5px', fontWeight: 600, cursor: canSave ? 'pointer' : 'not-allowed', opacity: canSave ? 1 : 0.4, display: 'inline-flex', alignItems: 'center', gap: '7px' }}>
+            <Check size={15} /> {initial ? 'Salvar alterações' : 'Criar conteúdo'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ============================================================
 // APP PRINCIPAL
 // ============================================================
@@ -3018,6 +3216,8 @@ export default function App() {
   const [schedule, setSchedule] = useState({}); // { 'juspilot-0': '2026-06-05' } — dia agendado
   const [creatives, setCreatives] = useState({}); // { 'juspilot-0': ['url1', 'url2'] } — criativos subidos pelo admin
   const [uploadingId, setUploadingId] = useState(null); // id do conteúdo cujo upload está em andamento
+  const [customPosts, setCustomPosts] = useState({}); // { 'custom-xxx': { id, brand, headline, ... } } — posts criados no admin
+  const [editorPost, setEditorPost] = useState(null); // null = fechado; 'new' = criar; objeto = editar
   const [calBrand, setCalBrand] = useState('all'); // filtro de marca no calendário
   const [selectedDay, setSelectedDay] = useState(null); // dia aberto no calendário público (ver/aprovar)
   const [adminDay, setAdminDay] = useState(null); // dia aberto no admin (montar/atribuir conteúdos)
@@ -3225,6 +3425,72 @@ export default function App() {
     setCreativeUrls(id, current.filter((_, i) => i !== idx));
   };
 
+  // Carrega os posts criados no admin e escuta mudanças em tempo real
+  useEffect(() => {
+    if (!supabaseReady) return;
+    let mounted = true;
+
+    supabase.from('posts').select('*').then(({ data, error }) => {
+      if (!mounted || error || !data) return;
+      const map = {};
+      data.forEach(p => { map[p.id] = p; });
+      setCustomPosts(map);
+    });
+
+    const channel = supabase
+      .channel('posts-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'posts' }, payload => {
+        setCustomPosts(prev => {
+          const next = { ...prev };
+          if (payload.eventType === 'DELETE') delete next[payload.old.id];
+          else next[payload.new.id] = payload.new;
+          return next;
+        });
+      })
+      .subscribe();
+
+    return () => { mounted = false; supabase.removeChannel(channel); };
+  }, []);
+
+  // Cria ou atualiza um post customizado
+  const savePost = async (record) => {
+    const id = record.id || `custom-${(crypto.randomUUID?.() || String(Date.now()))}`;
+    const row = {
+      id,
+      brand: record.brand,
+      headline: record.headline || '',
+      subtitle: record.subtitle || '',
+      caption: record.caption || '',
+      kind: record.kind || 'estatico',
+      tags: record.tags || [],
+      updated_at: new Date().toISOString()
+    };
+    setCustomPosts(prev => ({ ...prev, [id]: { ...prev[id], ...row } }));
+    setEditorPost(null);
+    if (!supabaseReady) { notify('Supabase não configurado — post salvo só localmente.'); return; }
+    const { error } = await supabase.from('posts').upsert(row);
+    if (error) { console.error('[posts]', error); notify('Erro ao salvar. A tabela "posts" existe no Supabase?'); }
+    else notify(record.id ? 'Conteúdo atualizado.' : 'Conteúdo criado.');
+  };
+
+  // Remove um post customizado (e suas avaliações/agenda/criativos)
+  const deletePost = (id) => {
+    askConfirm('Excluir este conteúdo criado? Isso remove também a avaliação, o agendamento e os criativos dele.', async () => {
+      setCustomPosts(prev => { const n = { ...prev }; delete n[id]; return n; });
+      setReviews(prev => { const n = { ...prev }; delete n[id]; return n; });
+      setSchedule(prev => { const n = { ...prev }; delete n[id]; return n; });
+      setCreatives(prev => { const n = { ...prev }; delete n[id]; return n; });
+      if (!supabaseReady) return;
+      await supabase.from('posts').delete().eq('id', id);
+      await supabase.from('reviews').delete().eq('id', id);
+      await supabase.from('schedule').delete().eq('id', id);
+      await supabase.from('creatives').delete().eq('id', id);
+    }, 'Excluir');
+  };
+
+  // Lista de posts customizados (array) para passar aos componentes
+  const customList = Object.values(customPosts);
+
   // Data agendada de um post (só o que o admin colocou no calendário via Supabase)
   const postDate = (id) => schedule[id] ?? null;
 
@@ -3353,30 +3619,36 @@ export default function App() {
 
   // ─── MENU PRINCIPAL: calendário ou copies ───
   if (view === 'select') {
-    const MenuButton = ({ icon, title, subtitle, onClick }) => (
+    const MenuButton = ({ icon, title, subtitle, onClick, locked }) => (
       <button
-        onClick={onClick}
-        onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.boxShadow = '0 6px 16px rgba(0,0,0,0.08), 0 18px 40px rgba(0,0,0,0.12)'; }}
-        onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.05), 0 8px 24px rgba(0,0,0,0.06)'; }}
+        onClick={locked ? undefined : onClick}
+        disabled={locked}
+        onMouseEnter={e => { if (locked) return; e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.boxShadow = '0 6px 16px rgba(0,0,0,0.08), 0 18px 40px rgba(0,0,0,0.12)'; }}
+        onMouseLeave={e => { if (locked) return; e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.05), 0 8px 24px rgba(0,0,0,0.06)'; }}
         style={{
-          flex: 1, minWidth: '240px', maxWidth: '360px',
-          background: '#0a0a0a', color: '#fafafa',
+          flex: 1, minWidth: '240px', maxWidth: '360px', position: 'relative',
+          background: locked ? '#e9e9e6' : '#0a0a0a', color: locked ? 'rgba(0,0,0,0.4)' : '#fafafa',
           borderRadius: '24px', border: 'none', padding: '36px 30px',
           display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '18px',
-          textAlign: 'left', cursor: 'pointer', font: 'inherit',
-          boxShadow: '0 1px 3px rgba(0,0,0,0.05), 0 8px 24px rgba(0,0,0,0.06)',
+          textAlign: 'left', cursor: locked ? 'not-allowed' : 'pointer', font: 'inherit',
+          boxShadow: locked ? 'none' : '0 1px 3px rgba(0,0,0,0.05), 0 8px 24px rgba(0,0,0,0.06)',
           transition: 'transform 0.2s cubic-bezier(0.4,0,0.2,1), box-shadow 0.2s ease'
         }}
       >
-        <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '56px', height: '56px', borderRadius: '16px', background: 'rgba(255,255,255,0.10)', border: '1px solid rgba(255,255,255,0.16)' }}>
+        {locked && (
+          <span style={{ position: 'absolute', top: '18px', right: '18px', display: 'inline-flex', alignItems: 'center', gap: '5px', background: 'rgba(0,0,0,0.06)', borderRadius: '999px', padding: '4px 10px', fontSize: '11px', fontWeight: 700, color: 'rgba(0,0,0,0.5)' }}>
+            <Lock size={11} /> Em breve
+          </span>
+        )}
+        <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '56px', height: '56px', borderRadius: '16px', background: locked ? 'rgba(0,0,0,0.05)' : 'rgba(255,255,255,0.10)', border: '1px solid ' + (locked ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.16)') }}>
           {icon}
         </span>
         <div>
           <h3 style={{ fontSize: '21px', fontWeight: 600, margin: '0 0 6px 0', letterSpacing: '-0.02em' }}>{title}</h3>
-          <p style={{ fontSize: '13px', opacity: 0.6, margin: 0, lineHeight: 1.45 }}>{subtitle}</p>
+          <p style={{ fontSize: '13px', opacity: locked ? 0.8 : 0.6, margin: 0, lineHeight: 1.45 }}>{subtitle}</p>
         </div>
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '13px', fontWeight: 600, opacity: 0.85, marginTop: '2px' }}>
-          Acessar <ArrowRight size={14} />
+          {locked ? <>Bloqueado <Lock size={14} /></> : <>Acessar <ArrowRight size={14} /></>}
         </span>
       </button>
     );
@@ -3425,6 +3697,7 @@ export default function App() {
             title="Copies das marcas"
             subtitle="Visualize e aprove as copies de cada marca."
             onClick={() => setView('brands')}
+            locked
           />
         </div>
       </div>
@@ -3457,6 +3730,7 @@ export default function App() {
             calBrand={calBrand}
             setCalBrand={setCalBrand}
             onDayClick={setSelectedDay}
+            customPosts={customList}
           />
         </div>
 
@@ -3468,6 +3742,7 @@ export default function App() {
             setReview={setReview}
             onClose={() => setSelectedDay(null)}
             creatives={creatives}
+            customPosts={customList}
           />
         )}
       </div>
@@ -3643,13 +3918,13 @@ export default function App() {
   // ─── PAINEL ADMIN ───
   if (view === 'admin') {
     const allItems = Object.entries(clients).flatMap(([brandKey, c]) =>
-      c.posts.map((post, i) => {
-        const id = `${brandKey}-${i}`;
+      postsOf(brandKey, customList).map(({ id, post, custom }) => {
         const r = reviews[id] || {};
         return {
           id, brandKey, brandName: c.name, accent: c.accent,
           theme: post.theme, kind: post.kind, day: post.day,
           comingSoon: !!c.comingSoon,
+          custom, tags: post.tags || [],
           status: r.status || 'pending',
           suggestion: r.suggestion || '',
           reviewer: r.reviewer || '',
@@ -3763,6 +4038,7 @@ export default function App() {
               calBrand={calBrand}
               setCalBrand={setCalBrand}
               onDayClick={setAdminDay}
+              customPosts={customList}
             />
           </div>
 
@@ -3781,6 +4057,16 @@ export default function App() {
               <Stat label="Reprovados" value={reproved} color="#dc2626" />
               <Stat label="Pendentes" value={pending} color="#64748b" />
             </div>
+          </div>
+
+          {/* CRIAR CONTEÚDO */}
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '18px' }}>
+            <button
+              onClick={() => setEditorPost('new')}
+              style={{ background: '#0a0a0a', color: '#fff', border: 'none', borderRadius: '999px', padding: '11px 20px', fontSize: '13.5px', fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '8px', boxShadow: '0 4px 14px rgba(0,0,0,0.12)' }}
+            >
+              <Plus size={16} /> Criar conteúdo
+            </button>
           </div>
 
           {/* FILTROS + BUSCA */}
@@ -3842,6 +4128,8 @@ export default function App() {
                       onReview={setReview}
                       onUpload={uploadCreatives}
                       onRemove={removeCreativeAt}
+                      onEdit={(id) => setEditorPost(customPosts[id])}
+                      onDelete={deletePost}
                     />
                   ))}
                 </div>
@@ -3857,9 +4145,18 @@ export default function App() {
             reviews={reviews}
             setSchedulePost={setSchedulePost}
             onClose={() => setAdminDay(null)}
+            customPosts={customList}
           />
         )}
 
+        {editorPost && (
+          <PostEditor
+            initial={editorPost === 'new' ? null : editorPost}
+            brands={Object.entries(clients).filter(([, c]) => !c.comingSoon)}
+            onSave={savePost}
+            onClose={() => setEditorPost(null)}
+          />
+        )}
         {confirmBox && (
           <ConfirmDialog
             message={confirmBox.message}

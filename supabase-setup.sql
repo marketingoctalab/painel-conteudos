@@ -66,6 +66,34 @@ alter publication supabase_realtime add table creatives;
 
 
 -- ============================================================
+-- Posts criados pelo admin (conteúdos avulsos por marca)
+-- ============================================================
+create table if not exists posts (
+  id text primary key,
+  brand text not null,
+  headline text default '',
+  subtitle text default '',
+  caption text default '',
+  kind text default 'estatico',              -- video | carrossel | estatico
+  tags jsonb not null default '[]'::jsonb,
+  updated_at timestamptz not null default now()
+);
+
+alter table posts enable row level security;
+
+drop policy if exists "leitura publica" on posts;
+drop policy if exists "insert publico"  on posts;
+drop policy if exists "update publico"  on posts;
+drop policy if exists "delete publico"  on posts;
+create policy "leitura publica" on posts for select using (true);
+create policy "insert publico"  on posts for insert with check (true);
+create policy "update publico"  on posts for update using (true) with check (true);
+create policy "delete publico"  on posts for delete using (true);
+
+alter publication supabase_realtime add table posts;
+
+
+-- ============================================================
 -- Storage: bucket público "creatives" para guardar as imagens
 -- ============================================================
 insert into storage.buckets (id, name, public)
