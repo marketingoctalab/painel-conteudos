@@ -8,8 +8,12 @@ create table if not exists reviews (
   id text primary key,
   status text not null default 'pending',   -- pending | approved | reproved
   suggestion text default '',
+  reviewer text default '',                  -- quem aprovou/reprovou (ALEX, MARCOS, ...)
   updated_at timestamptz not null default now()
 );
+
+-- Para bancos já existentes: adiciona a coluna reviewer se ainda não houver
+alter table reviews add column if not exists reviewer text default '';
 
 -- Acesso livre (sem login): habilita RLS e libera leitura/escrita pública
 alter table reviews enable row level security;

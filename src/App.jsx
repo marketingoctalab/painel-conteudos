@@ -2814,6 +2814,37 @@ function AdminGate({ expected, onSuccess, onCancel }) {
   );
 }
 
+// Perfis de revisão (sem login). Avatares ficam em /public/avatars/<key>.png — adicione depois.
+const PROFILES = [
+  { key: 'alex', name: 'ALEX', color: '#D97757' },
+  { key: 'marcos', name: 'MARCOS', color: '#2563eb' },
+  { key: 'miguel', name: 'MIGUEL', color: '#16a34a' },
+  { key: 'silvio', name: 'SILVIO', color: '#9333ea' },
+  { key: 'thiago', name: 'THIAGO', color: '#db2777' }
+];
+const profileByName = (name) => PROFILES.find(p => p.name === name) || null;
+
+// Avatar do perfil: usa a imagem em /public/avatars/<key>.png; se faltar, cai numa inicial colorida.
+function Avatar({ profile, size = 116, radius = 18 }) {
+  const [broken, setBroken] = useState(false);
+  if (!profile) return null;
+  if (broken) {
+    return (
+      <div style={{ width: size, height: size, borderRadius: `${radius}px`, background: profile.color, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: size * 0.4, fontWeight: 700, letterSpacing: '-0.02em' }}>
+        {profile.name[0]}
+      </div>
+    );
+  }
+  return (
+    <img
+      src={`/avatars/${profile.key}.png`}
+      alt={profile.name}
+      onError={() => setBroken(true)}
+      style={{ width: size, height: size, borderRadius: `${radius}px`, objectFit: 'cover', background: '#101010', display: 'block' }}
+    />
+  );
+}
+
 // Selo de status (pendente / aprovado / reprovado)
 function StatusBadge({ status }) {
   const map = {
@@ -2916,6 +2947,13 @@ function AdminItem({ it, scheduledDate, urls = [], uploading, onReview, onUpload
             <StatusBadge status={it.status} />
           </div>
 
+          {it.reviewer && it.status !== 'pending' && (
+            <div style={{ marginTop: '7px', display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '11.5px', fontWeight: 600, color: 'rgba(0,0,0,0.55)' }}>
+              {(() => { const p = profileByName(it.reviewer); return p ? <Avatar profile={p} size={18} radius={6} /> : null; })()}
+              {it.status === 'approved' ? 'Aprovado' : 'Reprovado'} por {it.reviewer}
+            </div>
+          )}
+
           {it.comingSoon ? (
             <div style={{ marginTop: '10px', fontSize: '12px', color: 'rgba(0,0,0,0.4)', fontWeight: 600 }}>Em breve</div>
           ) : (
@@ -2987,9 +3025,19 @@ export default function App() {
   const [adminSearch, setAdminSearch] = useState(''); // busca por tema/marca no admin
   const [toast, setToast] = useState(null); // aviso flutuante
   const [confirmBox, setConfirmBox] = useState(null); // { message, confirmLabel, onConfirm }
+  const [currentUser, setCurrentUser] = useState(() => {
+    try { return localStorage.getItem('painel-user') || null; } catch { return null; }
+  }); // quem está revisando (nome do perfil) — registra autoria das aprovações
 
   const notify = (message) => setToast(message);
   const askConfirm = (message, onConfirm, confirmLabel) => setConfirmBox({ message, onConfirm, confirmLabel });
+
+  // Escolhe um perfil e segue para o menu de conteúdos
+  const chooseUser = (name) => {
+    setCurrentUser(name);
+    try { localStorage.setItem('painel-user', name); } catch { /* ignore */ }
+    setView('select');
+  };
 
   // Carrega as avaliações do Supabase e escuta mudanças em tempo real
   useEffect(() => {
@@ -2999,7 +3047,7 @@ export default function App() {
     supabase.from('reviews').select('*').then(({ data, error }) => {
       if (!mounted || error || !data) return;
       const map = {};
-      data.forEach(r => { map[r.id] = { status: r.status, suggestion: r.suggestion || '' }; });
+      data.forEach(r => { map[r.id] = { status: r.status, suggestion: r.suggestion || '', reviewer: r.reviewer || '' }; });
       setReviews(map);
     });
 
@@ -3012,7 +3060,7 @@ export default function App() {
             delete next[payload.old.id];
           } else {
             const r = payload.new;
-            next[r.id] = { status: r.status, suggestion: r.suggestion || '' };
+            next[r.id] = { status: r.status, suggestion: r.suggestion || '', reviewer: r.reviewer || '' };
           }
           return next;
         });
@@ -3023,13 +3071,16 @@ export default function App() {
   }, []);
 
   const setReview = async (id, data) => {
+    // Registra quem revisou (vazio quando volta para pendente)
+    const reviewer = data.status === 'pending' ? '' : (currentUser || 'Anônimo');
     // Atualização otimista na tela
-    setReviews(prev => ({ ...prev, [id]: { ...prev[id], ...data } }));
+    setReviews(prev => ({ ...prev, [id]: { ...prev[id], ...data, reviewer } }));
     if (!supabaseReady) return;
     await supabase.from('reviews').upsert({
       id,
       status: data.status,
       suggestion: data.suggestion ?? '',
+      reviewer,
       updated_at: new Date().toISOString()
     });
   };
@@ -3197,6 +3248,44 @@ export default function App() {
   if (activeKind !== 'all') posts = posts.filter(({ post }) => post.kind === activeKind);
 
   // ─── TELA INICIAL ───
+  // ─── IDENTIFIQUE-SE: seleção de perfil (estilo Netflix) ───
+  if (view === 'identify') {
+    return (
+      <div style={{ minHeight: '100vh', background: '#0a0a0a', color: '#fafafa', fontFamily: 'Geist, -apple-system, BlinkMacSystemFont, system-ui, sans-serif', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '48px 24px', textAlign: 'center' }}>
+        <h1 style={{ fontSize: 'clamp(28px, 5vw, 46px)', fontWeight: 600, margin: '0 0 10px', letterSpacing: '-0.03em' }}>Identifique-se :)</h1>
+        <p style={{ opacity: 0.55, fontSize: '14px', margin: '0 0 48px' }}>Escolha seu perfil para revisar os conteúdos.</p>
+
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '30px', justifyContent: 'center', maxWidth: '760px' }}>
+          {PROFILES.map(p => (
+            <button
+              key={p.key}
+              onClick={() => chooseUser(p.name)}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '14px', padding: 0, transition: 'transform 0.18s ease' }}
+              onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.06)'; }}
+              onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; }}
+            >
+              <Avatar profile={p} />
+              <span style={{ fontSize: '15px', fontWeight: 600, letterSpacing: '0.03em', color: 'rgba(255,255,255,0.82)' }}>{p.name}</span>
+            </button>
+          ))}
+        </div>
+
+        <button
+          onClick={() => setView('gate')}
+          style={{ marginTop: '56px', ...glassDark, color: '#fafafa', borderRadius: '999px', padding: '11px 22px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '8px' }}
+        >
+          <Lock size={14} /> Acessar painel admin
+        </button>
+        <button
+          onClick={() => setView('landing')}
+          style={{ marginTop: '16px', background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', fontSize: '12.5px', cursor: 'pointer' }}
+        >
+          Voltar
+        </button>
+      </div>
+    );
+  }
+
   if (view === 'landing') {
     return (
       <div style={{
@@ -3225,7 +3314,7 @@ export default function App() {
             Painel de Conteúdos
           </h1>
           <button
-            onClick={() => setView('select')}
+            onClick={() => setView('identify')}
             style={{
               marginTop: '20px',
               background: '#0a0a0a',
@@ -3309,6 +3398,13 @@ export default function App() {
         </div>
 
         <div style={{ textAlign: 'center', marginBottom: 'clamp(28px, 4vh, 44px)' }}>
+          {currentUser && (
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '9px', marginBottom: '18px', background: 'rgba(0,0,0,0.04)', border: '1px solid rgba(0,0,0,0.08)', borderRadius: '999px', padding: '5px 8px 5px 5px' }}>
+              {(() => { const p = profileByName(currentUser); return p ? <Avatar profile={p} size={28} radius={9} /> : null; })()}
+              <span style={{ fontSize: '13px', fontWeight: 600 }}>{currentUser}</span>
+              <button onClick={() => setView('identify')} style={{ background: 'none', border: 'none', color: 'rgba(0,0,0,0.5)', fontSize: '12px', cursor: 'pointer', textDecoration: 'underline', padding: '0 6px 0 0' }}>trocar</button>
+            </div>
+          )}
           <h1 style={{ fontSize: 'clamp(32px, 5vw, 52px)', fontWeight: 600, margin: 0, letterSpacing: '-0.03em', lineHeight: 1.05 }}>
             O que você quer ver?
           </h1>
@@ -3538,7 +3634,7 @@ export default function App() {
     return (
       <AdminGate
         expected={ADMIN_PASSWORD}
-        onSuccess={() => setView('admin')}
+        onSuccess={() => { setCurrentUser('Admin'); setView('admin'); }}
         onCancel={() => setView('select')}
       />
     );
@@ -3556,6 +3652,7 @@ export default function App() {
           comingSoon: !!c.comingSoon,
           status: r.status || 'pending',
           suggestion: r.suggestion || '',
+          reviewer: r.reviewer || '',
           // criativo padrão da marca (imagem em /public), usado como miniatura quando não há upload
           image: post.slide?.image || post.slides?.[0]?.image || null,
           defaultCount: post.slides?.length || 1
