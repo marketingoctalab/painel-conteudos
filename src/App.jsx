@@ -1,10 +1,9 @@
-import React, { useState, useEffect, useId } from 'react';
+import React, { useState, useEffect, useId, useRef } from 'react';
 import { ChevronLeft, ChevronRight, Calendar, Copy, Check, ArrowRight, Newspaper, Megaphone, Layers, X, Target, AlertTriangle, Lock, Plus, Trash2, Pencil, Video, Image as ImageIcon, Tag as TagIcon } from 'lucide-react';
 import { supabase, supabaseReady } from './supabase';
 
 // Senha do Painel Admin. Vem do .env (VITE_ADMIN_PASSWORD); se não houver, usa o padrão abaixo.
 const ADMIN_PASSWORD = import.meta.env.VITE_ADMIN_PASSWORD || 'octalab2026';
-import PeepsCanvas from './PeepsCanvas';
 
 // ============================================================
 // ESTILOS LIQUID GLASS REUTILIZÁVEIS
@@ -2950,6 +2949,98 @@ function BoringAvatar({ index = 0, size = 40 }) {
   );
 }
 
+// Efeito "gooey": alterna entre os textos com morph borrado + filtro de limiar
+const TITLE_PARTS = ['Painel de', 'Conteúdos'];
+function GooeyText({ texts, morphTime = 1, cooldownTime = 1.2, fontSize = 'clamp(48px, 9vw, 104px)', color = '#0a0a0a', height = 'clamp(64px, 13vw, 130px)' }) {
+  const text1Ref = useRef(null);
+  const text2Ref = useRef(null);
+
+  useEffect(() => {
+    let frame;
+    let textIndex = texts.length - 1;
+    let time = new Date();
+    let morph = 0;
+    let cooldown = cooldownTime;
+
+    if (text1Ref.current && text2Ref.current) {
+      text1Ref.current.textContent = texts[textIndex % texts.length];
+      text2Ref.current.textContent = texts[(textIndex + 1) % texts.length];
+    }
+
+    const setMorph = (fraction) => {
+      if (!text1Ref.current || !text2Ref.current) return;
+      text2Ref.current.style.filter = `blur(${Math.min(8 / fraction - 8, 100)}px)`;
+      text2Ref.current.style.opacity = `${Math.pow(fraction, 0.4) * 100}%`;
+      fraction = 1 - fraction;
+      text1Ref.current.style.filter = `blur(${Math.min(8 / fraction - 8, 100)}px)`;
+      text1Ref.current.style.opacity = `${Math.pow(fraction, 0.4) * 100}%`;
+    };
+
+    const doCooldown = () => {
+      morph = 0;
+      if (!text1Ref.current || !text2Ref.current) return;
+      text2Ref.current.style.filter = '';
+      text2Ref.current.style.opacity = '100%';
+      text1Ref.current.style.filter = '';
+      text1Ref.current.style.opacity = '0%';
+    };
+
+    const doMorph = () => {
+      morph -= cooldown;
+      cooldown = 0;
+      let fraction = morph / morphTime;
+      if (fraction > 1) { cooldown = cooldownTime; fraction = 1; }
+      setMorph(fraction);
+    };
+
+    function animate() {
+      frame = requestAnimationFrame(animate);
+      const newTime = new Date();
+      const shouldIncrementIndex = cooldown > 0;
+      const dt = (newTime.getTime() - time.getTime()) / 1000;
+      time = newTime;
+      cooldown -= dt;
+      if (cooldown <= 0) {
+        if (shouldIncrementIndex) {
+          textIndex = (textIndex + 1) % texts.length;
+          if (text1Ref.current && text2Ref.current) {
+            text1Ref.current.textContent = texts[textIndex % texts.length];
+            text2Ref.current.textContent = texts[(textIndex + 1) % texts.length];
+          }
+        }
+        doMorph();
+      } else {
+        doCooldown();
+      }
+    }
+
+    animate();
+    return () => cancelAnimationFrame(frame);
+  }, [texts, morphTime, cooldownTime]);
+
+  const spanStyle = {
+    position: 'absolute', left: 0, right: 0, top: '50%', transform: 'translateY(-50%)',
+    width: '100%', userSelect: 'none', textAlign: 'center', whiteSpace: 'nowrap',
+    fontWeight: 600, letterSpacing: '-0.04em', lineHeight: 1.02, fontFamily: 'inherit', color, fontSize
+  };
+
+  return (
+    <div style={{ position: 'relative', width: '100%' }}>
+      <svg style={{ position: 'absolute', height: 0, width: 0 }} aria-hidden="true" focusable="false">
+        <defs>
+          <filter id="threshold">
+            <feColorMatrix in="SourceGraphic" type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 255 -140" />
+          </filter>
+        </defs>
+      </svg>
+      <div style={{ position: 'relative', height, filter: 'url(#threshold)' }}>
+        <span ref={text1Ref} style={spanStyle} />
+        <span ref={text2Ref} style={spanStyle} />
+      </div>
+    </div>
+  );
+}
+
 // Tela de seleção de perfil (estilo da referência: avatar grande com rotação ao escolher)
 function IdentifyScreen({ onChoose, onAdmin, onBack }) {
   const [selected, setSelected] = useState(0);
@@ -3668,21 +3759,12 @@ export default function App() {
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        justifyContent: 'flex-start',
+        justifyContent: 'center',
         textAlign: 'center',
-        padding: 'clamp(80px, 22vh, 200px) 24px 24px'
+        padding: '24px'
       }}>
-        <PeepsCanvas />
-        <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-          <h1 style={{
-            fontSize: 'clamp(48px, 9vw, 104px)',
-            fontWeight: 600,
-            margin: 0,
-            letterSpacing: '-0.04em',
-            lineHeight: 1.02
-          }}>
-            Painel de Conteúdos
-          </h1>
+        <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', width: '100%', maxWidth: '560px' }}>
+          <GooeyText texts={TITLE_PARTS} morphTime={0.6} cooldownTime={0.5} />
           <button
             onClick={() => setView('identify')}
             style={{
