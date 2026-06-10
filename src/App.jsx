@@ -366,7 +366,6 @@ We build tomorrow's tech. Conheça pelo link da bio.`
 
   ecosys: {
     name: 'Ecosys Auto',
-    comingSoon: true,
     tagline: 'A IA que atende sua revenda 24/7',
     accent: '#22D3EE',
     bg: '#0A1628',
