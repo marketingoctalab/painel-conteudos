@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, Calendar, Copy, Check, ArrowRight, Newspaper, Megaphone, Layers, X, Target, AlertTriangle } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar, Copy, Check, ArrowRight, Newspaper, Megaphone, Layers, X, Target, AlertTriangle, Lock } from 'lucide-react';
 import { supabase, supabaseReady } from './supabase';
+
+// Senha do Painel Admin. Vem do .env (VITE_ADMIN_PASSWORD); se não houver, usa o padrão abaixo.
+const ADMIN_PASSWORD = import.meta.env.VITE_ADMIN_PASSWORD || 'octalab2026';
 import PeepsCanvas from './PeepsCanvas';
 
 // ============================================================
@@ -2772,6 +2775,45 @@ function CreativeUploader({ id, urls = [], uploading, onUpload, onRemove }) {
   );
 }
 
+// Tela de senha do Painel Admin. Aparece sempre que o usuário tenta abrir o admin.
+function AdminGate({ expected, onSuccess, onCancel }) {
+  const [pw, setPw] = useState('');
+  const [error, setError] = useState(false);
+
+  const submit = (e) => {
+    e.preventDefault();
+    if (pw === expected) {
+      onSuccess();
+    } else {
+      setError(true);
+      setPw('');
+    }
+  };
+
+  return (
+    <div style={{ minHeight: '100vh', background: '#0a0a0a', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px', fontFamily: 'Geist, -apple-system, BlinkMacSystemFont, system-ui, sans-serif' }}>
+      <form onSubmit={submit} style={{ width: '100%', maxWidth: '360px', textAlign: 'center' }}>
+        <div style={{ width: '48px', height: '48px', borderRadius: '14px', background: 'rgba(255,255,255,0.08)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginBottom: '20px' }}>
+          <Lock size={22} color="#fafafa" />
+        </div>
+        <h1 style={{ color: '#fafafa', fontSize: '22px', fontWeight: 600, margin: '0 0 6px', letterSpacing: '-0.02em' }}>Painel Admin</h1>
+        <p style={{ color: 'rgba(255,255,255,0.55)', fontSize: '13px', margin: '0 0 24px' }}>Digite a senha para acessar.</p>
+        <input
+          type="password"
+          value={pw}
+          autoFocus
+          onChange={e => { setPw(e.target.value); setError(false); }}
+          placeholder="Senha"
+          style={{ width: '100%', boxSizing: 'border-box', padding: '13px 16px', borderRadius: '12px', border: error ? '1px solid #f87171' : '1px solid rgba(255,255,255,0.15)', background: 'rgba(255,255,255,0.06)', color: '#fafafa', fontSize: '15px', outline: 'none', marginBottom: '12px' }}
+        />
+        {error && <div style={{ color: '#f87171', fontSize: '12.5px', marginBottom: '12px' }}>Senha incorreta.</div>}
+        <button type="submit" style={{ width: '100%', padding: '13px', borderRadius: '12px', border: 'none', background: '#fafafa', color: '#0a0a0a', fontSize: '14px', fontWeight: 600, cursor: 'pointer', marginBottom: '10px' }}>Entrar</button>
+        <button type="button" onClick={onCancel} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)', fontSize: '13px', cursor: 'pointer' }}>Cancelar</button>
+      </form>
+    </div>
+  );
+}
+
 // ============================================================
 // APP PRINCIPAL
 // ============================================================
@@ -3044,7 +3086,7 @@ export default function App() {
             Ver conteúdos <ArrowRight size={17} />
           </button>
           <button
-            onClick={() => setView('admin')}
+            onClick={() => setView('gate')}
             style={{
               marginTop: '10px', background: 'none', border: 'none',
               color: '#0a0a0a', opacity: 0.45, fontSize: '12px',
@@ -3099,7 +3141,7 @@ export default function App() {
           <button onClick={() => setView('landing')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#0a0a0a', opacity: 0.55, display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '12px', fontWeight: 500, padding: 0 }}>
             <ChevronLeft size={14} /> Voltar
           </button>
-          <button onClick={() => setView('admin')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#0a0a0a', opacity: 0.45, fontSize: '12px', textDecoration: 'underline' }}>
+          <button onClick={() => setView('gate')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#0a0a0a', opacity: 0.45, fontSize: '12px', textDecoration: 'underline' }}>
             Painel admin
           </button>
         </div>
@@ -3141,7 +3183,7 @@ export default function App() {
               <button onClick={() => setView('select')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#fafafa', opacity: 0.55, display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '12px', fontWeight: 500, padding: 0 }}>
                 <ChevronLeft size={14} /> Voltar
               </button>
-              <button onClick={() => setView('admin')} style={{ ...glassDark, cursor: 'pointer', color: '#fafafa', borderRadius: '999px', padding: '8px 16px', fontSize: '12px', fontWeight: 600 }}>
+              <button onClick={() => setView('gate')} style={{ ...glassDark, cursor: 'pointer', color: '#fafafa', borderRadius: '999px', padding: '8px 16px', fontSize: '12px', fontWeight: 600 }}>
                 Painel admin
               </button>
             </div>
@@ -3203,7 +3245,7 @@ export default function App() {
             <ChevronLeft size={14} /> Voltar
           </button>
           <button
-            onClick={() => setView('admin')}
+            onClick={() => setView('gate')}
             style={{
               background: 'none', border: 'none', cursor: 'pointer',
               color: '#0a0a0a', opacity: 0.45, fontSize: '12px',
@@ -3326,6 +3368,17 @@ export default function App() {
           })}
         </div>
       </div>
+    );
+  }
+
+  // ─── TELA DE SENHA DO ADMIN ───
+  if (view === 'gate') {
+    return (
+      <AdminGate
+        expected={ADMIN_PASSWORD}
+        onSuccess={() => setView('admin')}
+        onCancel={() => setView('select')}
+      />
     );
   }
 
@@ -3542,7 +3595,7 @@ export default function App() {
               <ChevronLeft size={14} /> Voltar
             </button>
             <button
-              onClick={() => setView('admin')}
+              onClick={() => setView('gate')}
               style={{
                 ...glassDark, cursor: 'pointer', color: '#fafafa',
                 borderRadius: '999px', padding: '8px 16px',
