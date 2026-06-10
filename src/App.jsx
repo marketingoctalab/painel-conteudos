@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useId } from 'react';
 import { ChevronLeft, ChevronRight, Calendar, Copy, Check, ArrowRight, Newspaper, Megaphone, Layers, X, Target, AlertTriangle, Lock, Plus, Trash2, Pencil, Video, Image as ImageIcon, Tag as TagIcon } from 'lucide-react';
 import { supabase, supabaseReady } from './supabase';
 
@@ -2906,34 +2906,111 @@ function AdminGate({ expected, onSuccess, onCancel }) {
   );
 }
 
-// Perfis de revisão (sem login). Avatares ficam em /public/avatars/<key>.png — adicione depois.
+// Avatares geométricos (estilo "boring avatars"): 4 da referência + 1 criado para o 5º perfil
+const AVATAR_DESIGNS = [
+  { base: '#ff005b', blob: '#ffb238', transform: 'translate(9 -5) rotate(219 18 18) scale(1)',   rx: 6,  face: 'translate(4.5 -4) rotate(9 18 18)',  mouth: 'M15 19c2 1 4 1 6 0',       open: false, eyes: [10, 24], color: '#000000' },
+  { base: '#ff7d10', blob: '#0a0310', transform: 'translate(5 -1) rotate(55 18 18) scale(1.1)',  rx: 6,  face: 'translate(7 -6) rotate(-5 18 18)',  mouth: 'M15 20c2 1 4 1 6 0',       open: false, eyes: [14, 20], color: '#FFFFFF' },
+  { base: '#0a0310', blob: '#1e3a8a', transform: 'translate(-3 7) rotate(227 18 18) scale(1.2)', rx: 36, face: 'translate(-3 3.5) rotate(7 18 18)', mouth: 'M13,21 a1,0.75 0 0,0 10,0', open: true,  eyes: [12, 22], color: '#FFFFFF' },
+  { base: '#d8fcb3', blob: '#89fcb3', transform: 'translate(9 -5) rotate(219 18 18) scale(1)',   rx: 6,  face: 'translate(4.5 -4) rotate(9 18 18)',  mouth: 'M15 19c2 1 4 1 6 0',       open: false, eyes: [10, 24], color: '#000000' },
+  { base: '#6d28d9', blob: '#22d3ee', transform: 'translate(-4 6) rotate(135 18 18) scale(1.15)', rx: 36, face: 'translate(2 -3) rotate(-7 18 18)', mouth: 'M15 19c2 1 4 1 6 0',        open: false, eyes: [11, 23], color: '#FFFFFF' }
+];
+
+// Perfis de revisão (sem login), cada um com um avatar geométrico e uma cor representativa
 const PROFILES = [
-  { key: 'alex', name: 'ALEX', color: '#D97757' },
-  { key: 'marcos', name: 'MARCOS', color: '#2563eb' },
-  { key: 'miguel', name: 'MIGUEL', color: '#16a34a' },
-  { key: 'silvio', name: 'SILVIO', color: '#9333ea' },
-  { key: 'thiago', name: 'THIAGO', color: '#db2777' }
+  { key: 'alex', name: 'ALEX', avatar: 0, tint: '#ff005b' },
+  { key: 'marcos', name: 'MARCOS', avatar: 1, tint: '#ff7d10' },
+  { key: 'miguel', name: 'MIGUEL', avatar: 2, tint: '#1e3a8a' },
+  { key: 'silvio', name: 'SILVIO', avatar: 3, tint: '#89fcb3' },
+  { key: 'thiago', name: 'THIAGO', avatar: 4, tint: '#22d3ee' }
 ];
 const profileByName = (name) => PROFILES.find(p => p.name === name) || null;
 
-// Avatar do perfil: usa a imagem em /public/avatars/<key>.png; se faltar, cai numa inicial colorida.
-function Avatar({ profile, size = 116, radius = 18 }) {
-  const [broken, setBroken] = useState(false);
-  if (!profile) return null;
-  if (broken) {
-    return (
-      <div style={{ width: size, height: size, borderRadius: `${radius}px`, background: profile.color, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: size * 0.4, fontWeight: 700, letterSpacing: '-0.02em' }}>
-        {profile.name[0]}
-      </div>
-    );
-  }
+// Renderiza um avatar geométrico. useId garante máscara única por instância (mesmo design usado 2x).
+function BoringAvatar({ index = 0, size = 40 }) {
+  const raw = useId();
+  const maskId = 'bav' + raw.replace(/[^a-zA-Z0-9]/g, '');
+  const d = AVATAR_DESIGNS[index] || AVATAR_DESIGNS[0];
   return (
-    <img
-      src={`/avatars/${profile.key}.png`}
-      alt={profile.name}
-      onError={() => setBroken(true)}
-      style={{ width: size, height: size, borderRadius: `${radius}px`, objectFit: 'cover', background: '#101010', display: 'block' }}
-    />
+    <svg viewBox="0 0 36 36" width={size} height={size} fill="none" role="img" xmlns="http://www.w3.org/2000/svg">
+      <mask id={maskId} maskUnits="userSpaceOnUse" x="0" y="0" width="36" height="36">
+        <rect width="36" height="36" rx="72" fill="#FFFFFF" />
+      </mask>
+      <g mask={`url(#${maskId})`}>
+        <rect width="36" height="36" fill={d.base} />
+        <rect x="0" y="0" width="36" height="36" transform={d.transform} fill={d.blob} rx={d.rx} />
+        <g transform={d.face}>
+          {d.open
+            ? <path d={d.mouth} fill={d.color} />
+            : <path d={d.mouth} stroke={d.color} fill="none" strokeLinecap="round" />}
+          <rect x={d.eyes[0]} y="14" width="1.5" height="2" rx="1" fill={d.color} />
+          <rect x={d.eyes[1]} y="14" width="1.5" height="2" rx="1" fill={d.color} />
+        </g>
+      </g>
+    </svg>
+  );
+}
+
+// Tela de seleção de perfil (estilo da referência: avatar grande com rotação ao escolher)
+function IdentifyScreen({ onChoose, onAdmin, onBack }) {
+  const [selected, setSelected] = useState(0);
+  const [rotation, setRotation] = useState(0);
+  const pick = (i) => { setRotation(r => r + 1080); setSelected(i); };
+  const profile = PROFILES[selected];
+  const design = AVATAR_DESIGNS[profile.avatar];
+  // Faixa do topo: degradê das 2 cores do avatar selecionado, repetido para o wave fluir em loop
+  const band = `linear-gradient(90deg, ${design.base}, ${design.blob}, ${design.base})`;
+
+  return (
+    <div style={{ minHeight: '100vh', background: '#f5f5f3', fontFamily: 'Geist, -apple-system, BlinkMacSystemFont, system-ui, sans-serif', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
+      <style>{`@keyframes avUp{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}@keyframes avBand{from{opacity:0;height:0}to{opacity:1;height:128px}}@keyframes avWave{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}`}</style>
+      <div style={{ width: '100%', maxWidth: '430px', background: 'linear-gradient(180deg,#ffffff,#f7f7f5)', border: '1px solid rgba(0,0,0,0.07)', borderRadius: '24px', overflow: 'hidden', boxShadow: '0 20px 60px rgba(0,0,0,0.12)' }}>
+        <div style={{ height: '128px', backgroundImage: band, backgroundSize: '200% 100%', backgroundRepeat: 'no-repeat', animation: 'avBand 0.6s cubic-bezier(0.4,0,0.2,1) both, avWave 6s ease-in-out infinite' }} />
+
+        <div style={{ padding: '0 32px 34px', marginTop: '-64px', textAlign: 'center' }}>
+          {/* Avatar principal */}
+          <div style={{ width: '152px', height: '152px', margin: '0 auto', borderRadius: '50%', border: '4px solid #ffffff', background: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', boxShadow: '0 0 0 1px rgba(0,0,0,0.06), 0 10px 28px rgba(0,0,0,0.12)', animation: 'avUp 0.5s cubic-bezier(0.34,1.56,0.64,1) both' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', transform: `rotate(${rotation}deg)`, transition: 'transform 0.8s cubic-bezier(0.4,0,0.2,1)' }}>
+              <BoringAvatar index={profile.avatar} size={104} />
+            </div>
+          </div>
+
+          <p style={{ color: 'rgba(0,0,0,0.5)', fontSize: '14px', margin: '20px 0 0', fontWeight: 500 }}>Selecione seu perfil</p>
+
+          {/* Picker */}
+          <div style={{ display: 'flex', justifyContent: 'center', gap: '14px', marginTop: '26px' }}>
+            {PROFILES.map((p, i) => {
+              const on = selected === i;
+              return (
+                <div key={p.key} title={p.name} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', animation: `avUp 0.5s cubic-bezier(0.34,1.56,0.64,1) ${0.15 + i * 0.08}s both` }}>
+                  <button
+                    onClick={() => pick(i)}
+                    aria-label={p.name}
+                    onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-3px)'; }}
+                    onMouseLeave={e => { e.currentTarget.style.transform = 'none'; }}
+                    style={{ position: 'relative', width: '52px', height: '52px', borderRadius: '50%', overflow: 'hidden', cursor: 'pointer', padding: 0, background: '#ffffff', border: '2px solid ' + (on ? '#0a0a0a' : 'rgba(0,0,0,0.12)'), boxShadow: on ? '0 0 0 2px #ffffff, 0 0 0 4px #0a0a0a' : 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease' }}
+                  >
+                    <BoringAvatar index={p.avatar} size={48} />
+                  </button>
+                  <span style={{ fontSize: '10.5px', fontWeight: on ? 700 : 600, letterSpacing: '0.03em', color: on ? '#0a0a0a' : 'rgba(0,0,0,0.45)', transition: 'color 0.2s ease' }}>{p.name}</span>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Ações */}
+          <button
+            onClick={() => onChoose(profile.name)}
+            style={{ width: '100%', marginTop: '28px', padding: '14px', borderRadius: '14px', border: 'none', background: '#0a0a0a', color: '#ffffff', fontSize: '14.5px', fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+          >
+            Entrar como {profile.name} <ArrowRight size={16} />
+          </button>
+          <button onClick={onAdmin} style={{ width: '100%', marginTop: '12px', background: 'rgba(0,0,0,0.05)', border: '1px solid rgba(0,0,0,0.1)', color: 'rgba(0,0,0,0.7)', borderRadius: '14px', padding: '12px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+            <Lock size={14} /> Acessar painel admin
+          </button>
+          <button onClick={onBack} style={{ marginTop: '14px', background: 'none', border: 'none', color: 'rgba(0,0,0,0.4)', fontSize: '12.5px', cursor: 'pointer' }}>Voltar</button>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -3044,7 +3121,7 @@ function AdminItem({ it, scheduledDate, urls = [], uploading, onReview, onUpload
 
           {it.reviewer && it.status !== 'pending' && (
             <div style={{ marginTop: '7px', display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '11.5px', fontWeight: 600, color: 'rgba(0,0,0,0.55)' }}>
-              {(() => { const p = profileByName(it.reviewer); return p ? <Avatar profile={p} size={18} radius={6} /> : null; })()}
+              {(() => { const p = profileByName(it.reviewer); return p ? <BoringAvatar index={p.avatar} size={18} /> : null; })()}
               {it.status === 'approved' ? 'Aprovado' : 'Reprovado'} por {it.reviewer}
             </div>
           )}
@@ -3568,41 +3645,14 @@ export default function App() {
   if (activeKind !== 'all') posts = posts.filter(({ post }) => post.kind === activeKind);
 
   // ─── TELA INICIAL ───
-  // ─── IDENTIFIQUE-SE: seleção de perfil (estilo Netflix) ───
+  // ─── IDENTIFIQUE-SE: seleção de perfil (avatar com rotação ao escolher) ───
   if (view === 'identify') {
     return (
-      <div style={{ minHeight: '100vh', background: '#0a0a0a', color: '#fafafa', fontFamily: 'Geist, -apple-system, BlinkMacSystemFont, system-ui, sans-serif', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '48px 24px', textAlign: 'center' }}>
-        <h1 style={{ fontSize: 'clamp(28px, 5vw, 46px)', fontWeight: 600, margin: '0 0 10px', letterSpacing: '-0.03em' }}>Identifique-se :)</h1>
-        <p style={{ opacity: 0.55, fontSize: '14px', margin: '0 0 48px' }}>Escolha seu perfil para revisar os conteúdos.</p>
-
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '30px', justifyContent: 'center', maxWidth: '760px' }}>
-          {PROFILES.map(p => (
-            <button
-              key={p.key}
-              onClick={() => chooseUser(p.name)}
-              style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '14px', padding: 0, transition: 'transform 0.18s ease' }}
-              onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.06)'; }}
-              onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; }}
-            >
-              <Avatar profile={p} />
-              <span style={{ fontSize: '15px', fontWeight: 600, letterSpacing: '0.03em', color: 'rgba(255,255,255,0.82)' }}>{p.name}</span>
-            </button>
-          ))}
-        </div>
-
-        <button
-          onClick={() => setView('gate')}
-          style={{ marginTop: '56px', ...glassDark, color: '#fafafa', borderRadius: '999px', padding: '11px 22px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '8px' }}
-        >
-          <Lock size={14} /> Acessar painel admin
-        </button>
-        <button
-          onClick={() => setView('landing')}
-          style={{ marginTop: '16px', background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', fontSize: '12.5px', cursor: 'pointer' }}
-        >
-          Voltar
-        </button>
-      </div>
+      <IdentifyScreen
+        onChoose={chooseUser}
+        onAdmin={() => setView('gate')}
+        onBack={() => setView('landing')}
+      />
     );
   }
 
@@ -3726,7 +3776,7 @@ export default function App() {
         <div style={{ textAlign: 'center', marginBottom: 'clamp(28px, 4vh, 44px)' }}>
           {currentUser && (
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: '9px', marginBottom: '18px', background: 'rgba(0,0,0,0.04)', border: '1px solid rgba(0,0,0,0.08)', borderRadius: '999px', padding: '5px 8px 5px 5px' }}>
-              {(() => { const p = profileByName(currentUser); return p ? <Avatar profile={p} size={28} radius={9} /> : null; })()}
+              {(() => { const p = profileByName(currentUser); return p ? <BoringAvatar index={p.avatar} size={28} /> : null; })()}
               <span style={{ fontSize: '13px', fontWeight: 600 }}>{currentUser}</span>
               <button onClick={() => setView('identify')} style={{ background: 'none', border: 'none', color: 'rgba(0,0,0,0.5)', fontSize: '12px', cursor: 'pointer', textDecoration: 'underline', padding: '0 6px 0 0' }}>trocar</button>
             </div>
