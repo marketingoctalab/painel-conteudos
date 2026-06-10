@@ -2500,10 +2500,34 @@ function customToPost(p) {
   };
 }
 
-// Posts de uma marca: fixos (do código) + customizados (do Supabase), no mesmo formato
+// Aplica a edição do admin (override) sobre um post fixo
+function applyOverride(post, ov) {
+  return {
+    ...post,
+    theme: ov.headline || post.theme,
+    headline: ov.headline || post.theme,
+    subtitle: ov.subtitle ?? post.subtitle ?? '',
+    caption: ov.caption ?? post.caption,
+    kind: ov.kind || post.kind,
+    tags: Array.isArray(ov.tags) ? ov.tags : (post.tags || [])
+  };
+}
+
+// Posts de uma marca: fixos (do código, com edições aplicadas) + criados no admin
 function postsOf(brandKey, customList = []) {
-  const builtin = (clients[brandKey]?.posts || []).map((post, i) => ({ id: `${brandKey}-${i}`, post, custom: false }));
-  const custom = customList.filter(p => p.brand === brandKey).map(p => ({ id: p.id, post: customToPost(p), custom: true }));
+  const overrides = {};
+  const customs = [];
+  customList.forEach(p => {
+    if (p.brand !== brandKey) return;
+    if (String(p.id).startsWith('custom-')) customs.push(p);
+    else overrides[p.id] = p; // edição de um post fixo
+  });
+  const builtin = (clients[brandKey]?.posts || []).map((post, i) => {
+    const id = `${brandKey}-${i}`;
+    const ov = overrides[id];
+    return { id, post: ov ? applyOverride(post, ov) : post, custom: false, edited: !!ov };
+  });
+  const custom = customs.map(p => ({ id: p.id, post: customToPost(p), custom: true, edited: false }));
   return [...builtin, ...custom];
 }
 
@@ -2977,7 +3001,7 @@ function ConfirmDialog({ message, confirmLabel = 'Confirmar', onConfirm, onClose
 }
 
 // Um conteúdo na lista do admin: miniatura, status, aprovar/reprovar inline, agenda e upload de criativos
-function AdminItem({ it, scheduledDate, urls = [], uploading, onReview, onUpload, onRemove, onEdit, onDelete }) {
+function AdminItem({ it, scheduledDate, urls = [], uploading, onReview, onUpload, onRemove, onEdit, onDelete, onRestore }) {
   const [showReprove, setShowReprove] = useState(false);
   const [draft, setDraft] = useState('');
   const hasUpload = urls.length > 0;
@@ -3015,6 +3039,7 @@ function AdminItem({ it, scheduledDate, urls = [], uploading, onReview, onUpload
               <div style={{ fontSize: '10.5px', color: 'rgba(0,0,0,0.45)', fontWeight: 600, marginBottom: '3px', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '7px', flexWrap: 'wrap' }}>
                 <span>{it.day} · {KIND_LABEL[it.kind] || it.kind}</span>
                 {it.custom && <span style={{ background: 'rgba(37,99,235,0.1)', color: '#2563eb', borderRadius: '999px', padding: '1px 8px', fontSize: '9.5px', fontWeight: 700, letterSpacing: '0.04em' }}>CRIADO</span>}
+                {!it.custom && it.edited && <span style={{ background: 'rgba(217,119,87,0.12)', color: '#b45309', borderRadius: '999px', padding: '1px 8px', fontSize: '9.5px', fontWeight: 700, letterSpacing: '0.04em' }}>EDITADO</span>}
               </div>
               <div style={{ fontSize: '14.5px', fontWeight: 600, color: '#0a0a0a', lineHeight: 1.35 }}>{it.theme}</div>
               <TagChips tags={it.tags} />
@@ -3044,11 +3069,12 @@ function AdminItem({ it, scheduledDate, urls = [], uploading, onReview, onUpload
                 {it.status !== 'pending' && (
                   <button onClick={undo} style={{ background: 'none', border: 'none', color: 'rgba(0,0,0,0.5)', fontSize: '11.5px', cursor: 'pointer', textDecoration: 'underline' }}>desfazer</button>
                 )}
+                <button onClick={() => onEdit(it.id)} style={actionBtn('rgba(0,0,0,0.05)', 'rgba(0,0,0,0.65)', '1px solid rgba(0,0,0,0.1)')}><Pencil size={12} /> Editar</button>
+                {!it.custom && it.edited && (
+                  <button onClick={() => onRestore(it.id)} style={actionBtn('rgba(217,119,87,0.1)', '#b45309', '1px solid rgba(217,119,87,0.25)')}><ChevronLeft size={12} /> Restaurar</button>
+                )}
                 {it.custom && (
-                  <>
-                    <button onClick={() => onEdit(it.id)} style={actionBtn('rgba(0,0,0,0.05)', 'rgba(0,0,0,0.65)', '1px solid rgba(0,0,0,0.1)')}><Pencil size={12} /> Editar</button>
-                    <button onClick={() => onDelete(it.id)} style={actionBtn('rgba(220,38,38,0.06)', '#b91c1c', '1px solid rgba(220,38,38,0.18)')}><Trash2 size={12} /> Excluir</button>
-                  </>
+                  <button onClick={() => onDelete(it.id)} style={actionBtn('rgba(220,38,38,0.06)', '#b91c1c', '1px solid rgba(220,38,38,0.18)')}><Trash2 size={12} /> Excluir</button>
                 )}
                 <span style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '11.5px', fontWeight: 600, color: scheduledDate ? '#0a0a0a' : 'rgba(0,0,0,0.4)' }}>
                   <Calendar size={12} /> {scheduledDate ? `Agendado · ${ddmm(scheduledDate)}` : 'Não agendado'}
@@ -3087,7 +3113,7 @@ function AdminItem({ it, scheduledDate, urls = [], uploading, onReview, onUpload
 }
 
 // Modal de criar/editar um post no admin
-function PostEditor({ initial, brands, onSave, onClose }) {
+function PostEditor({ initial, brands, lockBrand, onSave, onClose }) {
   const [brand, setBrand] = useState(initial?.brand || brands[0]?.[0] || '');
   const [headline, setHeadline] = useState(initial?.headline || '');
   const [subtitle, setSubtitle] = useState(initial?.subtitle || '');
@@ -3123,9 +3149,15 @@ function PostEditor({ initial, brands, onSave, onClose }) {
         <div style={{ padding: '22px 24px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
           <div>
             <label style={label}>Marca</label>
-            <select value={brand} onChange={e => setBrand(e.target.value)} style={{ ...field, cursor: 'pointer' }}>
-              {brands.map(([k, c]) => <option key={k} value={k}>{c.name}</option>)}
-            </select>
+            {lockBrand ? (
+              <div style={{ ...field, background: 'rgba(0,0,0,0.04)', color: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Lock size={13} /> {brands.find(([k]) => k === brand)?.[1]?.name || clients[brand]?.name || brand}
+              </div>
+            ) : (
+              <select value={brand} onChange={e => setBrand(e.target.value)} style={{ ...field, cursor: 'pointer' }}>
+                {brands.map(([k, c]) => <option key={k} value={k}>{c.name}</option>)}
+              </select>
+            )}
           </div>
 
           <div>
@@ -3485,6 +3517,34 @@ export default function App() {
       await supabase.from('schedule').delete().eq('id', id);
       await supabase.from('creatives').delete().eq('id', id);
     }, 'Excluir');
+  };
+
+  // Restaura um post fixo editado para a versão original (remove o override)
+  const restorePost = (id) => {
+    askConfirm('Restaurar este conteúdo para a versão original? Suas edições de texto e tags serão descartadas.', async () => {
+      setCustomPosts(prev => { const n = { ...prev }; delete n[id]; return n; });
+      if (!supabaseReady) return;
+      await supabase.from('posts').delete().eq('id', id);
+      notify('Conteúdo restaurado para o original.');
+    }, 'Restaurar');
+  };
+
+  // Abre o editor para um post — fixo (monta a partir do código) ou customizado/editado
+  const openEditor = (id) => {
+    if (customPosts[id]) { setEditorPost(customPosts[id]); return; }
+    const lastDash = id.lastIndexOf('-');
+    const brandKey = id.slice(0, lastDash);
+    const idx = parseInt(id.slice(lastDash + 1), 10);
+    const post = clients[brandKey]?.posts?.[idx];
+    if (!post) return;
+    setEditorPost({
+      id, brand: brandKey,
+      headline: post.theme || '',
+      subtitle: post.subtitle || '',
+      caption: post.caption || '',
+      kind: post.kind || 'estatico',
+      tags: post.tags || []
+    });
   };
 
   // Lista de posts customizados (array) para passar aos componentes
@@ -3917,13 +3977,13 @@ export default function App() {
   // ─── PAINEL ADMIN ───
   if (view === 'admin') {
     const allItems = Object.entries(clients).flatMap(([brandKey, c]) =>
-      postsOf(brandKey, customList).map(({ id, post, custom }) => {
+      postsOf(brandKey, customList).map(({ id, post, custom, edited }) => {
         const r = reviews[id] || {};
         return {
           id, brandKey, brandName: c.name, accent: c.accent,
           theme: post.theme, kind: post.kind, day: post.day,
           comingSoon: !!c.comingSoon,
-          custom, tags: post.tags || [],
+          custom, edited, tags: post.tags || [],
           status: r.status || 'pending',
           suggestion: r.suggestion || '',
           reviewer: r.reviewer || '',
@@ -4127,8 +4187,9 @@ export default function App() {
                       onReview={setReview}
                       onUpload={uploadCreatives}
                       onRemove={removeCreativeAt}
-                      onEdit={(id) => setEditorPost(customPosts[id])}
+                      onEdit={openEditor}
                       onDelete={deletePost}
+                      onRestore={restorePost}
                     />
                   ))}
                 </div>
@@ -4152,6 +4213,7 @@ export default function App() {
           <PostEditor
             initial={editorPost === 'new' ? null : editorPost}
             brands={Object.entries(clients).filter(([, c]) => !c.comingSoon)}
+            lockBrand={editorPost !== 'new' && !!editorPost && !String(editorPost.id).startsWith('custom-')}
             onSave={savePost}
             onClose={() => setEditorPost(null)}
           />
