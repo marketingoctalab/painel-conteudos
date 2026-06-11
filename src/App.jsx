@@ -2545,14 +2545,22 @@ function MonthCalendar({ schedule, reviews, calBrand, setCalBrand, onDayClick, c
     });
   });
 
-  // 6 semanas × 7 dias, começando no domingo 31/mai/2026
+  // Mês exibido (navegável). Começa no mês atual.
+  const now = new Date();
+  const [ym, setYm] = useState({ y: now.getFullYear(), m: now.getMonth() }); // m: 0-11
+  const prevMonth = () => setYm(v => { const d = new Date(v.y, v.m - 1, 1); return { y: d.getFullYear(), m: d.getMonth() }; });
+  const nextMonth = () => setYm(v => { const d = new Date(v.y, v.m + 1, 1); return { y: d.getFullYear(), m: d.getMonth() }; });
+  const monthTitle = `${MONTHS[ym.m].charAt(0).toUpperCase() + MONTHS[ym.m].slice(1)} de ${ym.y}`;
+
+  // 6 semanas × 7 dias do mês exibido, começando no domingo da 1ª semana
+  const startOffset = new Date(ym.y, ym.m, 1).getDay();
   const cells = [];
   for (let i = 0; i < 42; i++) {
-    const d = new Date(2026, 4, 31 + i);
-    cells.push({ iso: iso(d.getFullYear(), d.getMonth(), d.getDate()), day: d.getDate(), inMonth: d.getMonth() === 5, dow: d.getDay() });
+    const d = new Date(ym.y, ym.m, 1 - startOffset + i);
+    cells.push({ iso: iso(d.getFullYear(), d.getMonth(), d.getDate()), day: d.getDate(), inMonth: d.getMonth() === ym.m, dow: d.getDay() });
   }
-  const now = new Date();
   const todayIso = iso(now.getFullYear(), now.getMonth(), now.getDate());
+  const navBtn = { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', borderRadius: '10px', border: '1px solid rgba(0,0,0,0.1)', background: '#fff', color: '#0a0a0a', cursor: 'pointer' };
 
   const Tag = ({ item }) => (
     <div title={item.post.theme} style={{
@@ -2571,8 +2579,13 @@ function MonthCalendar({ schedule, reviews, calBrand, setCalBrand, onDayClick, c
 
   return (
     <div>
-      {/* Legenda de status (visualização geral — todas as marcas) */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', flexWrap: 'wrap', gap: '12px', marginBottom: '16px' }}>
+      {/* Navegação de mês + legenda de status */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px', marginBottom: '16px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <button onClick={prevMonth} aria-label="Mês anterior" style={navBtn}><ChevronLeft size={16} /></button>
+          <span style={{ fontSize: '15px', fontWeight: 700, minWidth: '150px', textAlign: 'center', textTransform: 'capitalize' }}>{monthTitle}</span>
+          <button onClick={nextMonth} aria-label="Próximo mês" style={navBtn}><ChevronRight size={16} /></button>
+        </div>
         <div style={{ display: 'flex', gap: '12px', fontSize: '11px', color: 'rgba(0,0,0,0.55)', fontWeight: 600 }}>
           {[['approved', 'Aprovado'], ['reproved', 'Reprovado'], ['pending', 'Pendente']].map(([k, label]) => (
             <span key={k} style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
@@ -2635,6 +2648,13 @@ function MonthCalendar({ schedule, reviews, calBrand, setCalBrand, onDayClick, c
 }
 
 const MONTHS = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+// 'YYYY-MM' -> "Junho" (com ano só se for diferente do atual)
+function monthLabel(ym) {
+  const [y, m] = ym.split('-').map(Number);
+  const name = MONTHS[m - 1];
+  const label = name.charAt(0).toUpperCase() + name.slice(1);
+  return y === new Date().getFullYear() ? label : `${label} ${y}`;
+}
 const WEEKDAYS_LONG = ['domingo', 'segunda-feira', 'terça-feira', 'quarta-feira', 'quinta-feira', 'sexta-feira', 'sábado'];
 function dayLabel(isoStr) {
   if (isoStr === 'unscheduled') return 'Não agendados';
@@ -3417,6 +3437,8 @@ export default function App() {
   const [adminDay, setAdminDay] = useState(null); // dia aberto no admin (montar/atribuir conteúdos)
   const [adminFilter, setAdminFilter] = useState('all'); // filtro de status no admin
   const [adminSearch, setAdminSearch] = useState(''); // busca por tema/marca no admin
+  const [adminMonth, setAdminMonth] = useState('all'); // aba de mês no admin ('YYYY-MM' | 'unscheduled' | 'all')
+  const [expandedBrands, setExpandedBrands] = useState({}); // marcas expandidas na lista do admin
   const [toast, setToast] = useState(null); // aviso flutuante
   const [confirmBox, setConfirmBox] = useState(null); // { message, confirmLabel, onConfirm }
   const [currentUser, setCurrentUser] = useState(() => {
@@ -3905,7 +3927,7 @@ export default function App() {
               </button>
             </div>
             <h1 style={{ fontSize: '34px', fontWeight: 600, margin: 0, letterSpacing: '-0.03em', textTransform: 'capitalize' }}>Calendário editorial</h1>
-            <p style={{ fontSize: '13.5px', opacity: 0.65, marginTop: '8px' }}>Junho de 2026 · clique num dia para ver e aprovar os conteúdos.</p>
+            <p style={{ fontSize: '13.5px', opacity: 0.65, marginTop: '8px' }}>Use as setas para navegar entre os meses · clique num dia para ver e aprovar os conteúdos.</p>
           </div>
         </div>
 
@@ -4126,13 +4148,38 @@ export default function App() {
     const pending = allItems.filter(it => it.status === 'pending').length;
     const donePct = total ? Math.round(((approved + reproved) / total) * 100) : 0;
 
-    // Filtro de status + busca
+    // Mês de um conteúdo (pela data agendada)
+    const itemMonth = (it) => (schedule[it.id] ? schedule[it.id].slice(0, 7) : null);
+
+    // Abas de mês (a partir das datas agendadas) + Não agendados + Todos
+    const monthSet = new Set(Object.values(schedule).map(d => (d ? d.slice(0, 7) : null)).filter(Boolean));
+    const monthCount = (key) => allItems.filter(it => {
+      const m = itemMonth(it);
+      if (key === 'all') return true;
+      if (key === 'unscheduled') return !m;
+      return m === key;
+    }).length;
+    const monthTabs = [
+      ...[...monthSet].sort().map(m => ({ key: m, label: monthLabel(m) })),
+      { key: 'unscheduled', label: 'Não agendados' },
+      { key: 'all', label: 'Todos' }
+    ];
+
+    // Filtro de status + busca + mês
     const q = adminSearch.trim().toLowerCase();
     const filtered = allItems.filter(it => {
       if (adminFilter !== 'all' && it.status !== adminFilter) return false;
+      const m = itemMonth(it);
+      if (adminMonth === 'unscheduled' && m) return false;
+      if (adminMonth !== 'all' && adminMonth !== 'unscheduled' && m !== adminMonth) return false;
       if (q && !`${it.theme} ${it.brandName} ${KIND_LABEL[it.kind] || it.kind}`.toLowerCase().includes(q)) return false;
       return true;
     });
+
+    // Só a busca abre todas as marcas (pra mostrar o resultado); filtros de status respeitam o recolher
+    const forceExpand = q !== '';
+    const isBrandOpen = (bk) => forceExpand || !!expandedBrands[bk];
+    const toggleBrand = (bk) => setExpandedBrands(prev => ({ ...prev, [bk]: !prev[bk] }));
 
     const filterPills = [
       ['all', 'Todos', total],
@@ -4245,8 +4292,24 @@ export default function App() {
             </div>
           </div>
 
-          {/* CRIAR CONTEÚDO */}
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '18px' }}>
+          {/* ABAS DE MÊS + CRIAR CONTEÚDO */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', marginBottom: '16px' }}>
+            <div style={{ display: 'flex', gap: '7px', flexWrap: 'wrap' }}>
+              {monthTabs.map(t => {
+                const on = adminMonth === t.key;
+                return (
+                  <button key={t.key} onClick={() => setAdminMonth(t.key)} style={{
+                    display: 'inline-flex', alignItems: 'center', gap: '6px',
+                    background: on ? '#0a0a0a' : '#fff', color: on ? '#fff' : 'rgba(0,0,0,0.7)',
+                    border: '1px solid ' + (on ? '#0a0a0a' : 'rgba(0,0,0,0.1)'),
+                    borderRadius: '10px', padding: '8px 14px', fontSize: '12.5px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.18s ease'
+                  }}>
+                    {t.label}
+                    <span style={{ background: on ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.07)', borderRadius: '999px', padding: '0 7px', fontSize: '11px', fontWeight: 700 }}>{monthCount(t.key)}</span>
+                  </button>
+                );
+              })}
+            </div>
             <button
               onClick={() => setEditorPost('new')}
               style={{ background: '#0a0a0a', color: '#fff', border: 'none', borderRadius: '999px', padding: '11px 20px', fontSize: '13.5px', fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '8px', boxShadow: '0 4px 14px rgba(0,0,0,0.12)' }}
@@ -4283,7 +4346,7 @@ export default function App() {
             </div>
           </div>
 
-          {/* LISTA POR MARCA (com filtro/busca aplicados) */}
+          {/* LISTA POR MARCA — recolhível (com filtro/busca/mês aplicados) */}
           {filtered.length === 0 ? (
             <div style={{ textAlign: 'center', color: 'rgba(0,0,0,0.45)', fontSize: '14px', padding: '48px 0' }}>
               Nenhum conteúdo encontrado com esse filtro.
@@ -4293,33 +4356,40 @@ export default function App() {
             if (items.length === 0) return null;
             const bAppr = items.filter(it => it.status === 'approved').length;
             const bRepr = items.filter(it => it.status === 'reproved').length;
+            const open = isBrandOpen(brandKey);
             return (
-              <div key={brandKey} style={{ marginBottom: '34px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '14px' }}>
-                  <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: c.accent }} />
-                  <h2 style={{ fontSize: '18px', fontWeight: 700, margin: 0, letterSpacing: '-0.01em' }}>{c.name}</h2>
+              <div key={brandKey} style={{ marginBottom: '14px' }}>
+                <button
+                  onClick={() => toggleBrand(brandKey)}
+                  style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '11px', background: '#fff', border: '1px solid rgba(0,0,0,0.06)', borderRadius: open ? '14px 14px 0 0' : '14px', boxShadow: '0 1px 2px rgba(0,0,0,0.04)', padding: '15px 18px', cursor: 'pointer', textAlign: 'left' }}
+                >
+                  <ChevronRight size={16} style={{ flexShrink: 0, opacity: 0.45, transform: open ? 'rotate(90deg)' : 'none', transition: 'transform 0.2s ease' }} />
+                  <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: c.accent, flexShrink: 0 }} />
+                  <span style={{ fontSize: '16px', fontWeight: 700, letterSpacing: '-0.01em' }}>{c.name}</span>
                   <span style={{ fontSize: '12px', color: 'rgba(0,0,0,0.4)', fontWeight: 600 }}>{items.length} {items.length === 1 ? 'conteúdo' : 'conteúdos'}</span>
-                  <div style={{ flex: 1, maxWidth: '180px', marginLeft: 'auto' }}>
+                  <div style={{ flex: 1, maxWidth: '160px', marginLeft: 'auto' }}>
                     <ProgressBar approved={bAppr} reproved={bRepr} total={items.length} height={6} />
                   </div>
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  {items.map(it => (
-                    <AdminItem
-                      key={it.id}
-                      it={it}
-                      scheduledDate={schedule[it.id]}
-                      urls={creatives[it.id]}
-                      uploading={uploadingId === it.id}
-                      onReview={setReview}
-                      onUpload={uploadCreatives}
-                      onRemove={removeCreativeAt}
-                      onEdit={openEditor}
-                      onDelete={deletePost}
-                      onRestore={restorePost}
-                    />
-                  ))}
-                </div>
+                </button>
+                {open && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', padding: '12px', background: 'rgba(0,0,0,0.015)', border: '1px solid rgba(0,0,0,0.06)', borderTop: 'none', borderRadius: '0 0 14px 14px' }}>
+                    {items.map(it => (
+                      <AdminItem
+                        key={it.id}
+                        it={it}
+                        scheduledDate={schedule[it.id]}
+                        urls={creatives[it.id]}
+                        uploading={uploadingId === it.id}
+                        onReview={setReview}
+                        onUpload={uploadCreatives}
+                        onRemove={removeCreativeAt}
+                        onEdit={openEditor}
+                        onDelete={deletePost}
+                        onRestore={restorePost}
+                      />
+                    ))}
+                  </div>
+                )}
               </div>
             );
           })}
