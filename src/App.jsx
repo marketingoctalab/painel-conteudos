@@ -2319,7 +2319,7 @@ function PostCard({ post, brand, brandData, review, onReview, customSlides }) {
 }
 
 // Card horizontal: criativo à esquerda, textos + aprovar/reprovar à direita. Usado no detalhe do dia.
-function PostCardWide({ post, brand, brandData, review, onReview, customSlides }) {
+function PostCardWide({ post, brand, brandData, review, onReview, customSlides, posting }) {
   const [showCaption, setShowCaption] = useState(false);
   const [copied, setCopied] = useState(false);
   const [showReproveBox, setShowReproveBox] = useState(false);
@@ -2366,6 +2366,7 @@ function PostCardWide({ post, brand, brandData, review, onReview, customSlides }
               <Calendar size={10} /> {post.date}
             </div>
             <KindBadge kind={post.kind} />
+            {posting && <PostingBadge status={posting} />}
           </div>
           <h3 style={{ fontSize: '18px', fontWeight: 600, margin: '0 0 4px 0', color: '#0a0a0a', letterSpacing: '-0.01em', lineHeight: 1.3 }}>
             {post.theme}
@@ -2664,7 +2665,7 @@ function dayLabel(isoStr) {
 }
 
 // Painel de detalhe de um dia: lista os conteúdos agendados nele e reutiliza PostCard (ver + aprovar)
-function DayDetail({ day, schedule, reviews, setReview, onClose, creatives = {}, customPosts = [] }) {
+function DayDetail({ day, schedule, reviews, setReview, onClose, creatives = {}, customPosts = [], getPosting }) {
   const items = [];
   Object.entries(clients).filter(([, c]) => !c.comingSoon).forEach(([brandKey, c]) => {
     postsOf(brandKey, customPosts).forEach(({ id, post }) => {
@@ -2718,6 +2719,7 @@ function DayDetail({ day, schedule, reviews, setReview, onClose, creatives = {},
               review={reviews[id]}
               onReview={data => setReview(id, data)}
               customSlides={creatives[id]}
+              posting={getPosting ? getPosting(id) : undefined}
             />
           ))}
         </div>
@@ -3140,6 +3142,17 @@ function StatusBadge({ status }) {
   );
 }
 
+// Selo do status de postagem (em produção / agendado / postado)
+function PostingBadge({ status, small }) {
+  const map = {
+    producao: { label: 'Em produção', bg: '#f1f5f9', color: '#475569' },
+    agendado: { label: 'Agendado', bg: '#fef3c7', color: '#b45309' },
+    postado: { label: 'Postado', bg: '#dbeafe', color: '#1e40af' }
+  };
+  const v = map[status] || map.producao;
+  return <span style={{ background: v.bg, color: v.color, padding: small ? '2px 8px' : '3px 10px', borderRadius: '999px', fontSize: small ? '10px' : '11px', fontWeight: 700, whiteSpace: 'nowrap' }}>{v.label}</span>;
+}
+
 // Barra de progresso de aprovação: verde = aprovado, vermelho = reprovado, resto = pendente
 function ProgressBar({ approved, reproved, total, height = 10 }) {
   const pct = (n) => (total ? (n / total) * 100 : 0);
@@ -3184,7 +3197,7 @@ function ConfirmDialog({ message, confirmLabel = 'Confirmar', onConfirm, onClose
 }
 
 // Um conteúdo na lista do admin: miniatura, status, aprovar/reprovar inline, agenda e upload de criativos
-function AdminItem({ it, scheduledDate, urls = [], uploading, onReview, onUpload, onRemove, onEdit, onDelete, onRestore }) {
+function AdminItem({ it, scheduledDate, urls = [], uploading, posting = 'producao', onReview, onUpload, onRemove, onEdit, onDelete, onRestore, onSetProd }) {
   const [showReprove, setShowReprove] = useState(false);
   const [draft, setDraft] = useState('');
   const hasUpload = urls.length > 0;
@@ -3264,6 +3277,24 @@ function AdminItem({ it, scheduledDate, urls = [], uploading, onReview, onUpload
                 </span>
               </div>
 
+              {/* Status de postagem */}
+              <div style={{ marginTop: '12px', display: 'flex', alignItems: 'center', gap: '9px', flexWrap: 'wrap' }}>
+                <span style={{ fontSize: '10.5px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'rgba(0,0,0,0.4)' }}>Postagem</span>
+                <div style={{ display: 'inline-flex', background: 'rgba(0,0,0,0.05)', borderRadius: '999px', padding: '2px' }}>
+                  {[['producao', 'Em produção'], ['agendado', 'Agendado']].map(([k, label]) => {
+                    const on = (posting === 'producao' ? 'producao' : 'agendado') === k;
+                    return (
+                      <button key={k} onClick={() => onSetProd(it.id, k)} style={{ border: 'none', cursor: 'pointer', borderRadius: '999px', padding: '5px 12px', fontSize: '11.5px', fontWeight: 600, background: on ? '#0a0a0a' : 'transparent', color: on ? '#fff' : 'rgba(0,0,0,0.6)', transition: 'all 0.15s ease' }}>{label}</button>
+                    );
+                  })}
+                </div>
+                {posting === 'postado' && (
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                    <PostingBadge status="postado" /> <span style={{ fontSize: '10.5px', color: 'rgba(0,0,0,0.4)' }}>automático</span>
+                  </span>
+                )}
+              </div>
+
               {showReprove && (
                 <div style={{ marginTop: '12px' }}>
                   <textarea
@@ -3304,6 +3335,7 @@ function PostEditor({ initial, brands, lockBrand, onSave, onClose }) {
   const [kind, setKind] = useState(initial?.kind || 'estatico');
   const [tags, setTags] = useState(Array.isArray(initial?.tags) ? initial.tags : []);
   const [tagInput, setTagInput] = useState('');
+  const [prodSt, setProdSt] = useState(initial?.prodStatus || 'producao');
 
   const addTag = (t) => {
     const v = (t || '').trim();
@@ -3314,7 +3346,7 @@ function PostEditor({ initial, brands, lockBrand, onSave, onClose }) {
   const removeTag = (t) => setTags(tags.filter(x => x !== t));
 
   const canSave = brand && headline.trim();
-  const save = () => { if (canSave) onSave({ ...(initial || {}), brand, headline: headline.trim(), subtitle: subtitle.trim(), caption, kind, tags }); };
+  const save = () => { if (canSave) onSave({ ...(initial || {}), brand, headline: headline.trim(), subtitle: subtitle.trim(), caption, kind, tags, prodStatus: prodSt }); };
 
   const field = { width: '100%', boxSizing: 'border-box', borderRadius: '10px', border: '1px solid rgba(0,0,0,0.14)', padding: '11px 13px', fontSize: '14px', fontFamily: 'inherit', outline: 'none', background: '#fff' };
   const label = { fontSize: '11.5px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'rgba(0,0,0,0.5)', marginBottom: '7px', display: 'block' };
@@ -3360,6 +3392,23 @@ function PostEditor({ initial, brands, lockBrand, onSave, onClose }) {
                 );
               })}
             </div>
+          </div>
+
+          <div>
+            <label style={label}>Status de postagem</label>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              {[['producao', 'Em produção'], ['agendado', 'Agendado']].map(([k, lab]) => {
+                const on = prodSt === k;
+                return (
+                  <button key={k} onClick={() => setProdSt(k)} style={{
+                    flex: 1, background: on ? '#0a0a0a' : '#fff', color: on ? '#fff' : 'rgba(0,0,0,0.7)',
+                    border: '1px solid ' + (on ? '#0a0a0a' : 'rgba(0,0,0,0.14)'),
+                    borderRadius: '10px', padding: '11px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s ease'
+                  }}>{lab}</button>
+                );
+              })}
+            </div>
+            <p style={{ fontSize: '11.5px', color: 'rgba(0,0,0,0.45)', margin: '7px 0 0' }}>Agendados viram “Postado” automaticamente no dia marcado no calendário.</p>
           </div>
 
           <div>
@@ -3432,6 +3481,9 @@ export default function App() {
   const [uploadingId, setUploadingId] = useState(null); // id do conteúdo cujo upload está em andamento
   const [customPosts, setCustomPosts] = useState({}); // { 'custom-xxx': { id, brand, headline, ... } } — posts criados no admin
   const [editorPost, setEditorPost] = useState(null); // null = fechado; 'new' = criar; objeto = editar
+  const [prodStatus, setProdStatus] = useState({}); // { id: 'producao' | 'agendado' } — status de postagem definido no admin
+  const [boardTab, setBoardTab] = useState('agendado'); // aba do quadro de status de postagem
+  const [boardItem, setBoardItem] = useState(null); // item aberto no resumo curto
   const [calBrand, setCalBrand] = useState('all'); // filtro de marca no calendário
   const [selectedDay, setSelectedDay] = useState(null); // dia aberto no calendário público (ver/aprovar)
   const [adminDay, setAdminDay] = useState(null); // dia aberto no admin (montar/atribuir conteúdos)
@@ -3682,6 +3734,7 @@ export default function App() {
       updated_at: new Date().toISOString()
     };
     setCustomPosts(prev => ({ ...prev, [id]: { ...prev[id], ...row } }));
+    if (record.prodStatus) setProd(id, record.prodStatus); // status de postagem (tabela separada)
     setEditorPost(null);
     if (!supabaseReady) { notify('Supabase não configurado — post salvo só localmente.'); return; }
     const { error } = await supabase.from('posts').upsert(row);
@@ -3714,9 +3767,65 @@ export default function App() {
     }, 'Restaurar');
   };
 
+  // Carrega o status de postagem do Supabase e escuta mudanças em tempo real
+  useEffect(() => {
+    if (!supabaseReady) return;
+    let mounted = true;
+
+    supabase.from('prodstatus').select('*').then(({ data, error }) => {
+      if (!mounted || error || !data) return;
+      const map = {};
+      data.forEach(r => { map[r.id] = r.status; });
+      setProdStatus(map);
+    });
+
+    const channel = supabase
+      .channel('prodstatus-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'prodstatus' }, payload => {
+        setProdStatus(prev => {
+          const next = { ...prev };
+          if (payload.eventType === 'DELETE') delete next[payload.old.id];
+          else next[payload.new.id] = payload.new.status;
+          return next;
+        });
+      })
+      .subscribe();
+
+    return () => { mounted = false; supabase.removeChannel(channel); };
+  }, []);
+
+  // Define o status de postagem (producao | agendado) de um conteúdo
+  const setProd = async (id, status) => {
+    setProdStatus(prev => ({ ...prev, [id]: status }));
+    if (!supabaseReady) return;
+    await supabase.from('prodstatus').upsert({ id, status, updated_at: new Date().toISOString() });
+  };
+
+  // Status de postagem efetivo: 'producao' | 'agendado' | 'postado' (postado é automático no dia agendado)
+  const today = new Date();
+  const todayStr = iso(today.getFullYear(), today.getMonth(), today.getDate());
+  const postingStatusOf = (id) => {
+    if ((prodStatus[id] || 'producao') !== 'agendado') return 'producao';
+    const d = schedule[id];
+    return (d && d <= todayStr) ? 'postado' : 'agendado';
+  };
+
+  // Resolve o post (fixo/override/custom) para mostrar resumo curto
+  const resolvePost = (id) => {
+    const rec = customPosts[id];
+    if (rec && String(id).startsWith('custom-')) return customToPost(rec);
+    const lastDash = id.lastIndexOf('-');
+    const bk = id.slice(0, lastDash);
+    const idx = parseInt(id.slice(lastDash + 1), 10);
+    const base = clients[bk]?.posts?.[idx];
+    if (!base) return null;
+    return rec ? applyOverride(base, rec) : base;
+  };
+
   // Abre o editor para um post — fixo (monta a partir do código) ou customizado/editado
   const openEditor = (id) => {
-    if (customPosts[id]) { setEditorPost(customPosts[id]); return; }
+    const prodStatusVal = prodStatus[id] || 'producao';
+    if (customPosts[id]) { setEditorPost({ ...customPosts[id], prodStatus: prodStatusVal }); return; }
     const lastDash = id.lastIndexOf('-');
     const brandKey = id.slice(0, lastDash);
     const idx = parseInt(id.slice(lastDash + 1), 10);
@@ -3728,7 +3837,8 @@ export default function App() {
       subtitle: post.subtitle || '',
       caption: post.caption || '',
       kind: post.kind || 'estatico',
-      tags: post.tags || []
+      tags: post.tags || [],
+      prodStatus: prodStatusVal
     });
   };
 
@@ -3951,6 +4061,7 @@ export default function App() {
             onClose={() => setSelectedDay(null)}
             creatives={creatives}
             customPosts={customList}
+            getPosting={postingStatusOf}
           />
         )}
       </div>
@@ -4188,6 +4299,12 @@ export default function App() {
       ['reproved', 'Reprovados', reproved]
     ];
 
+    // Quadro de status de postagem (em produção / agendados / postados)
+    const boardGroups = { producao: [], agendado: [], postado: [] };
+    allItems.forEach(it => { if (!it.comingSoon) boardGroups[postingStatusOf(it.id)].push(it); });
+    const boardTabs = [['producao', 'Em produção'], ['agendado', 'Agendados'], ['postado', 'Postados']];
+    const boardList = boardGroups[boardTab] || [];
+
     const Stat = ({ label, value, color }) => (
       <div style={{
         ...glassLight, borderRadius: '16px', padding: '20px 24px',
@@ -4273,6 +4390,56 @@ export default function App() {
               onDayClick={setAdminDay}
               customPosts={customList}
             />
+          </div>
+
+          {/* QUADRO DE STATUS DE POSTAGEM */}
+          <div style={{ background: '#fff', borderRadius: '18px', border: '1px solid rgba(0,0,0,0.06)', boxShadow: '0 1px 3px rgba(0,0,0,0.04), 0 6px 20px rgba(0,0,0,0.05)', padding: '24px', marginBottom: '32px' }}>
+            <h2 style={{ fontSize: '18px', fontWeight: 700, margin: '0 0 4px 0', letterSpacing: '-0.01em' }}>Status de postagem</h2>
+            <p style={{ fontSize: '12.5px', color: 'rgba(0,0,0,0.55)', margin: '0 0 16px 0' }}>
+              Defina em cada conteúdo se está em produção ou agendado. Os agendados viram “Postado” automaticamente no dia marcado no calendário. Clique num item para ver o resumo.
+            </p>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '16px' }}>
+              {boardTabs.map(([k, label]) => {
+                const on = boardTab === k;
+                return (
+                  <button key={k} onClick={() => setBoardTab(k)} style={{
+                    display: 'inline-flex', alignItems: 'center', gap: '7px',
+                    background: on ? '#0a0a0a' : 'rgba(0,0,0,0.04)', color: on ? '#fff' : 'rgba(0,0,0,0.65)',
+                    border: '1px solid ' + (on ? '#0a0a0a' : 'rgba(0,0,0,0.08)'),
+                    borderRadius: '10px', padding: '8px 14px', fontSize: '12.5px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.18s ease'
+                  }}>
+                    {label}
+                    <span style={{ background: on ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.07)', borderRadius: '999px', padding: '0 7px', fontSize: '11px', fontWeight: 700 }}>{boardGroups[k].length}</span>
+                  </button>
+                );
+              })}
+            </div>
+            {boardList.length === 0 ? (
+              <div style={{ textAlign: 'center', color: 'rgba(0,0,0,0.4)', fontSize: '13px', padding: '28px 0' }}>Nenhum conteúdo neste status.</div>
+            ) : (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: '10px' }}>
+                {boardList.map(it => {
+                  const thumb = creatives[it.id]?.[0];
+                  return (
+                    <button key={it.id} onClick={() => setBoardItem(it)} style={{ display: 'flex', alignItems: 'center', gap: '10px', textAlign: 'left', width: '100%', background: '#fff', border: '1px solid rgba(0,0,0,0.08)', borderRadius: '12px', padding: '9px 11px', cursor: 'pointer', transition: 'box-shadow 0.15s ease' }}
+                      onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 4px 14px rgba(0,0,0,0.08)'; }}
+                      onMouseLeave={e => { e.currentTarget.style.boxShadow = 'none'; }}
+                    >
+                      <div style={{ flexShrink: 0, width: '44px', height: '44px', borderRadius: '9px', overflow: 'hidden', background: thumb ? '#101010' : 'rgba(0,0,0,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        {thumb ? <img src={thumb} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <ImageIcon size={16} color="rgba(0,0,0,0.25)" />}
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '10.5px', color: 'rgba(0,0,0,0.45)', fontWeight: 600, marginBottom: '2px' }}>
+                          <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: it.accent }} /> {it.brandName}
+                        </div>
+                        <div style={{ fontSize: '13px', fontWeight: 600, color: '#0a0a0a', lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{it.theme}</div>
+                      </div>
+                      <span style={{ flexShrink: 0, fontSize: '11px', fontWeight: 700, color: schedule[it.id] ? '#0a0a0a' : 'rgba(0,0,0,0.35)' }}>{schedule[it.id] ? ddmm(schedule[it.id]) : '—'}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           {/* DASHBOARD: progresso geral + números */}
@@ -4386,6 +4553,8 @@ export default function App() {
                         onEdit={openEditor}
                         onDelete={deletePost}
                         onRestore={restorePost}
+                        posting={postingStatusOf(it.id)}
+                        onSetProd={setProd}
                       />
                     ))}
                   </div>
@@ -4415,6 +4584,54 @@ export default function App() {
             onClose={() => setEditorPost(null)}
           />
         )}
+
+        {boardItem && (() => {
+          const it = boardItem;
+          const post = resolvePost(it.id);
+          const thumb = creatives[it.id]?.[0];
+          const caption = (post?.caption || '').trim();
+          const excerpt = caption.length > 220 ? caption.slice(0, 220) + '…' : caption;
+          return (
+            <div onClick={() => setBoardItem(null)} style={{ position: 'fixed', inset: 0, zIndex: 1001, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)', display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '24px', fontFamily: 'Geist, -apple-system, BlinkMacSystemFont, system-ui, sans-serif' }}>
+              <div onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: '18px', width: '100%', maxWidth: '440px', overflow: 'hidden', boxShadow: '0 24px 60px rgba(0,0,0,0.3)' }}>
+                <div style={{ background: '#0a0a0a', color: '#fafafa', padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div style={{ fontSize: '11px', opacity: 0.55, letterSpacing: '0.05em', textTransform: 'uppercase' }}>Resumo do conteúdo</div>
+                  <button onClick={() => setBoardItem(null)} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', cursor: 'pointer', color: '#fafafa', borderRadius: '999px', width: '30px', height: '30px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}><X size={15} /></button>
+                </div>
+                <div style={{ padding: '20px', display: 'flex', gap: '16px' }}>
+                  <div style={{ flexShrink: 0, width: '110px', height: '138px', borderRadius: '12px', overflow: 'hidden', background: thumb ? '#101010' : 'linear-gradient(150deg, #1a1a1a, #0a0a0a)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: thumb ? 0 : '12px', gap: '6px' }}>
+                    {thumb ? <img src={thumb} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <><ImageIcon size={18} color="rgba(255,255,255,0.35)" /><span style={{ color: '#fff', fontSize: '11px', fontWeight: 600, lineHeight: 1.25 }}>{post?.headline || it.theme}</span></>}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: 'rgba(0,0,0,0.5)', fontWeight: 600, marginBottom: '6px' }}>
+                      <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: it.accent }} /> {it.brandName}
+                    </div>
+                    <h3 style={{ fontSize: '16px', fontWeight: 600, margin: '0 0 4px', color: '#0a0a0a', lineHeight: 1.3 }}>{post?.headline || it.theme}</h3>
+                    {post?.subtitle && <p style={{ fontSize: '12.5px', color: 'rgba(0,0,0,0.6)', margin: '0 0 8px', lineHeight: 1.4 }}>{post.subtitle}</p>}
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '10px' }}>
+                      <KindBadge kind={it.kind} />
+                      <StatusBadge status={it.status} />
+                      <PostingBadge status={postingStatusOf(it.id)} />
+                    </div>
+                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: 600, color: schedule[it.id] ? '#0a0a0a' : 'rgba(0,0,0,0.4)' }}>
+                      <Calendar size={13} /> {schedule[it.id] ? dayLabel(schedule[it.id]) : 'Não agendado'}
+                    </div>
+                  </div>
+                </div>
+                {excerpt && (
+                  <div style={{ padding: '0 20px 16px' }}>
+                    <div style={{ fontSize: '10.5px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(0,0,0,0.4)', marginBottom: '6px' }}>Legenda</div>
+                    <p style={{ fontSize: '12.5px', color: 'rgba(0,0,0,0.7)', lineHeight: 1.55, margin: 0, whiteSpace: 'pre-wrap' }}>{excerpt}</p>
+                  </div>
+                )}
+                <div style={{ padding: '14px 20px', borderTop: '1px solid rgba(0,0,0,0.08)', display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+                  <button onClick={() => { setBoardItem(null); openEditor(it.id); }} style={{ background: 'rgba(0,0,0,0.05)', border: '1px solid rgba(0,0,0,0.1)', color: 'rgba(0,0,0,0.7)', borderRadius: '10px', padding: '9px 16px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '6px' }}><Pencil size={13} /> Editar</button>
+                  <button onClick={() => setBoardItem(null)} style={{ background: '#0a0a0a', border: 'none', color: '#fff', borderRadius: '10px', padding: '9px 18px', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>Fechar</button>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
         {confirmBox && (
           <ConfirmDialog
             message={confirmBox.message}

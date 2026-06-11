@@ -94,6 +94,30 @@ alter publication supabase_realtime add table posts;
 
 
 -- ============================================================
+-- Status de postagem definido no admin (producao | agendado)
+-- "postado" é derivado automaticamente quando o dia agendado chega
+-- ============================================================
+create table if not exists prodstatus (
+  id text primary key,
+  status text not null default 'producao',   -- producao | agendado
+  updated_at timestamptz not null default now()
+);
+
+alter table prodstatus enable row level security;
+
+drop policy if exists "leitura publica" on prodstatus;
+drop policy if exists "insert publico"  on prodstatus;
+drop policy if exists "update publico"  on prodstatus;
+drop policy if exists "delete publico"  on prodstatus;
+create policy "leitura publica" on prodstatus for select using (true);
+create policy "insert publico"  on prodstatus for insert with check (true);
+create policy "update publico"  on prodstatus for update using (true) with check (true);
+create policy "delete publico"  on prodstatus for delete using (true);
+
+alter publication supabase_realtime add table prodstatus;
+
+
+-- ============================================================
 -- Storage: bucket público "creatives" para guardar as imagens
 -- ============================================================
 insert into storage.buckets (id, name, public)
