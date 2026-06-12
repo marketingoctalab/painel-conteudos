@@ -1946,18 +1946,28 @@ function OctagymRender({ slide }) {
 // ROTEADORES E COMPONENTES VISUAIS
 // ============================================================
 
-// Exibe um criativo pronto (imagem) na proporção natural — nunca corta ou distorce
+// Detecta se uma URL é vídeo pela extensão
+function isVideoUrl(url = '') {
+  return /\.(mp4|webm|mov|m4v|ogg|ogv)(\?|#|$)/i.test(url);
+}
+
+// Miniatura de mídia (imagem ou vídeo) — usada nas listas/cards
+function MediaThumb({ src, style }) {
+  if (isVideoUrl(src)) {
+    return <video src={`${src}#t=0.1`} muted playsInline preload="metadata" style={style} />;
+  }
+  return <img src={src} alt="" style={style} />;
+}
+
+// Exibe um criativo pronto (imagem ou vídeo) na proporção natural — nunca corta ou distorce
 function SlideImage({ src, portrait }) {
-  return (
-    <img
-      src={src}
-      alt=""
-      loading="lazy"
-      style={portrait
-        ? { display: 'block', width: '100%', height: '100%', objectFit: 'contain', background: '#101010' }
-        : { display: 'block', width: '100%', height: 'auto', borderRadius: '14px', background: '#101010' }}
-    />
-  );
+  const style = portrait
+    ? { display: 'block', width: '100%', height: '100%', objectFit: 'contain', background: '#101010' }
+    : { display: 'block', width: '100%', height: 'auto', borderRadius: '14px', background: '#101010' };
+  if (isVideoUrl(src)) {
+    return <video src={src} controls playsInline preload="metadata" style={style} />;
+  }
+  return <img src={src} alt="" loading="lazy" style={style} />;
 }
 
 function renderSlide(slide, brand, portrait) {
@@ -2843,7 +2853,12 @@ function CreativeUploader({ id, urls = [], uploading, onUpload, onRemove }) {
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '12px' }}>
           {urls.map((u, i) => (
             <div key={u + i} style={{ position: 'relative', width: '64px', height: '64px', borderRadius: '8px', overflow: 'hidden', border: '1px solid rgba(0,0,0,0.1)', background: '#101010' }}>
-              <img src={u} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              <MediaThumb src={u} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              {isVideoUrl(u) && (
+                <span style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
+                  <Video size={18} color="#fff" style={{ filter: 'drop-shadow(0 1px 3px rgba(0,0,0,0.6))' }} />
+                </span>
+              )}
               <button
                 onClick={() => onRemove(id, i)}
                 title="Remover criativo"
@@ -2865,19 +2880,19 @@ function CreativeUploader({ id, urls = [], uploading, onUpload, onRemove }) {
         }}
       >
         <div style={{ fontSize: '11.5px', color: 'rgba(0,0,0,0.5)', marginBottom: '12px' }}>
-          {uploading ? 'Subindo criativos…' : 'Arraste imagens aqui ou escolha da pasta'}
+          {uploading ? 'Subindo criativos…' : 'Arraste imagens ou vídeos aqui ou escolha da pasta'}
         </div>
         <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', flexWrap: 'wrap' }}>
           <label style={{ ...btnBase, background: '#0a0a0a', color: '#fff' }}>
             <input
-              type="file" accept="image/*" style={{ display: 'none' }} disabled={uploading}
+              type="file" accept="image/*,video/*" style={{ display: 'none' }} disabled={uploading}
               onChange={e => { if (e.target.files?.length) onUpload(id, e.target.files, { append: false }); e.target.value = ''; }}
             />
             Subir criativo
           </label>
           <label style={{ ...btnBase, background: 'rgba(0,0,0,0.05)', color: 'rgba(0,0,0,0.75)', border: '1px solid rgba(0,0,0,0.12)' }}>
             <input
-              type="file" accept="image/*" multiple style={{ display: 'none' }} disabled={uploading}
+              type="file" accept="image/*,video/*" multiple style={{ display: 'none' }} disabled={uploading}
               onChange={e => { if (e.target.files?.length) onUpload(id, e.target.files, { append: true }); e.target.value = ''; }}
             />
             <Layers size={13} /> Subir carrossel
@@ -3223,7 +3238,7 @@ function AdminItem({ it, scheduledDate, urls = [], uploading, posting = 'produca
       <div style={{ display: 'flex', gap: '14px', alignItems: 'flex-start' }}>
         {!it.comingSoon && (
           <div style={{ position: 'relative', flexShrink: 0, width: '58px', height: '58px', borderRadius: '10px', overflow: 'hidden', background: thumb ? '#101010' : 'rgba(0,0,0,0.04)', border: '1px solid rgba(0,0,0,0.07)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            {thumb ? <img src={thumb} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <Layers size={18} color="rgba(0,0,0,0.25)" />}
+            {thumb ? <MediaThumb src={thumb} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <Layers size={18} color="rgba(0,0,0,0.25)" />}
             {count > 1 && (
               <span style={{ position: 'absolute', bottom: '2px', right: '2px', background: 'rgba(0,0,0,0.7)', color: '#fff', fontSize: '9.5px', fontWeight: 700, borderRadius: '5px', padding: '1px 5px' }}>+{count - 1}</span>
             )}
@@ -3541,16 +3556,27 @@ export default function App() {
   const setReview = async (id, data) => {
     // Registra quem revisou (vazio quando volta para pendente)
     const reviewer = data.status === 'pending' ? '' : (currentUser || 'Anônimo');
+    const prevReview = reviews[id]; // para reverter se a gravação falhar
     // Atualização otimista na tela
     setReviews(prev => ({ ...prev, [id]: { ...prev[id], ...data, reviewer } }));
     if (!supabaseReady) return;
-    await supabase.from('reviews').upsert({
+    const { error } = await supabase.from('reviews').upsert({
       id,
       status: data.status,
       suggestion: data.suggestion ?? '',
       reviewer,
       updated_at: new Date().toISOString()
     });
+    if (error) {
+      console.error('[reviews] falha ao salvar:', error);
+      // desfaz a atualização otimista para não mostrar aprovado sem ter salvo
+      setReviews(prev => {
+        const next = { ...prev };
+        if (prevReview) next[id] = prevReview; else delete next[id];
+        return next;
+      });
+      notify('Não foi possível salvar a avaliação. Recarregue a página e tente de novo.');
+    }
   };
 
   const resetReviews = () => {
@@ -3656,7 +3682,7 @@ export default function App() {
   // Sobe arquivos para o Storage e atualiza a lista do conteúdo.
   // append=false (criativo único) substitui tudo; append=true (carrossel) acrescenta.
   const uploadCreatives = async (id, files, { append } = {}) => {
-    const list = Array.from(files || []).filter(f => f && f.type.startsWith('image/'));
+    const list = Array.from(files || []).filter(f => f && (f.type.startsWith('image/') || f.type.startsWith('video/')));
     if (!list.length) return;
     if (!supabaseReady) {
       notify('Supabase não configurado — não foi possível subir o criativo.');
@@ -4064,6 +4090,7 @@ export default function App() {
             getPosting={postingStatusOf}
           />
         )}
+        {toast && <Toast message={toast} onClose={() => setToast(null)} />}
       </div>
     );
   }
@@ -4426,7 +4453,7 @@ export default function App() {
                       onMouseLeave={e => { e.currentTarget.style.boxShadow = 'none'; }}
                     >
                       <div style={{ flexShrink: 0, width: '44px', height: '44px', borderRadius: '9px', overflow: 'hidden', background: thumb ? '#101010' : 'rgba(0,0,0,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        {thumb ? <img src={thumb} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <ImageIcon size={16} color="rgba(0,0,0,0.25)" />}
+                        {thumb ? <MediaThumb src={thumb} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <ImageIcon size={16} color="rgba(0,0,0,0.25)" />}
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '10.5px', color: 'rgba(0,0,0,0.45)', fontWeight: 600, marginBottom: '2px' }}>
@@ -4600,7 +4627,7 @@ export default function App() {
                 </div>
                 <div style={{ padding: '20px', display: 'flex', gap: '16px' }}>
                   <div style={{ flexShrink: 0, width: '110px', height: '138px', borderRadius: '12px', overflow: 'hidden', background: thumb ? '#101010' : 'linear-gradient(150deg, #1a1a1a, #0a0a0a)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: thumb ? 0 : '12px', gap: '6px' }}>
-                    {thumb ? <img src={thumb} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <><ImageIcon size={18} color="rgba(255,255,255,0.35)" /><span style={{ color: '#fff', fontSize: '11px', fontWeight: 600, lineHeight: 1.25 }}>{post?.headline || it.theme}</span></>}
+                    {thumb ? <MediaThumb src={thumb} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <><ImageIcon size={18} color="rgba(255,255,255,0.35)" /><span style={{ color: '#fff', fontSize: '11px', fontWeight: 600, lineHeight: 1.25 }}>{post?.headline || it.theme}</span></>}
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: 'rgba(0,0,0,0.5)', fontWeight: 600, marginBottom: '6px' }}>
