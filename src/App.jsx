@@ -3592,8 +3592,23 @@ function BrandStrategyCard({ brand, c, data, canEdit, onSaveNotes, onAddLink, on
   );
 }
 
+// Mostra quem fez a escolha (avatar do perfil + nome). dark=true para fundos escuros.
+function ChooserBadge({ reviewer, dark }) {
+  if (!reviewer) return null;
+  const p = profileByName(reviewer);
+  const color = dark ? 'rgba(255,255,255,0.9)' : 'rgba(0,0,0,0.55)';
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '11.5px', fontWeight: 600, color }}>
+      {p
+        ? <BoringAvatar index={p.avatar} size={18} />
+        : <span style={{ width: '18px', height: '18px', borderRadius: '50%', background: dark ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.55)', color: dark ? '#fff' : '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '9px', fontWeight: 700 }}>{reviewer[0]}</span>}
+      {reviewer}
+    </span>
+  );
+}
+
 // Carrossel do mapa de ideias: auto-scroll contínuo (dir → esq) + arrastável (dedo/mouse)
-function IdeaCarousel({ items, value, onToggle, accent }) {
+function IdeaCarousel({ items, decisions, onDecide, accent }) {
   const CARD_W = 218, GAP = 14;
   const period = items.length * (CARD_W + GAP); // largura exata de um conjunto (card + gap) — ponto de reset
   const ref = useRef(null);
@@ -3641,7 +3656,9 @@ function IdeaCarousel({ items, value, onToggle, accent }) {
       <style>{`.idea-scroll::-webkit-scrollbar{display:none}`}</style>
       {[...items, ...items].map((idea, i) => {
         const Icon = idea.Icon || Layers;
-        const v = value[idea.n];
+        const decId = `octagym-idea-${idea.n}`;
+        const dec = decisions[decId];
+        const v = dec?.value;
         return (
           <div key={i} style={{ flex: '0 0 auto', width: `${CARD_W}px`, background: accent, color: '#fff', borderRadius: '14px', padding: '18px', boxShadow: '0 8px 24px rgba(239,10,54,0.28)', display: 'flex', flexDirection: 'column' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
@@ -3656,7 +3673,7 @@ function IdeaCarousel({ items, value, onToggle, accent }) {
               {['keep', 'swap'].map(k => {
                 const on = v === k;
                 return (
-                  <button key={k} onClick={() => onToggle(idea.n, k)} style={{
+                  <button key={k} onClick={() => onDecide(decId, k)} style={{
                     flex: 1, fontSize: '11px', cursor: 'pointer', fontFamily: 'inherit', borderRadius: '7px', padding: '6px 0',
                     border: `1px solid ${on ? '#fff' : 'rgba(255,255,255,0.45)'}`,
                     background: on && k === 'keep' ? '#fff' : 'transparent',
@@ -3668,6 +3685,7 @@ function IdeaCarousel({ items, value, onToggle, accent }) {
                 );
               })}
             </div>
+            <div style={{ marginTop: '10px', minHeight: '18px' }}>{dec?.reviewer && <ChooserBadge reviewer={dec.reviewer} dark />}</div>
           </div>
         );
       })}
@@ -3676,10 +3694,8 @@ function IdeaCarousel({ items, value, onToggle, accent }) {
 }
 
 // Estratégia completa da Octagym (Track Day) — tema claro, fonte do site, linha do tempo horizontal
-function OctagymStrategy({ accent = '#EF0A36' }) {
+function OctagymStrategy({ accent = '#EF0A36', decisions = {}, onDecide = () => {} }) {
   const ink = '#0a0a0a', ink2 = 'rgba(0,0,0,0.62)', ink3 = 'rgba(0,0,0,0.42)', line = 'rgba(0,0,0,0.1)', line2 = 'rgba(0,0,0,0.16)';
-  const [alt, setAlt] = useState({});
-  const [ideas, setIdeas] = useState({});
   const [checks, setChecks] = useState({});
 
   const ALT = [
@@ -3761,26 +3777,31 @@ function OctagymStrategy({ accent = '#EF0A36' }) {
       <Section label="Alternativas em aberto" hint="decidir primeiro">
         <p style={{ fontSize: '15px', color: ink2, marginBottom: '20px', maxWidth: '640px', lineHeight: 1.55 }}>Marca nova posta e quase ninguém vê. <b style={{ color: ink }}>O alcance vem de quem reposta.</b> Essas são as formas de pegar carona na audiência dos parceiros, então preciso saber quais dá pra fazer.</p>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '16px' }}>
-          {ALT.map((a, i) => (
-            <div
-              key={a.key}
-              onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.boxShadow = '0 16px 40px rgba(0,0,0,0.12)'; }}
-              onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 8px 28px rgba(0,0,0,0.09)'; }}
-              style={{ border: `1px solid ${line}`, borderRadius: '18px', padding: '24px', background: '#fff', display: 'flex', flexDirection: 'column', boxShadow: '0 8px 28px rgba(0,0,0,0.09)', transition: 'transform 0.2s ease, box-shadow 0.2s ease' }}
-            >
-              <div style={{ fontSize: '12px', fontWeight: 800, color: accent, letterSpacing: '0.06em', marginBottom: '10px' }}>{`0${i + 1}`}</div>
-              <div style={{ fontSize: '16px', fontWeight: 700, color: ink, lineHeight: 1.3, letterSpacing: '-0.01em' }}>{a.title}</div>
-              <div style={{ fontSize: '13px', color: ink3, marginTop: '7px', flex: 1, lineHeight: 1.45 }}>{a.desc}</div>
-              <div style={{ display: 'flex', gap: '7px', flexWrap: 'wrap', marginTop: '18px' }}>
-                {a.opts.map(o => {
-                  const on = alt[a.key] === o;
-                  const sent = ['Dá pra fazer', 'Sim'].includes(o) ? 'pos' : (o === 'Não' ? 'neg' : 'neutral');
-                  const bg = !on ? 'transparent' : (sent === 'pos' ? '#16a34a' : sent === 'neg' ? '#dc2626' : '#0a0a0a');
-                  return <button key={o} onClick={() => setAlt(p => ({ ...p, [a.key]: o }))} style={{ fontSize: '12.5px', cursor: 'pointer', borderRadius: '999px', padding: '7px 14px', fontFamily: 'inherit', border: `1px solid ${on ? bg : line2}`, background: bg, color: on ? '#fff' : ink2, fontWeight: on ? 600 : 500, transition: 'all 0.15s ease' }}>{o}</button>;
-                })}
+          {ALT.map((a, i) => {
+            const decId = `octagym-alt-${a.key}`;
+            const dec = decisions[decId];
+            return (
+              <div
+                key={a.key}
+                onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.boxShadow = '0 16px 40px rgba(0,0,0,0.12)'; }}
+                onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 8px 28px rgba(0,0,0,0.09)'; }}
+                style={{ border: `1px solid ${line}`, borderRadius: '18px', padding: '24px', background: '#fff', display: 'flex', flexDirection: 'column', boxShadow: '0 8px 28px rgba(0,0,0,0.09)', transition: 'transform 0.2s ease, box-shadow 0.2s ease' }}
+              >
+                <div style={{ fontSize: '12px', fontWeight: 800, color: accent, letterSpacing: '0.06em', marginBottom: '10px' }}>{`0${i + 1}`}</div>
+                <div style={{ fontSize: '16px', fontWeight: 700, color: ink, lineHeight: 1.3, letterSpacing: '-0.01em' }}>{a.title}</div>
+                <div style={{ fontSize: '13px', color: ink3, marginTop: '7px', flex: 1, lineHeight: 1.45 }}>{a.desc}</div>
+                <div style={{ display: 'flex', gap: '7px', flexWrap: 'wrap', marginTop: '18px' }}>
+                  {a.opts.map(o => {
+                    const on = dec?.value === o;
+                    const sent = ['Dá pra fazer', 'Sim'].includes(o) ? 'pos' : (o === 'Não' ? 'neg' : 'neutral');
+                    const bg = !on ? 'transparent' : (sent === 'pos' ? '#16a34a' : sent === 'neg' ? '#dc2626' : '#0a0a0a');
+                    return <button key={o} onClick={() => onDecide(decId, o)} style={{ fontSize: '12.5px', cursor: 'pointer', borderRadius: '999px', padding: '7px 14px', fontFamily: 'inherit', border: `1px solid ${on ? bg : line2}`, background: bg, color: on ? '#fff' : ink2, fontWeight: on ? 600 : 500, transition: 'all 0.15s ease' }}>{o}</button>;
+                  })}
+                </div>
+                <div style={{ marginTop: '12px', minHeight: '18px' }}>{dec?.reviewer && <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '11.5px', color: ink3 }}>Por <ChooserBadge reviewer={dec.reviewer} /></span>}</div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </Section>
 
@@ -3788,7 +3809,7 @@ function OctagymStrategy({ accent = '#EF0A36' }) {
       <Section label="Mapa de ideias" hint="o que vamos produzir">
         <p style={{ fontSize: '12.5px', color: ink3, marginBottom: '14px' }}>Arraste pro lado (dedo ou mouse) para navegar. Decida manter ou trocar cada ideia.</p>
         <div style={{ margin: '0 -8px' }}>
-          <IdeaCarousel items={IDEAS} value={ideas} onToggle={(n, k) => setIdeas(p => ({ ...p, [n]: k }))} accent={accent} />
+          <IdeaCarousel items={IDEAS} decisions={decisions} onDecide={onDecide} accent={accent} />
         </div>
       </Section>
 
@@ -4044,6 +4065,7 @@ export default function App() {
   const [customPosts, setCustomPosts] = useState({}); // { 'custom-xxx': { id, brand, headline, ... } } — posts criados no admin
   const [editorPost, setEditorPost] = useState(null); // null = fechado; 'new' = criar; objeto = editar
   const [strategy, setStrategy] = useState({}); // { brandKey: { notes, materials:[{label,url,kind}] } }
+  const [decisions, setDecisions] = useState({}); // { id: { value, reviewer } } — escolhas da estratégia
   const [prodStatus, setProdStatus] = useState({}); // { id: 'producao' | 'agendado' } — status de postagem definido no admin
   const [boardTab, setBoardTab] = useState('agendado'); // aba do quadro de status de postagem
   const [boardItem, setBoardItem] = useState(null); // item aberto no resumo curto
@@ -4378,6 +4400,43 @@ export default function App() {
     const { error } = await supabase.from('strategy').upsert({ brand, notes: merged.notes, materials: merged.materials, updated_at: new Date().toISOString() });
     if (error) { console.error('[strategy]', error); notify('Não foi possível salvar a estratégia.'); }
   };
+  // Decisões da estratégia (com autoria) — sincronizadas em tempo real
+  useEffect(() => {
+    if (!supabaseReady) return;
+    let mounted = true;
+    supabase.from('decisions').select('*').then(({ data, error }) => {
+      if (!mounted || error || !data) return;
+      const map = {};
+      data.forEach(r => { map[r.id] = { value: r.value, reviewer: r.reviewer || '' }; });
+      setDecisions(map);
+    });
+    const channel = supabase
+      .channel('decisions-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'decisions' }, payload => {
+        setDecisions(prev => {
+          const next = { ...prev };
+          if (payload.eventType === 'DELETE') delete next[payload.old.id];
+          else { const r = payload.new; next[r.id] = { value: r.value, reviewer: r.reviewer || '' }; }
+          return next;
+        });
+      })
+      .subscribe();
+    return () => { mounted = false; supabase.removeChannel(channel); };
+  }, []);
+
+  const setDecision = async (id, value) => {
+    const reviewer = currentUser || 'Anônimo';
+    const prev = decisions[id];
+    setDecisions(p => ({ ...p, [id]: { value, reviewer } }));
+    if (!supabaseReady) return;
+    const { error } = await supabase.from('decisions').upsert({ id, value, reviewer, updated_at: new Date().toISOString() });
+    if (error) {
+      console.error('[decisions]', error);
+      setDecisions(p => { const n = { ...p }; if (prev) n[id] = prev; else delete n[id]; return n; });
+      notify('Não foi possível salvar a escolha. Recarregue e tente de novo.');
+    }
+  };
+
   const addStrategyMaterial = (brand, material) => saveStrategy(brand, { materials: [...(strategy[brand]?.materials || []), material] });
   const removeStrategyMaterial = (brand, idx) => saveStrategy(brand, { materials: (strategy[brand]?.materials || []).filter((_, i) => i !== idx) });
   const uploadStrategyFile = async (brand, file) => {
@@ -4726,7 +4785,7 @@ export default function App() {
               })}
             </div>
           ) : sel === 'octagym' ? (
-            <OctagymStrategy accent={clients.octagym.accent} />
+            <OctagymStrategy accent={clients.octagym.accent} decisions={decisions} onDecide={setDecision} />
           ) : (
             <BrandStrategyCard
               brand={sel}

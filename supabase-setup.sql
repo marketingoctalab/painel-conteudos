@@ -142,6 +142,30 @@ alter publication supabase_realtime add table strategy;
 
 
 -- ============================================================
+-- Decisões da estratégia (alternativas, manter/trocar) com autoria
+-- ============================================================
+create table if not exists decisions (
+  id text primary key,
+  value text,
+  reviewer text default '',
+  updated_at timestamptz not null default now()
+);
+
+alter table decisions enable row level security;
+
+drop policy if exists "leitura publica" on decisions;
+drop policy if exists "insert publico"  on decisions;
+drop policy if exists "update publico"  on decisions;
+drop policy if exists "delete publico"  on decisions;
+create policy "leitura publica" on decisions for select using (true);
+create policy "insert publico"  on decisions for insert with check (true);
+create policy "update publico"  on decisions for update using (true) with check (true);
+create policy "delete publico"  on decisions for delete using (true);
+
+alter publication supabase_realtime add table decisions;
+
+
+-- ============================================================
 -- Storage: bucket público "creatives" para guardar as imagens
 -- ============================================================
 insert into storage.buckets (id, name, public)
