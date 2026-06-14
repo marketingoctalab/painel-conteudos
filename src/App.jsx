@@ -3748,12 +3748,20 @@ function OctagymStrategy({ accent = '#EF0A36', decisions = {}, onDecide = () => 
       {children}
     </section>
   );
+  // Passo a passo numerado vertical (claro no mobile e desktop)
   const Chain = ({ steps }) => (
-    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center', marginBottom: '16px' }}>
+    <div style={{ display: 'flex', flexDirection: 'column' }}>
       {steps.map((s, i) => (
         <React.Fragment key={i}>
-          <span style={{ border: `1px solid ${i === 0 ? accent : line2}`, background: i === 0 ? accent : 'transparent', color: i === 0 ? '#fff' : ink2, borderRadius: '999px', padding: '7px 14px', fontSize: '13px', fontWeight: i === 0 ? 600 : 500 }}>{s}</span>
-          {i < steps.length - 1 && <span style={{ color: ink3 }}>→</span>}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <span style={{ flexShrink: 0, width: '30px', height: '30px', borderRadius: '50%', background: accent, color: '#fff', fontWeight: 800, fontSize: '13px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', boxShadow: `0 4px 12px ${accent}44` }}>{i + 1}</span>
+            <span style={{ flex: 1, minWidth: 0, background: '#fff', color: ink, border: `1px solid ${line2}`, borderRadius: '10px', padding: '11px 14px', fontSize: '13.5px', fontWeight: 600, lineHeight: 1.35 }}>{s}</span>
+          </div>
+          {i < steps.length - 1 && (
+            <div style={{ width: '30px', display: 'flex', justifyContent: 'center' }}>
+              <div style={{ height: '12px', borderLeft: `2px dashed ${accent}66`, margin: '3px 0' }} />
+            </div>
+          )}
         </React.Fragment>
       ))}
     </div>
@@ -3922,12 +3930,15 @@ function OctagymStrategy({ accent = '#EF0A36', decisions = {}, onDecide = () => 
       <Section label="Captação de leads" hint="o desconto é a isca">
         <div style={{ fontSize: 'clamp(18px, 3vw, 24px)', fontWeight: 700, letterSpacing: '-0.01em', marginBottom: '8px', color: ink }}>A OctaGym dá desconto no ingresso. Isso vira a porta de entrada.</div>
         <p style={{ fontSize: '14.5px', color: ink2, maxWidth: '620px', marginBottom: '20px', lineHeight: 1.55 }}>A chamada é simples: <b style={{ color: ink }}>"ingresso do Track Day com desconto pela OctaGym".</b> Pra pegar o desconto, a pessoa preenche um formulário, e aí vira um contato só nosso.</p>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '12px', marginBottom: '20px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '12px', marginBottom: '22px' }}>
           {[['Captura 1 · antes, pela internet', 'Um reel ou estático com a chamada do desconto leva pro formulário do evento, e o cupom chega no WhatsApp ou e-mail.'], ['Captura 2 · no evento', 'O QR do estande abre o mesmo formulário, e a pessoa entra pra lista, ganha o desconto ou um brinde na hora.']].map(([t, p], i) => (
-            <div key={i} style={cellCard}><div style={{ fontSize: '11px', letterSpacing: '0.1em', textTransform: 'uppercase', color: ink3, marginBottom: '8px' }}>{t}</div><p style={{ fontSize: '14px', color: ink2, margin: 0, lineHeight: 1.5 }}>{p}</p></div>
+            <div key={i} style={{ ...cellCard, borderTop: `3px solid ${accent}` }}><div style={{ fontSize: '11px', letterSpacing: '0.08em', textTransform: 'uppercase', color: accent, fontWeight: 700, marginBottom: '8px' }}>{t}</div><p style={{ fontSize: '14px', color: ink2, margin: 0, lineHeight: 1.5 }}>{p}</p></div>
           ))}
         </div>
-        <Chain steps={['Chamada do desconto', 'Formulário do evento', 'Cupom no WhatsApp ou e-mail', 'Lista de contatos', 'Contato depois']} />
+        <div style={{ border: `1px solid ${line}`, borderRadius: '12px', padding: '18px 20px', marginBottom: '20px', background: '#fafafa' }}>
+          <div style={{ fontSize: '11px', letterSpacing: '0.1em', textTransform: 'uppercase', color: ink3, fontWeight: 700, marginBottom: '14px' }}>O passo a passo</div>
+          <Chain steps={['Chamada do desconto', 'Formulário do evento', 'Cupom no WhatsApp ou e-mail', 'Lista de contatos', 'Contato depois']} />
+        </div>
         <div style={{ border: `1px solid ${line}`, borderRadius: '10px', padding: '16px 18px', marginBottom: '14px' }}>
           <div style={{ fontSize: '11px', letterSpacing: '0.1em', textTransform: 'uppercase', color: ink3, marginBottom: '10px' }}>Formulário com só 3 campos</div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
