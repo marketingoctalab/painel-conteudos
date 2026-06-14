@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useId, useRef } from 'react';
-import { ChevronLeft, ChevronRight, Calendar, Copy, Check, ArrowRight, Newspaper, Megaphone, Layers, X, Target, AlertTriangle, Lock, Plus, Trash2, Pencil, Video, Image as ImageIcon, Tag as TagIcon } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar, Copy, Check, ArrowRight, Newspaper, Megaphone, Layers, X, Target, AlertTriangle, Lock, Plus, Trash2, Pencil, Video, Image as ImageIcon, Tag as TagIcon, Scale, FlaskConical, Car, Dumbbell, SlidersHorizontal, BarChart3, BadgeCheck, QrCode, Gift } from 'lucide-react';
 import { supabase, supabaseReady } from './supabase';
 
 // Senha do Painel Admin. Vem do .env (VITE_ADMIN_PASSWORD); se não houver, usa o padrão abaixo.
@@ -3481,6 +3481,553 @@ function PostEditor({ initial, brands, lockBrand, onSave, onClose }) {
   );
 }
 
+// Ícone que remete a cada marca
+const BRAND_ICONS = {
+  juspilot: Scale,
+  juspilotTrafego: Target,
+  octalab: FlaskConical,
+  ecosys: Car,
+  octagym: Dumbbell
+};
+
+// Escolhe texto preto ou branco conforme o brilho da cor de fundo
+function readableText(hex = '') {
+  const h = hex.replace('#', '');
+  if (h.length < 6) return '#ffffff';
+  const r = parseInt(h.slice(0, 2), 16), g = parseInt(h.slice(2, 4), 16), b = parseInt(h.slice(4, 6), 16);
+  return (0.299 * r + 0.587 * g + 0.114 * b) / 255 > 0.62 ? '#0a0a0a' : '#ffffff';
+}
+
+// Ícone de peça de xadrez (cavalo)
+function KnightIcon({ size = 26 }) {
+  return <span aria-hidden="true" style={{ fontSize: size, lineHeight: 1, display: 'inline-block' }}>♞</span>;
+}
+
+// Card de estratégia de uma marca: anotações + materiais (links/arquivos). Admin edita; perfis leem.
+function BrandStrategyCard({ brand, c, data, canEdit, onSaveNotes, onAddLink, onUploadFile, onRemoveMaterial }) {
+  const [notes, setNotes] = useState(data.notes || '');
+  const [linkLabel, setLinkLabel] = useState('');
+  const [linkUrl, setLinkUrl] = useState('');
+  const [uploading, setUploading] = useState(false);
+  useEffect(() => { setNotes(data.notes || ''); }, [data.notes]);
+
+  const materials = data.materials || [];
+  const dirty = notes !== (data.notes || '');
+
+  const addLink = () => {
+    let url = linkUrl.trim();
+    if (!url) return;
+    if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
+    onAddLink(brand, { label: linkLabel.trim() || url, url, kind: 'link' });
+    setLinkLabel(''); setLinkUrl('');
+  };
+  const handleFile = async (e) => {
+    const f = e.target.files?.[0]; e.target.value = '';
+    if (!f) return;
+    setUploading(true);
+    await onUploadFile(brand, f);
+    setUploading(false);
+  };
+
+  const field = { width: '100%', boxSizing: 'border-box', borderRadius: '10px', border: '1px solid rgba(0,0,0,0.14)', padding: '9px 12px', fontSize: '13px', fontFamily: 'inherit', outline: 'none' };
+
+  return (
+    <div style={{ background: '#fff', borderRadius: '18px', border: '1px solid rgba(0,0,0,0.06)', boxShadow: '0 1px 3px rgba(0,0,0,0.04), 0 6px 20px rgba(0,0,0,0.05)', padding: '22px 24px', marginBottom: '20px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '14px' }}>
+        <span style={{ width: '11px', height: '11px', borderRadius: '50%', background: c.accent }} />
+        <h2 style={{ fontSize: '18px', fontWeight: 700, margin: 0, letterSpacing: '-0.01em' }}>{c.name}</h2>
+      </div>
+
+      {/* Anotações */}
+      <div style={{ fontSize: '10.5px', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'rgba(0,0,0,0.45)', marginBottom: '8px' }}>Estratégia</div>
+      {canEdit ? (
+        <>
+          <textarea
+            value={notes}
+            onChange={e => setNotes(e.target.value)}
+            onBlur={() => { if (dirty) onSaveNotes(brand, notes); }}
+            placeholder="Descreva a estratégia de postagem desta marca…"
+            rows={5}
+            style={{ ...field, resize: 'vertical', lineHeight: 1.55 }}
+          />
+          {dirty && <div style={{ fontSize: '11px', color: 'rgba(0,0,0,0.4)', marginTop: '5px' }}>Sai do campo para salvar.</div>}
+        </>
+      ) : (
+        notes.trim()
+          ? <p style={{ fontSize: '13px', color: 'rgba(0,0,0,0.78)', lineHeight: 1.6, whiteSpace: 'pre-wrap', margin: 0 }}>{notes}</p>
+          : <p style={{ fontSize: '13px', color: 'rgba(0,0,0,0.4)', margin: 0 }}>Nenhuma estratégia definida ainda.</p>
+      )}
+
+      {/* Materiais */}
+      <div style={{ fontSize: '10.5px', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'rgba(0,0,0,0.45)', margin: '18px 0 8px' }}>
+        Materiais{materials.length ? ` · ${materials.length}` : ''}
+      </div>
+      {materials.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '7px', marginBottom: canEdit ? '14px' : 0 }}>
+          {materials.map((m, i) => (
+            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '9px', background: 'rgba(0,0,0,0.03)', border: '1px solid rgba(0,0,0,0.07)', borderRadius: '10px', padding: '9px 12px' }}>
+              {m.kind === 'file' ? <Layers size={14} color="rgba(0,0,0,0.5)" /> : <ArrowRight size={14} color="rgba(0,0,0,0.5)" style={{ transform: 'rotate(-45deg)' }} />}
+              <a href={m.url} target="_blank" rel="noopener noreferrer" style={{ flex: 1, minWidth: 0, fontSize: '13px', fontWeight: 600, color: '#2563eb', textDecoration: 'none', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.label}</a>
+              {canEdit && (
+                <button onClick={() => onRemoveMaterial(brand, i)} title="Remover" style={{ flexShrink: 0, background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(0,0,0,0.4)', fontSize: '16px', lineHeight: 1 }}>×</button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+      {!materials.length && !canEdit && <p style={{ fontSize: '13px', color: 'rgba(0,0,0,0.4)', margin: 0 }}>Nenhum material ainda.</p>}
+
+      {canEdit && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center' }}>
+          <input value={linkLabel} onChange={e => setLinkLabel(e.target.value)} placeholder="Nome (opcional)" style={{ ...field, flex: '1 1 140px', maxWidth: '200px' }} />
+          <input value={linkUrl} onChange={e => setLinkUrl(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') addLink(); }} placeholder="Cole um link…" style={{ ...field, flex: '2 1 200px' }} />
+          <button onClick={addLink} style={{ background: '#0a0a0a', color: '#fff', border: 'none', borderRadius: '10px', padding: '9px 14px', fontSize: '12.5px', fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '6px' }}><Plus size={14} /> Link</button>
+          <label style={{ background: 'rgba(0,0,0,0.05)', color: 'rgba(0,0,0,0.75)', border: '1px solid rgba(0,0,0,0.12)', borderRadius: '10px', padding: '9px 14px', fontSize: '12.5px', fontWeight: 600, cursor: uploading ? 'not-allowed' : 'pointer', opacity: uploading ? 0.5 : 1, display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+            <input type="file" style={{ display: 'none' }} disabled={uploading} onChange={handleFile} />
+            <Plus size={14} /> {uploading ? 'Subindo…' : 'Arquivo'}
+          </label>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Carrossel do mapa de ideias: auto-scroll contínuo (dir → esq) + arrastável (dedo/mouse)
+function IdeaCarousel({ items, value, onToggle, accent }) {
+  const CARD_W = 218, GAP = 14;
+  const period = items.length * (CARD_W + GAP); // largura exata de um conjunto (card + gap) — ponto de reset
+  const ref = useRef(null);
+  const st = useRef({ hover: false, interacting: false, dragging: false, startX: 0, startScroll: 0 });
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    let raf;
+    const tick = () => {
+      raf = requestAnimationFrame(tick);
+      const s = st.current;
+      if (!s.hover && !s.interacting) el.scrollLeft += 0.5; // auto-scroll lento
+      // loop infinito sem emenda, usando o período exato dos cards
+      if (el.scrollLeft >= period) el.scrollLeft -= period;
+      else if (el.scrollLeft < 0) el.scrollLeft += period;
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [items, period]);
+
+  const onDown = (e) => {
+    const s = st.current;
+    s.interacting = true;
+    if (e.pointerType === 'mouse') { s.dragging = true; s.startX = e.clientX; s.startScroll = ref.current.scrollLeft; }
+  };
+  const onMove = (e) => {
+    const s = st.current;
+    if (s.dragging) ref.current.scrollLeft = s.startScroll - (e.clientX - s.startX);
+  };
+  const onUp = () => { st.current.interacting = false; st.current.dragging = false; };
+
+  return (
+    <div
+      ref={ref}
+      onMouseEnter={() => { st.current.hover = true; }}
+      onMouseLeave={() => { st.current.hover = false; st.current.interacting = false; st.current.dragging = false; }}
+      onPointerDown={onDown}
+      onPointerMove={onMove}
+      onPointerUp={onUp}
+      onPointerCancel={onUp}
+      className="idea-scroll"
+      style={{ display: 'flex', gap: `${GAP}px`, overflowX: 'auto', padding: '6px 8px 12px', cursor: 'grab', userSelect: 'none', WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none' }}
+    >
+      <style>{`.idea-scroll::-webkit-scrollbar{display:none}`}</style>
+      {[...items, ...items].map((idea, i) => {
+        const Icon = idea.Icon || Layers;
+        const v = value[idea.n];
+        return (
+          <div key={i} style={{ flex: '0 0 auto', width: `${CARD_W}px`, background: accent, color: '#fff', borderRadius: '14px', padding: '18px', boxShadow: '0 8px 24px rgba(239,10,54,0.28)', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ fontSize: '22px', fontWeight: 800, lineHeight: 1, color: '#fff' }}>{idea.n}</span>
+                <span style={{ fontSize: '9.5px', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.7)' }}>{idea.phase}</span>
+              </span>
+              <span style={{ width: '38px', height: '38px', borderRadius: '50%', background: 'rgba(255,255,255,0.18)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}><Icon size={19} color="#fff" /></span>
+            </div>
+            <h3 style={{ fontSize: '15px', fontWeight: 700, lineHeight: 1.3, minHeight: '58px', color: '#fff', margin: 0, letterSpacing: '-0.01em' }}>{idea.title}</h3>
+            <div style={{ display: 'flex', gap: '7px', marginTop: '14px' }}>
+              {['keep', 'swap'].map(k => {
+                const on = v === k;
+                return (
+                  <button key={k} onClick={() => onToggle(idea.n, k)} style={{
+                    flex: 1, fontSize: '11px', cursor: 'pointer', fontFamily: 'inherit', borderRadius: '7px', padding: '6px 0',
+                    border: `1px solid ${on ? '#fff' : 'rgba(255,255,255,0.45)'}`,
+                    background: on && k === 'keep' ? '#fff' : 'transparent',
+                    color: on && k === 'keep' ? accent : '#fff',
+                    fontWeight: on ? 700 : 500,
+                    textDecoration: on && k === 'swap' ? 'line-through' : 'none',
+                    transition: 'all 0.15s ease'
+                  }}>{k === 'keep' ? 'Manter' : 'Trocar'}</button>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// Estratégia completa da Octagym (Track Day) — tema claro, fonte do site, linha do tempo horizontal
+function OctagymStrategy({ accent = '#EF0A36' }) {
+  const ink = '#0a0a0a', ink2 = 'rgba(0,0,0,0.62)', ink3 = 'rgba(0,0,0,0.42)', line = 'rgba(0,0,0,0.1)', line2 = 'rgba(0,0,0,0.16)';
+  const [alt, setAlt] = useState({});
+  const [ideas, setIdeas] = useState({});
+  const [checks, setChecks] = useState({});
+
+  const ALT = [
+    { key: 'distrito', title: 'Collab: OctaGym com a Distrito Racing', desc: 'Carrossel "o que é o Track Day" aparecendo nos dois perfis', opts: ['Dá pra fazer', 'Não', 'A definir'] },
+    { key: 'ironberg', title: 'Collab: OctaGym com a Ironberg', desc: 'Publicação junto com eles, ou um repost no perfil deles', opts: ['Dá pra fazer', 'Não', 'A definir'] },
+    { key: 'alfredo', title: 'Voz: o Alfredo Neto grava o vídeo', desc: 'Rosto conhecido falando o que a OctaGym faz', opts: ['Sim', 'Outra voz', 'A definir'] }
+  ];
+  const IDEAS = [
+    { phase: 'Pré', n: '01', title: 'Reel: o que é o Track Day', Icon: Video },
+    { phase: 'Pré', n: '02', title: 'Reel: o papel da OctaGym', Icon: Video },
+    { phase: 'Pré', n: '03', title: 'Collab: carrossel do evento', Icon: Layers },
+    { phase: 'Pré', n: '04', title: 'Reel: gestão é performance', Icon: Video },
+    { phase: 'Pré', n: '05', title: 'Vídeo com o Alfredo (cara e voz)', Icon: Video },
+    { phase: 'Pré', n: '06', title: 'Estáticos do desconto no ingresso', Icon: ImageIcon },
+    { phase: 'Evento', n: '07', title: 'Cobertura e Stories ao vivo', Icon: Megaphone },
+    { phase: 'Pós', n: '08', title: 'Vídeo final do evento e cortes', Icon: Video }
+  ];
+  const TIMELINE = [
+    { date: '15 a 20 jun', phase: 'Esta semana', items: [{ tag: 'Reel', txt: 'Reel 1: o que é o Track Day' }, { tag: 'Reel', txt: 'Reel 2: o papel da OctaGym' }, { tag: 'Collab', txt: 'Carrossel do evento (Distrito e Ironberg)' }, { tag: 'Estático', txt: 'Chamada do desconto no ingresso' }] },
+    { date: '22 a 26 jun', phase: 'Reta final', items: [{ tag: 'Reel', txt: 'Reel 3: gestão também é performance' }, { tag: 'Voz', txt: 'Vídeo com o Alfredo (cara e voz)' }, { tag: 'Estático', txt: 'Contagem regressiva (3 artes)' }, { tag: 'Roteiro', txt: 'Roteiros e lista de gravação pro evento' }] },
+    { date: '27 e 28 jun', phase: 'No evento', items: [{ tag: 'Cobertura', txt: 'Stories ao vivo nos dois dias' }, { tag: 'Captação', txt: 'Vídeo e fotos cruas (seguindo a lista)' }, { tag: 'Reel', txt: '1 reel curto por dia' }] },
+    { date: '29 jun a 4 jul', phase: 'Depois', items: [{ tag: 'Edição', txt: 'Vídeo final do evento (peça principal)' }, { tag: 'Edição', txt: '4 a 6 cortes pra reels e posts' }, { tag: 'Carrossel', txt: '"Foi assim", com os números' }] }
+  ];
+  const REELS = [
+    { n: '01', title: 'O que é o Track Day', desc: 'Mostra o que é o evento, com a Distrito Racing e a Ironberg. Clima, energia e o que vai rolar.', fmt: '15s · vertical · texto na tela' },
+    { n: '02', title: 'O papel da OctaGym', desc: 'Quem é a OctaGym: o sistema operacional das academias, presente no evento.', fmt: '20s · vertical · cara e voz' },
+    { n: '03', title: 'Gestão também é performance', desc: 'Faz a ponte: o mesmo cuidado com performance da pista, a OctaGym leva pra dentro da academia.', fmt: '20s · vertical · conceitual' }
+  ];
+  const OWNERS = [
+    { task: 'Criação visual de tudo: reels, estáticos, carrossel e edição', who: 'Firmino' },
+    { task: 'Página e formulário do desconto', who: 'Alex · Head de Marketing' },
+    { task: 'Contato com os leads depois, e quem fica no QR do estande', who: 'A definir', tbd: true }
+  ];
+  const GRAVAR = ['A marca da OctaGym aparecendo no vídeo', 'Reações e clima do público', 'Imagens de apoio (carros, pista, ambiente)', 'O sistema funcionando ao vivo (na tela do estande)', 'Um depoimento de alguém falando (cara e voz)', 'Gente escaneando o QR (pra provar a captação)'];
+  const PAINEL = [
+    ['Conteúdo que rende por semanas', 'O evento dura dois dias, mas os reels, o carrossel e o vídeo final continuam postando muito tempo depois.', Calendar],
+    ['Marca vista por gente nova, quase de graça', 'Quando a Ironberg, a Distrito e o Alfredo repostam, a OctaGym aparece pra um monte de gente que nunca tinha ouvido falar dela.', Megaphone],
+    ['Uma mensagem que gruda', 'Todo conteúdo repete a mesma ideia, então o dono de academia lembra da OctaGym depois, não só na hora.', Target],
+    ['Lead de verdade, não só curtida', 'O desconto traz a pessoa pro formulário, e a pergunta sobre academia separa quem realmente interessa pra venda.', BadgeCheck],
+    ['Prova na frente da pessoa', 'Mostrar o sistema funcionando ao vivo convence muito mais do que qualquer promessa.', Video],
+    ['Sai do papel', 'Cada coisa tem um responsável e uma data, então o plano vira ação de verdade, não fica só na ideia.', Check]
+  ];
+
+  const Section = ({ label, hint, children }) => (
+    <section style={{ paddingBottom: '38px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', borderTop: `1px solid ${line}`, paddingTop: '18px', marginBottom: '22px' }}>
+        <span style={{ fontSize: '11.5px', letterSpacing: '0.16em', textTransform: 'uppercase', color: ink3, fontWeight: 700 }}>{label}</span>
+        {hint && <span style={{ fontSize: '11px', letterSpacing: '0.1em', textTransform: 'uppercase', color: ink3 }}>{hint}</span>}
+      </div>
+      {children}
+    </section>
+  );
+  const Chain = ({ steps }) => (
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center', marginBottom: '16px' }}>
+      {steps.map((s, i) => (
+        <React.Fragment key={i}>
+          <span style={{ border: `1px solid ${i === 0 ? accent : line2}`, background: i === 0 ? accent : 'transparent', color: i === 0 ? '#fff' : ink2, borderRadius: '999px', padding: '7px 14px', fontSize: '13px', fontWeight: i === 0 ? 600 : 500 }}>{s}</span>
+          {i < steps.length - 1 && <span style={{ color: ink3 }}>→</span>}
+        </React.Fragment>
+      ))}
+    </div>
+  );
+  const grid3 = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: '12px' };
+  const cellCard = { border: `1px solid ${line}`, borderRadius: '12px', padding: '18px 20px', background: '#fff' };
+  const formField = { fontSize: '13px', color: ink, border: `1px dashed ${line2}`, borderRadius: '7px', padding: '7px 13px' };
+
+  return (
+    <div style={{ background: '#fff', border: `1px solid ${line}`, borderRadius: '20px', padding: 'clamp(20px, 4vw, 40px)', boxShadow: '0 1px 3px rgba(0,0,0,0.04), 0 8px 28px rgba(0,0,0,0.06)' }}>
+      {/* HERO */}
+      <div style={{ paddingBottom: '32px' }}>
+        <div style={{ fontSize: '11.5px', letterSpacing: '0.2em', textTransform: 'uppercase', color: ink3, marginBottom: '18px' }}>Distrito Racing e Ironberg · presença de marca</div>
+        <div style={{ display: 'flex', gap: 'clamp(24px, 5vw, 64px)', alignItems: 'flex-end', flexWrap: 'wrap' }}>
+          <h1 style={{ flex: '1 1 420px', fontSize: 'clamp(32px, 5.5vw, 60px)', fontWeight: 700, lineHeight: 1.0, letterSpacing: '-0.03em', margin: 0, color: ink }}>A OctaGym<br />no Track Day.</h1>
+          <p style={{ flex: '1 1 300px', maxWidth: '460px', color: ink2, fontSize: '16px', lineHeight: 1.6, margin: 0, paddingBottom: '6px' }}>O sistema operacional das academias, presente onde a performance acontece. A ideia é simples: fazer a OctaGym ser conhecida pelo público certo, no perfil dela.</p>
+        </div>
+      </div>
+
+      {/* ALTERNATIVAS */}
+      <Section label="Alternativas em aberto" hint="decidir primeiro">
+        <p style={{ fontSize: '15px', color: ink2, marginBottom: '20px', maxWidth: '640px', lineHeight: 1.55 }}>Marca nova posta e quase ninguém vê. <b style={{ color: ink }}>O alcance vem de quem reposta.</b> Essas são as formas de pegar carona na audiência dos parceiros, então preciso saber quais dá pra fazer.</p>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '16px' }}>
+          {ALT.map((a, i) => (
+            <div
+              key={a.key}
+              onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.boxShadow = '0 16px 40px rgba(0,0,0,0.12)'; }}
+              onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 8px 28px rgba(0,0,0,0.09)'; }}
+              style={{ border: `1px solid ${line}`, borderRadius: '18px', padding: '24px', background: '#fff', display: 'flex', flexDirection: 'column', boxShadow: '0 8px 28px rgba(0,0,0,0.09)', transition: 'transform 0.2s ease, box-shadow 0.2s ease' }}
+            >
+              <div style={{ fontSize: '12px', fontWeight: 800, color: accent, letterSpacing: '0.06em', marginBottom: '10px' }}>{`0${i + 1}`}</div>
+              <div style={{ fontSize: '16px', fontWeight: 700, color: ink, lineHeight: 1.3, letterSpacing: '-0.01em' }}>{a.title}</div>
+              <div style={{ fontSize: '13px', color: ink3, marginTop: '7px', flex: 1, lineHeight: 1.45 }}>{a.desc}</div>
+              <div style={{ display: 'flex', gap: '7px', flexWrap: 'wrap', marginTop: '18px' }}>
+                {a.opts.map(o => {
+                  const on = alt[a.key] === o;
+                  const sent = ['Dá pra fazer', 'Sim'].includes(o) ? 'pos' : (o === 'Não' ? 'neg' : 'neutral');
+                  const bg = !on ? 'transparent' : (sent === 'pos' ? '#16a34a' : sent === 'neg' ? '#dc2626' : '#0a0a0a');
+                  return <button key={o} onClick={() => setAlt(p => ({ ...p, [a.key]: o }))} style={{ fontSize: '12.5px', cursor: 'pointer', borderRadius: '999px', padding: '7px 14px', fontFamily: 'inherit', border: `1px solid ${on ? bg : line2}`, background: bg, color: on ? '#fff' : ink2, fontWeight: on ? 600 : 500, transition: 'all 0.15s ease' }}>{o}</button>;
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+      </Section>
+
+      {/* MAPA DE IDEIAS */}
+      <Section label="Mapa de ideias" hint="o que vamos produzir">
+        <p style={{ fontSize: '12.5px', color: ink3, marginBottom: '14px' }}>Arraste pro lado (dedo ou mouse) para navegar. Decida manter ou trocar cada ideia.</p>
+        <div style={{ margin: '0 -8px' }}>
+          <IdeaCarousel items={IDEAS} value={ideas} onToggle={(n, k) => setIdeas(p => ({ ...p, [n]: k }))} accent={accent} />
+        </div>
+      </Section>
+
+      {/* RESULTADO */}
+      <Section label="Resultado esperado" hint="sem cravar metas">
+        <div style={grid3}>
+          {['A OctaGym vista como o sistema das academias por um público novo.', 'O perfil da OctaGym cheio de conteúdo bem feito.', 'Os primeiros leads vindos do desconto, e o vídeo do evento rodando depois.'].map((t, i) => (
+            <div key={i} style={cellCard}><div style={{ fontWeight: 700, fontSize: '14px', color: accent, marginBottom: '10px' }}>{`0${i + 1}`}</div><p style={{ fontSize: '14px', color: ink2, margin: 0, lineHeight: 1.5 }}>{t}</p></div>
+          ))}
+        </div>
+        <p style={{ fontSize: '13.5px', color: ink2, marginTop: '14px', maxWidth: '640px', lineHeight: 1.55 }}>Como a marca é nova, o ganho aqui é <b style={{ color: ink }}>construir presença</b>, não viralizar. Sem prometer número, dá pra esperar mais alcance que um post normal e os primeiros contatos chegando. <b style={{ color: ink }}>O que a gente acompanha:</b> quanta gente viu, quantos salvaram, quantos clicaram no link e quantos viraram lead.</p>
+      </Section>
+
+      {/* GANCHO */}
+      <Section label="O gancho" hint="a pergunta que prende">
+        <div style={{ borderTop: `1px solid ${ink}`, borderBottom: `1px solid ${ink}`, padding: '28px 0' }}>
+          <div style={{ fontSize: 'clamp(21px, 4vw, 34px)', fontWeight: 700, lineHeight: 1.1, letterSpacing: '-0.02em', color: ink }}>Por que um sistema de gestão de academia está num Track Day?</div>
+          <p style={{ marginTop: '14px', color: ink2, fontSize: '15px', maxWidth: '560px', lineHeight: 1.55 }}>Esse estranhamento é a isca. Toda peça responde essa pergunta, e é isso que prende a atenção e faz a pessoa compartilhar. Em vez de falar de performance no geral, a gente desperta curiosidade.</p>
+        </div>
+      </Section>
+
+      {/* POSICIONAMENTO */}
+      <Section label="Posicionamento" hint="a mensagem que ancora tudo">
+        <p style={{ fontSize: '14.5px', color: ink2, maxWidth: '640px', marginBottom: '22px', lineHeight: 1.55 }}>A gente fala <b style={{ color: ink }}>com o dono de academia</b> usando o clima da pista. O <b style={{ color: ink }}>teste de cada peça</b> é: isso impressiona um dono de academia assistindo de casa?</p>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '22px' }}>
+          {/* Abre — card claro com barra de cor */}
+          <div style={{ border: `1px solid ${line}`, borderLeft: `4px solid ${accent}`, borderRadius: '14px', padding: '22px 24px', background: '#fff', boxShadow: '0 4px 16px rgba(0,0,0,0.05)' }}>
+            <div style={{ fontSize: '10.5px', letterSpacing: '0.14em', textTransform: 'uppercase', color: accent, fontWeight: 700, marginBottom: '10px' }}>Abre, pra provocar</div>
+            <div style={{ fontSize: 'clamp(19px, 3vw, 27px)', fontWeight: 700, lineHeight: 1.15, letterSpacing: '-0.015em', color: ink }}>Toda máquina de alta performance roda num sistema. E a sua academia?</div>
+          </div>
+          {/* Assina — slogan em destaque (card colorido) */}
+          <div style={{ borderRadius: '14px', padding: '26px 24px', background: accent, color: '#fff', boxShadow: '0 10px 30px rgba(239,10,54,0.3)' }}>
+            <div style={{ fontSize: '10.5px', letterSpacing: '0.14em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.75)', fontWeight: 700, marginBottom: '10px' }}>Assina, pra gravar</div>
+            <div style={{ fontSize: 'clamp(22px, 3.4vw, 32px)', fontWeight: 800, lineHeight: 1.1, letterSpacing: '-0.02em' }}>Na pista ou na academia, performance é sistema.</div>
+          </div>
+        </div>
+
+        <div style={{ background: `${accent}0d`, border: `1px solid ${accent}33`, borderLeft: `4px solid ${accent}`, borderRadius: '12px', padding: '16px 18px', marginBottom: '24px' }}>
+          <span style={{ fontSize: '14.5px', color: ink, lineHeight: 1.5 }}><b>O que tem que ficar na cabeça:</b> a OctaGym é o sistema que faz a academia funcionar em alta performance.</span>
+        </div>
+
+        <div style={grid3}>
+          {[['Controle', 'Tudo num lugar só, nada no improviso.', SlidersHorizontal], ['Dados', 'Você decide olhando os números, não no achismo.', BarChart3], ['Prova', 'O Ironberg já usa a OctaGym, e dá pra ver funcionando ao vivo no estande.', BadgeCheck]].map(([n, p, Icon], i) => (
+            <div key={i} style={{ ...cellCard, borderTop: `3px solid ${accent}` }}>
+              <span style={{ width: '40px', height: '40px', borderRadius: '11px', background: `${accent}14`, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginBottom: '12px' }}><Icon size={20} color={accent} /></span>
+              <div style={{ fontWeight: 700, fontSize: '16px', color: ink, marginBottom: '6px' }}>{n}</div>
+              <p style={{ fontSize: '14px', color: ink2, margin: 0, lineHeight: 1.5 }}>{p}</p>
+            </div>
+          ))}
+        </div>
+        <p style={{ fontSize: '13.5px', color: ink3, marginTop: '18px', maxWidth: '640px' }}><b style={{ color: ink2 }}>Tom:</b> seguro e caprichado, de dono pra dono. Menos "revolucione sua academia", mais "pare de trabalhar no escuro".</p>
+      </Section>
+
+      {/* RESPONSÁVEIS */}
+      <Section label="Quem faz o quê" hint="donos da execução">
+        <div style={{ border: `1px solid ${line}`, borderRadius: '12px', overflow: 'hidden' }}>
+          {OWNERS.map((o, i) => (
+            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', gap: '14px', padding: '16px 22px', borderTop: i ? `1px solid ${line}` : 'none', fontSize: '14.5px' }}>
+              <span style={{ color: ink2 }}>{o.task}</span>
+              <span style={{ color: o.tbd ? ink3 : ink, textAlign: 'right', whiteSpace: 'nowrap', fontWeight: 600 }}>{o.who}</span>
+            </div>
+          ))}
+        </div>
+      </Section>
+
+      {/* LINHA DO TEMPO — HORIZONTAL */}
+      <Section label="Linha do tempo" hint="o que eu entrego, e quando">
+        <div style={{ overflowX: 'auto', margin: '0 -8px', padding: '0 8px 8px' }}>
+          <div style={{ display: 'flex', minWidth: 'max-content' }}>
+            {TIMELINE.map((s, i) => (
+              <div key={i} style={{ flex: '1 1 0', minWidth: '230px', maxWidth: '320px' }}>
+                <div style={{ textAlign: 'center', padding: '0 8px 12px' }}>
+                  <div style={{ fontSize: '16px', fontWeight: 700, color: ink, letterSpacing: '-0.01em' }}>{s.date}</div>
+                  <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.1em', color: ink3, marginTop: '3px' }}>{s.phase}</div>
+                </div>
+                <div style={{ position: 'relative', height: '26px' }}>
+                  <div style={{ position: 'absolute', top: '50%', height: '2px', background: line2, left: i === 0 ? '50%' : 0, right: i === TIMELINE.length - 1 ? '50%' : 0 }} />
+                  <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '16px', height: '16px', borderRadius: '50%', background: '#fff', border: `3px solid ${accent}`, boxSizing: 'border-box' }} />
+                </div>
+                <div style={{ margin: '12px 8px 0', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {s.items.map((it, j) => (
+                    <div key={j} style={{ border: `1px solid ${line}`, borderRadius: '10px', padding: '10px 12px', background: '#fff' }}>
+                      <span style={{ display: 'inline-block', fontSize: '9.5px', letterSpacing: '0.06em', textTransform: 'uppercase', color: accent, fontWeight: 700, border: `1px solid ${accent}44`, borderRadius: '4px', padding: '2px 7px', marginBottom: '6px' }}>{it.tag}</span>
+                      <div style={{ fontSize: '13px', color: ink2, lineHeight: 1.4 }}>{it.txt}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </Section>
+
+      {/* REELS */}
+      <Section label="Os reels" hint="roteiro definido">
+        <div style={grid3}>
+          {REELS.map(r => (
+            <div key={r.n} style={cellCard}>
+              <div style={{ fontWeight: 800, fontSize: '28px', color: ink3, lineHeight: 1 }}>{r.n}</div>
+              <h3 style={{ fontWeight: 700, fontSize: '17px', margin: '12px 0 6px', letterSpacing: '-0.01em', color: ink }}>{r.title}</h3>
+              <p style={{ fontSize: '13.5px', color: ink2, margin: 0, lineHeight: 1.5 }}>{r.desc}</p>
+              <div style={{ marginTop: '14px', fontSize: '10.5px', letterSpacing: '0.1em', textTransform: 'uppercase', color: ink3 }}>{r.fmt}</div>
+            </div>
+          ))}
+        </div>
+      </Section>
+
+      {/* CAPTAÇÃO DE LEADS */}
+      <Section label="Captação de leads" hint="o desconto é a isca">
+        <div style={{ fontSize: 'clamp(18px, 3vw, 24px)', fontWeight: 700, letterSpacing: '-0.01em', marginBottom: '8px', color: ink }}>A OctaGym dá desconto no ingresso. Isso vira a porta de entrada.</div>
+        <p style={{ fontSize: '14.5px', color: ink2, maxWidth: '620px', marginBottom: '20px', lineHeight: 1.55 }}>A chamada é simples: <b style={{ color: ink }}>"ingresso do Track Day com desconto pela OctaGym".</b> Pra pegar o desconto, a pessoa preenche um formulário, e aí vira um contato só nosso.</p>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '12px', marginBottom: '20px' }}>
+          {[['Captura 1 · antes, pela internet', 'Um reel ou estático com a chamada do desconto leva pro formulário do evento, e o cupom chega no WhatsApp ou e-mail.'], ['Captura 2 · no evento', 'O QR do estande abre o mesmo formulário, e a pessoa entra pra lista, ganha o desconto ou um brinde na hora.']].map(([t, p], i) => (
+            <div key={i} style={cellCard}><div style={{ fontSize: '11px', letterSpacing: '0.1em', textTransform: 'uppercase', color: ink3, marginBottom: '8px' }}>{t}</div><p style={{ fontSize: '14px', color: ink2, margin: 0, lineHeight: 1.5 }}>{p}</p></div>
+          ))}
+        </div>
+        <Chain steps={['Chamada do desconto', 'Formulário do evento', 'Cupom no WhatsApp ou e-mail', 'Lista de contatos', 'Contato depois']} />
+        <div style={{ border: `1px solid ${line}`, borderRadius: '10px', padding: '16px 18px', marginBottom: '14px' }}>
+          <div style={{ fontSize: '11px', letterSpacing: '0.1em', textTransform: 'uppercase', color: ink3, marginBottom: '10px' }}>Formulário com só 3 campos</div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+            {['Nome', 'WhatsApp ou e-mail', 'Tem ou trabalha em academia?'].map(f => <span key={f} style={formField}>{f}</span>)}
+          </div>
+        </div>
+        <p style={{ fontSize: '13px', color: ink2 }}><b style={{ color: ink }}>O que precisa:</b> uma página com formulário só do Track Day. A que existe hoje não é desse evento. Essa é simples: a chamada do desconto, os 3 campos e a entrega do cupom.</p>
+      </Section>
+
+      {/* O QUE GRAVAR */}
+      <Section label="O que gravar" hint="no dia do evento">
+        <div style={{ maxWidth: '580px' }}>
+          {GRAVAR.map((g, i) => {
+            const on = !!checks[i];
+            return (
+              <label key={i} onClick={() => setChecks(p => ({ ...p, [i]: !p[i] }))} style={{ display: 'flex', gap: '11px', alignItems: 'center', fontSize: '14px', padding: '9px 0', cursor: 'pointer', borderTop: i ? `1px solid ${line}` : 'none', color: ink }}>
+                <span style={{ width: '17px', height: '17px', borderRadius: '5px', flexShrink: 0, border: `1.5px solid ${on ? accent : line2}`, background: on ? accent : 'transparent', color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 700 }}>{on ? '✓' : ''}</span>
+                {g}
+              </label>
+            );
+          })}
+        </div>
+      </Section>
+
+      {/* ATIVAÇÃO NO EVENTO */}
+      <Section label="Ativação no evento" hint="como funciona">
+        {/* O estande */}
+        <div style={{ background: '#fff', border: `1px solid ${line}`, borderLeft: `4px solid ${accent}`, borderRadius: '16px', padding: '24px', marginBottom: '30px', boxShadow: '0 4px 16px rgba(0,0,0,0.05)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '11px', marginBottom: '16px' }}>
+            <span style={{ width: '40px', height: '40px', borderRadius: '11px', background: `${accent}14`, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}><QrCode size={20} color={accent} /></span>
+            <span style={{ fontSize: '12px', letterSpacing: '0.1em', textTransform: 'uppercase', color: ink, fontWeight: 700 }}>O estande</span>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '11px' }}>
+            {['Estande com ativação por QR-code', 'Na tela, mostrando como é a experiência do cliente dentro do sistema', 'O sistema funcionando ao vivo'].map((li, i) => (
+              <div key={i} style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
+                <Check size={17} color={accent} style={{ flexShrink: 0, marginTop: '2px' }} />
+                <span style={{ fontSize: '14.5px', color: ink2, lineHeight: 1.45 }}>{li}</span>
+              </div>
+            ))}
+          </div>
+          <div style={{ marginTop: '14px', fontSize: '12px', color: ink3, fontStyle: 'italic' }}>Essa parte já está prevista.</div>
+        </div>
+
+        {/* A recompensa */}
+        <div style={{ fontSize: 'clamp(20px, 3.2vw, 27px)', fontWeight: 800, letterSpacing: '-0.02em', marginBottom: '8px', color: ink }}>A recompensa: o que a pessoa ganha ao preencher</div>
+        <p style={{ fontSize: '14.5px', color: ink2, maxWidth: '620px', marginBottom: '20px', lineHeight: 1.55 }}>São duas camadas: uma atrai bastante gente e gera conteúdo, a outra pega o contato que de fato interessa.</p>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '14px', marginBottom: '22px' }}>
+          {[['1', 'Todo mundo', 'Um brinde da marca na hora, no estande, ou o desconto no ingresso pra quem vem pela internet. Atrai gente, rende foto e espalha a marca.'], ['2', 'Quem tem academia', 'Libera uma condição especial de fundador na OctaGym, com desconto ou acesso antecipado, e o time de vendas faz contato depois.']].map(([num, t, p]) => (
+            <div key={num} style={{ ...cellCard, borderTop: `3px solid ${accent}`, boxShadow: '0 4px 16px rgba(0,0,0,0.05)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '11px', marginBottom: '12px' }}>
+                <span style={{ width: '32px', height: '32px', borderRadius: '50%', background: accent, color: '#fff', fontWeight: 800, fontSize: '15px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>{num}</span>
+                <span style={{ fontSize: '11px', letterSpacing: '0.1em', textTransform: 'uppercase', color: ink3, fontWeight: 700 }}>Camada {num} · {t}</span>
+              </div>
+              <p style={{ fontSize: '14px', color: ink2, margin: 0, lineHeight: 1.5 }}>{p}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* Fluxo */}
+        <div style={{ border: `1px solid ${line}`, borderRadius: '12px', padding: '18px 20px', marginBottom: '20px', background: '#fafafa' }}>
+          <div style={{ fontSize: '11px', letterSpacing: '0.1em', textTransform: 'uppercase', color: ink3, fontWeight: 700, marginBottom: '14px' }}>O fluxo</div>
+          <Chain steps={['QR ou link', 'Formulário (3 campos)', 'Recompensa na hora', 'Tem academia? Oferta e contato depois']} />
+        </div>
+
+        {/* Brindes */}
+        <div style={{ border: `1px solid ${line}`, borderRadius: '12px', padding: '18px 20px', marginBottom: '20px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '9px', marginBottom: '12px' }}>
+            <Gift size={16} color={accent} />
+            <span style={{ fontSize: '11px', letterSpacing: '0.1em', textTransform: 'uppercase', color: ink3, fontWeight: 700 }}>Ideias de brinde (útil, com a marca e que rende foto)</span>
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+            {['Garrafa ou squeeze', 'Toalha de treino', 'Ecobag', 'Adesivo ou chaveiro'].map(f => <span key={f} style={formField}>{f}</span>)}
+          </div>
+        </div>
+
+        {/* A única decisão — callout */}
+        <div style={{ background: `${accent}0d`, border: `1px solid ${accent}33`, borderLeft: `4px solid ${accent}`, borderRadius: '12px', padding: '16px 18px', marginBottom: '14px' }}>
+          <span style={{ fontSize: '14px', color: ink, lineHeight: 1.5 }}><b>A única decisão de vocês:</b> ter brinde físico (custa orçamento, mas puxa mais gente) ou ficar só no digital (cupom, custo zero, já funciona sozinho).</span>
+        </div>
+
+        {/* Uma coisa é certa — callout forte */}
+        <div style={{ background: '#0a0a0a', color: '#fff', borderRadius: '12px', padding: '16px 18px', display: 'flex', alignItems: 'flex-start', gap: '11px' }}>
+          <AlertTriangle size={18} color={accent} style={{ flexShrink: 0, marginTop: '1px' }} />
+          <span style={{ fontSize: '14px', lineHeight: 1.5 }}><b>Uma coisa é certa:</b> precisa de cobertura nos dois dias do evento. Falta só definir quem grava.</span>
+        </div>
+      </Section>
+
+      {/* PAINEL FINAL — mapa vertical do resultado esperado */}
+      <Section label="O que esperar disso" hint="o resultado desta estratégia">
+        <div style={{ border: `1px solid ${line2}`, borderRadius: '18px', padding: 'clamp(22px, 3vw, 36px)', background: '#fff', boxShadow: '0 10px 34px rgba(0,0,0,0.08)' }}>
+          <h2 style={{ fontWeight: 800, fontSize: 'clamp(22px, 3.6vw, 32px)', letterSpacing: '-0.02em', margin: 0, color: ink }}>Por que essa estratégia funciona</h2>
+          <p style={{ color: ink2, fontSize: '14.5px', margin: '6px 0 26px', maxWidth: '560px' }}>Não é nada mirabolante, é focada. Veja o que dá pra esperar dela:</p>
+
+          <div>
+            {PAINEL.map(([t, p, Icon], i) => {
+              const last = i === PAINEL.length - 1;
+              return (
+                <div key={i} style={{ display: 'flex', gap: '18px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                    <span style={{ flexShrink: 0, width: '46px', height: '46px', borderRadius: '50%', background: accent, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', boxShadow: `0 6px 18px ${accent}55` }}><Icon size={21} color="#fff" /></span>
+                    {!last && <span style={{ flex: 1, width: 0, borderLeft: `2px dashed ${accent}66`, margin: '6px 0' }} />}
+                  </div>
+                  <div style={{ flex: 1, paddingBottom: last ? 0 : '26px', minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px', marginTop: '11px' }}>
+                      <Check size={16} color={accent} style={{ flexShrink: 0 }} />
+                      <span style={{ fontSize: '16.5px', fontWeight: 700, color: ink, letterSpacing: '-0.01em' }}>{t}</span>
+                    </div>
+                    <p style={{ fontSize: '14px', color: ink2, margin: 0, lineHeight: 1.55, paddingLeft: '24px' }}>{p}</p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <p style={{ marginTop: '24px', paddingTop: '20px', borderTop: `1px solid ${line}`, fontSize: '15px', color: ink, lineHeight: 1.6, maxWidth: '720px' }}><b>Resumindo:</b> é um plano barato, com a mira certa e honesto nas expectativas. Usa o evento pra fazer a marca ser conhecida pelo público que importa e já deixa o caminho pronto pra venda, sem prometer número que a gente não controla.</p>
+        </div>
+      </Section>
+    </div>
+  );
+}
+
 // ============================================================
 // APP PRINCIPAL
 // ============================================================
@@ -3496,9 +4043,11 @@ export default function App() {
   const [uploadingId, setUploadingId] = useState(null); // id do conteúdo cujo upload está em andamento
   const [customPosts, setCustomPosts] = useState({}); // { 'custom-xxx': { id, brand, headline, ... } } — posts criados no admin
   const [editorPost, setEditorPost] = useState(null); // null = fechado; 'new' = criar; objeto = editar
+  const [strategy, setStrategy] = useState({}); // { brandKey: { notes, materials:[{label,url,kind}] } }
   const [prodStatus, setProdStatus] = useState({}); // { id: 'producao' | 'agendado' } — status de postagem definido no admin
   const [boardTab, setBoardTab] = useState('agendado'); // aba do quadro de status de postagem
   const [boardItem, setBoardItem] = useState(null); // item aberto no resumo curto
+  const [strategyBrand, setStrategyBrand] = useState(null); // marca aberta na estratégia (null = grade de marcas)
   const [calBrand, setCalBrand] = useState('all'); // filtro de marca no calendário
   const [selectedDay, setSelectedDay] = useState(null); // dia aberto no calendário público (ver/aprovar)
   const [adminDay, setAdminDay] = useState(null); // dia aberto no admin (montar/atribuir conteúdos)
@@ -3793,6 +4342,55 @@ export default function App() {
     }, 'Restaurar');
   };
 
+  // Carrega a estratégia de conteúdo do Supabase e escuta mudanças em tempo real
+  useEffect(() => {
+    if (!supabaseReady) return;
+    let mounted = true;
+
+    supabase.from('strategy').select('*').then(({ data, error }) => {
+      if (!mounted || error || !data) return;
+      const map = {};
+      data.forEach(r => { map[r.brand] = { notes: r.notes || '', materials: Array.isArray(r.materials) ? r.materials : [] }; });
+      setStrategy(map);
+    });
+
+    const channel = supabase
+      .channel('strategy-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'strategy' }, payload => {
+        setStrategy(prev => {
+          const next = { ...prev };
+          if (payload.eventType === 'DELETE') delete next[payload.old.brand];
+          else { const r = payload.new; next[r.brand] = { notes: r.notes || '', materials: Array.isArray(r.materials) ? r.materials : [] }; }
+          return next;
+        });
+      })
+      .subscribe();
+
+    return () => { mounted = false; supabase.removeChannel(channel); };
+  }, []);
+
+  // Salva (mescla) a estratégia de uma marca
+  const saveStrategy = async (brand, patch) => {
+    const current = strategy[brand] || { notes: '', materials: [] };
+    const merged = { notes: current.notes, materials: current.materials, ...patch };
+    setStrategy(prev => ({ ...prev, [brand]: merged }));
+    if (!supabaseReady) return;
+    const { error } = await supabase.from('strategy').upsert({ brand, notes: merged.notes, materials: merged.materials, updated_at: new Date().toISOString() });
+    if (error) { console.error('[strategy]', error); notify('Não foi possível salvar a estratégia.'); }
+  };
+  const addStrategyMaterial = (brand, material) => saveStrategy(brand, { materials: [...(strategy[brand]?.materials || []), material] });
+  const removeStrategyMaterial = (brand, idx) => saveStrategy(brand, { materials: (strategy[brand]?.materials || []).filter((_, i) => i !== idx) });
+  const uploadStrategyFile = async (brand, file) => {
+    if (!file) return;
+    if (!supabaseReady) { notify('Supabase não configurado — não foi possível subir o arquivo.'); return; }
+    const ext = (file.name.split('.').pop() || 'bin').toLowerCase();
+    const path = `strategy/${brand}/${crypto.randomUUID()}.${ext}`;
+    const { error } = await supabase.storage.from('creatives').upload(path, file, { upsert: true, contentType: file.type });
+    if (error) { console.error('[strategy upload]', error); notify('Falha ao subir o arquivo.'); return; }
+    const { data } = supabase.storage.from('creatives').getPublicUrl(path);
+    if (data?.publicUrl) addStrategyMaterial(brand, { label: file.name, url: data.publicUrl, kind: 'file' });
+  };
+
   // Carrega o status de postagem do Supabase e escuta mudanças em tempo real
   useEffect(() => {
     if (!supabaseReady) return;
@@ -4029,12 +4627,18 @@ export default function App() {
           </p>
         </div>
 
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '20px', width: '100%', maxWidth: '780px', justifyContent: 'center' }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '20px', width: '100%', maxWidth: '1140px', justifyContent: 'center' }}>
           <MenuButton
             icon={<Calendar size={26} />}
             title="Calendário editorial"
             subtitle="Veja a linha editorial de junho organizada por dia."
             onClick={() => setView('calendar')}
+          />
+          <MenuButton
+            icon={<KnightIcon size={30} />}
+            title="Estratégia de Conteúdo"
+            subtitle="Estratégia de postagem e materiais de cada marca."
+            onClick={() => setView('strategy')}
           />
           <MenuButton
             icon={<Layers size={26} />}
@@ -4044,6 +4648,99 @@ export default function App() {
             locked
           />
         </div>
+      </div>
+    );
+  }
+
+  // ─── ESTRATÉGIA DE CONTEÚDO ───
+  if (view === 'strategy') {
+    const isAdmin = currentUser === 'Admin';
+    const activeBrands = Object.entries(clients).filter(([, c]) => !c.comingSoon);
+    const sel = strategyBrand && clients[strategyBrand] ? strategyBrand : null;
+    return (
+      <div style={{ minHeight: '100vh', background: '#f5f5f3', fontFamily: 'Geist, -apple-system, BlinkMacSystemFont, system-ui, sans-serif', paddingBottom: '60px' }}>
+        <div style={{ background: '#0a0a0a', color: '#fafafa', padding: '44px 28px 32px 28px' }}>
+          <div style={{ maxWidth: '1140px', margin: '0 auto' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '18px', gap: '12px', flexWrap: 'wrap' }}>
+              <button onClick={() => (sel ? setStrategyBrand(null) : setView('select'))} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#fafafa', opacity: 0.55, display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '12px', fontWeight: 500, padding: 0 }}>
+                <ChevronLeft size={14} /> {sel ? 'Todas as marcas' : 'Voltar'}
+              </button>
+              <span style={{ ...glassDark, color: '#fafafa', borderRadius: '999px', padding: '6px 14px', fontSize: '11.5px', fontWeight: 600 }}>
+                {isAdmin ? 'Modo edição' : 'Somente leitura'}
+              </span>
+            </div>
+            <h1 style={{ fontSize: '34px', fontWeight: 600, margin: 0, letterSpacing: '-0.03em', display: 'inline-flex', alignItems: 'center', gap: '12px' }}>
+              <KnightIcon size={32} /> Estratégia de Conteúdo
+            </h1>
+            <p style={{ fontSize: '13.5px', opacity: 0.65, marginTop: '8px' }}>
+              {sel ? clients[sel].name : 'Escolha uma marca para ver a estratégia e os materiais.'}
+            </p>
+          </div>
+        </div>
+
+        <div style={{ maxWidth: '1140px', margin: '0 auto', padding: '28px' }}>
+          {!sel ? (
+            <div style={{ maxWidth: '440px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {[...activeBrands.filter(([k]) => k === 'octagym'), ...activeBrands.filter(([k]) => k !== 'octagym')].map(([brandKey, c]) => {
+                const Icon = BRAND_ICONS[brandKey] || Layers;
+                const live = brandKey === 'octagym';
+                if (!live) {
+                  return (
+                    <div key={brandKey} style={{
+                      background: '#fff', border: '1px solid rgba(0,0,0,0.07)', borderRadius: '16px',
+                      padding: '14px 18px', display: 'flex', alignItems: 'center', gap: '14px', opacity: 0.6
+                    }}>
+                      <span style={{ flexShrink: 0, width: '46px', height: '46px', borderRadius: '50%', background: 'rgba(0,0,0,0.06)', color: 'rgba(0,0,0,0.3)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <Icon size={22} />
+                      </span>
+                      <span style={{ flex: 1, fontSize: '16px', fontWeight: 600, color: 'rgba(0,0,0,0.5)', letterSpacing: '-0.01em' }}>{c.name}</span>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', background: 'rgba(0,0,0,0.05)', color: 'rgba(0,0,0,0.45)', borderRadius: '999px', padding: '4px 10px', fontSize: '11px', fontWeight: 700 }}>
+                        <Lock size={11} /> Em breve
+                      </span>
+                    </div>
+                  );
+                }
+                return (
+                  <button
+                    key={brandKey}
+                    onClick={() => setStrategyBrand(brandKey)}
+                    onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 8px 22px rgba(0,0,0,0.10)'; }}
+                    onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = `0 2px 10px ${c.accent}22`; }}
+                    style={{
+                      background: `${c.accent}0d`, border: `2px solid ${c.accent}`, borderRadius: '16px',
+                      padding: '16px 18px', cursor: 'pointer', textAlign: 'left',
+                      display: 'flex', alignItems: 'center', gap: '14px',
+                      boxShadow: `0 2px 10px ${c.accent}22`, transition: 'transform 0.18s ease, box-shadow 0.18s ease'
+                    }}
+                  >
+                    <span style={{ flexShrink: 0, width: '50px', height: '50px', borderRadius: '50%', background: c.accent, color: readableText(c.accent), display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <Icon size={24} />
+                    </span>
+                    <span style={{ flex: 1, minWidth: 0 }}>
+                      <span style={{ display: 'block', fontSize: '17px', fontWeight: 700, color: '#0a0a0a', letterSpacing: '-0.01em' }}>{c.name}</span>
+                      <span style={{ display: 'block', fontSize: '12px', color: c.accent, fontWeight: 600, marginTop: '1px' }}>Disponível agora</span>
+                    </span>
+                    <ChevronRight size={18} style={{ color: c.accent }} />
+                  </button>
+                );
+              })}
+            </div>
+          ) : sel === 'octagym' ? (
+            <OctagymStrategy accent={clients.octagym.accent} />
+          ) : (
+            <BrandStrategyCard
+              brand={sel}
+              c={clients[sel]}
+              data={strategy[sel] || { notes: '', materials: [] }}
+              canEdit={isAdmin}
+              onSaveNotes={(b, n) => saveStrategy(b, { notes: n })}
+              onAddLink={addStrategyMaterial}
+              onUploadFile={uploadStrategyFile}
+              onRemoveMaterial={removeStrategyMaterial}
+            />
+          )}
+        </div>
+        {toast && <Toast message={toast} onClose={() => setToast(null)} />}
       </div>
     );
   }

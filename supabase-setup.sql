@@ -118,6 +118,30 @@ alter publication supabase_realtime add table prodstatus;
 
 
 -- ============================================================
+-- Estratégia de conteúdo por marca (anotações + materiais/links)
+-- ============================================================
+create table if not exists strategy (
+  brand text primary key,
+  notes text default '',
+  materials jsonb not null default '[]'::jsonb,   -- [{label, url, kind}]
+  updated_at timestamptz not null default now()
+);
+
+alter table strategy enable row level security;
+
+drop policy if exists "leitura publica" on strategy;
+drop policy if exists "insert publico"  on strategy;
+drop policy if exists "update publico"  on strategy;
+drop policy if exists "delete publico"  on strategy;
+create policy "leitura publica" on strategy for select using (true);
+create policy "insert publico"  on strategy for insert with check (true);
+create policy "update publico"  on strategy for update using (true) with check (true);
+create policy "delete publico"  on strategy for delete using (true);
+
+alter publication supabase_realtime add table strategy;
+
+
+-- ============================================================
 -- Storage: bucket público "creatives" para guardar as imagens
 -- ============================================================
 insert into storage.buckets (id, name, public)
