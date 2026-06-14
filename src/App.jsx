@@ -4699,16 +4699,16 @@ export default function App() {
 
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '20px', width: '100%', maxWidth: '1140px', justifyContent: 'center' }}>
           <MenuButton
-            icon={<Calendar size={26} />}
-            title="Calendário editorial"
-            subtitle="Veja a linha editorial de junho organizada por dia."
-            onClick={() => setView('calendar')}
-          />
-          <MenuButton
             icon={<KnightIcon size={30} />}
             title="Estratégia de Conteúdo"
             subtitle="Estratégia de postagem e materiais de cada marca."
             onClick={() => setView('strategy')}
+          />
+          <MenuButton
+            icon={<Calendar size={26} />}
+            title="Calendário editorial"
+            subtitle="Veja a linha editorial de junho organizada por dia."
+            onClick={() => setView('calendar')}
           />
           <MenuButton
             icon={<Layers size={26} />}
