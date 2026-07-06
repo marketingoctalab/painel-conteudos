@@ -2953,9 +2953,7 @@ const AVATAR_DESIGNS = [
 
 // Perfis de revisão (sem login), cada um com um avatar geométrico e uma cor representativa
 const PROFILES = [
-  { key: 'alex', name: 'ALEX', avatar: 0, tint: '#ff005b' },
   { key: 'marcos', name: 'MARCOS', avatar: 1, tint: '#ff7d10' },
-  { key: 'miguel', name: 'MIGUEL', avatar: 2, tint: '#1e3a8a' },
   { key: 'silvio', name: 'SILVIO', avatar: 3, tint: '#89fcb3' },
   { key: 'thiago', name: 'THIAGO', avatar: 4, tint: '#22d3ee' }
 ];
