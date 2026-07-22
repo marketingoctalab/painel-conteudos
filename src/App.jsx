@@ -465,6 +465,9 @@ function TodayView({ board, calendar, setOpenCard, setOpenDay }) {
   const tk = todayKey();
   const week = weekRange();
   const todayItems = calendar.items[tk] || [];
+  const restOfWeek = week.filter((d) => d > tk); // dias da semana depois de hoje
+  const cardsDueOn = (d) =>
+    Object.values(board.cards).filter((c) => c.due === d && dueState(c, board) !== null);
 
   const overdue = [];
   const dueToday = [];
@@ -530,6 +533,39 @@ function TodayView({ board, calendar, setOpenCard, setOpenDay }) {
           <span className="row-end">{it.network} · {CAL_STATUS[it.status]?.label}</span>
         </button>
       ))}
+
+      {restOfWeek.some((d) => (calendar.items[d] || []).length || cardsDueOn(d).length) && (
+        <>
+          <div className="px-label sec">Restante da semana</div>
+          {restOfWeek.map((d) => {
+            const cItems = calendar.items[d] || [];
+            const cards = cardsDueOn(d);
+            if (!cItems.length && !cards.length) return null;
+            const [yy, mm, dd] = d.split("-").map(Number);
+            const wd = WEEKDAYS[new Date(yy, mm - 1, dd).getDay()];
+            return (
+              <div key={d}>
+                <div className="week-day-head px-label">{wd} · {fmtShort(d)}</div>
+                {cards.map((c) => (
+                  <button key={c.id} className="row" onClick={() => setOpenCard(c.id)}>
+                    <ProdTag k={c.product} />
+                    <PrioDot k={c.priority} />
+                    <span className="row-title">{c.title}</span>
+                    <span className="row-end">entrega</span>
+                  </button>
+                ))}
+                {cItems.map((it) => (
+                  <button key={it.id} className="row" onClick={() => setOpenDay(d)}>
+                    <ProdTag k={it.product} />
+                    <span className="row-title">{it.title}</span>
+                    <span className="row-end">{it.network} · {CAL_STATUS[it.status]?.label}</span>
+                  </button>
+                ))}
+              </div>
+            );
+          })}
+        </>
+      )}
 
       {pending.length > 0 && (
         <>
@@ -1544,6 +1580,13 @@ function GlobalStyle() {
       }
       .sec::after { content: ""; flex: 1; border-top: 2px dotted ${T.line}; }
       .sec.danger { color: ${T.danger}; }
+      .week-day-head {
+        font-size: 13px;
+        color: ${T.muted};
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        margin: 12px 0 6px;
+      }
 
       .empty {
         text-align: center;
