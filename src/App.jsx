@@ -259,6 +259,9 @@ export default function App() {
   const [openCard, setOpenCard] = useState(null);
   const [openDay, setOpenDay] = useState(null);
   const [calFilter, setCalFilter] = useState("todos");
+  const [trash, setTrash] = useState({ items: [] });
+  const [showTrash, setShowTrash] = useState(false);
+  const [confirmState, setConfirmState] = useState(null); // { message, onOk }
   const [month, setMonth] = useState(() => {
     const d = new Date();
     return { y: d.getFullYear(), m: d.getMonth() };
@@ -276,6 +279,7 @@ export default function App() {
       });
       setBoard(b);
       setCalendar(await loadKey("estudio:calendar", { items: {} }));
+      setTrash(await loadKey("estudio:trash", { items: [] }));
     })();
   }, []);
 
@@ -289,6 +293,7 @@ export default function App() {
         if (!row || row.client_id === CLIENT_ID) return; // ignora o próprio eco
         if (row.id === "estudio:board" && row.value) setBoard(row.value);
         else if (row.id === "estudio:calendar" && row.value) setCalendar(row.value);
+        else if (row.id === "estudio:trash" && row.value) setTrash(row.value);
       })
       .subscribe();
     return () => supabase.removeChannel(ch);
@@ -312,6 +317,55 @@ export default function App() {
       persist("estudio:calendar", nc);
       return nc;
     });
+
+  const updateTrash = (fn) =>
+    setTrash((t) => {
+      const nt = fn(structuredClone(t || { items: [] }));
+      persist("estudio:trash", nt);
+      return nt;
+    });
+
+  // pede confirmação antes de excluir
+  const askConfirm = (message, onOk) => setConfirmState({ message, onOk });
+
+  // manda um item excluído para a lixeira
+  const sendToTrash = (entry) =>
+    updateTrash((t) => {
+      t.items = [{ id: uid(), deletedAt: Date.now(), ...entry }, ...(t.items || [])].slice(0, 100);
+      return t;
+    });
+
+  // restaura um item da lixeira de volta pro calendário/quadro
+  const restoreFromTrash = (entryId) => {
+    const entry = (trash.items || []).find((x) => x.id === entryId);
+    if (!entry) return;
+    if (entry.type === "calendar") {
+      updateCalendar((c) => {
+        if (!c.items[entry.dateKey]) c.items[entry.dateKey] = [];
+        c.items[entry.dateKey].push(entry.item);
+        return c;
+      });
+    } else if (entry.type === "card") {
+      updateBoard((b) => {
+        b.cards[entry.card.id] = entry.card;
+        const col = b.columns.find((x) => x.id === entry.colId) || b.columns[0];
+        if (col && !col.cardIds.includes(entry.card.id)) col.cardIds.push(entry.card.id);
+        return b;
+      });
+    }
+    updateTrash((t) => {
+      t.items = t.items.filter((x) => x.id !== entryId);
+      return t;
+    });
+  };
+
+  const purgeFromTrash = (entryId) =>
+    updateTrash((t) => {
+      t.items = t.items.filter((x) => x.id !== entryId);
+      return t;
+    });
+
+  const emptyTrash = () => updateTrash((t) => { t.items = []; return t; });
 
   if (!board || !calendar) {
     return (
@@ -393,7 +447,7 @@ export default function App() {
           <TodayView board={board} calendar={calendar} setOpenCard={setOpenCard} setOpenDay={setOpenDay} />
         )}
         {tab === "kanban" && (
-          <Kanban board={board} updateBoard={updateBoard} setOpenCard={setOpenCard} />
+          <Kanban board={board} updateBoard={updateBoard} setOpenCard={setOpenCard} askConfirm={askConfirm} sendToTrash={sendToTrash} />
         )}
         {tab === "calendario" && (
           <Calendar
@@ -407,7 +461,12 @@ export default function App() {
           />
         )}
 
-        <footer className="footer px-label">estúdio · feito para uso diário · dados salvos automaticamente</footer>
+        <footer className="footer px-label">
+          <span>estúdio · feito para uso diário · dados salvos automaticamente</span>
+          <button className="trash-btn px-label" onClick={() => setShowTrash(true)}>
+            🗑 lixeira{trash.items?.length ? ` · ${trash.items.length}` : ""}
+          </button>
+        </footer>
       </div>
 
       {openCard && board.cards[openCard] && (
@@ -416,6 +475,8 @@ export default function App() {
           board={board}
           updateBoard={updateBoard}
           updateCalendar={updateCalendar}
+          askConfirm={askConfirm}
+          sendToTrash={sendToTrash}
           close={() => setOpenCard(null)}
         />
       )}
@@ -426,7 +487,25 @@ export default function App() {
           board={board}
           updateCalendar={updateCalendar}
           setOpenCard={setOpenCard}
+          askConfirm={askConfirm}
+          sendToTrash={sendToTrash}
           close={() => setOpenDay(null)}
+        />
+      )}
+      {confirmState && (
+        <ConfirmModal
+          message={confirmState.message}
+          onOk={() => { confirmState.onOk(); setConfirmState(null); }}
+          onCancel={() => setConfirmState(null)}
+        />
+      )}
+      {showTrash && (
+        <TrashModal
+          trash={trash}
+          onRestore={restoreFromTrash}
+          onPurge={purgeFromTrash}
+          onEmpty={emptyTrash}
+          close={() => setShowTrash(false)}
         />
       )}
     </div>
@@ -600,7 +679,7 @@ function PrioDot({ k }) {
 }
 
 // ---------- kanban ----------
-function Kanban({ board, updateBoard, setOpenCard }) {
+function Kanban({ board, updateBoard, setOpenCard, askConfirm, sendToTrash }) {
   const [drag, setDrag] = useState(null);
   const [overCol, setOverCol] = useState(null);
   const [addingCol, setAddingCol] = useState(false);
@@ -644,6 +723,8 @@ function Kanban({ board, updateBoard, setOpenCard }) {
             isOver={overCol === col.id}
             setOverCol={setOverCol}
             moveCard={moveCard}
+            askConfirm={askConfirm}
+            sendToTrash={sendToTrash}
           />
         ))}
         <div style={{ minWidth: 240 }}>
@@ -671,7 +752,7 @@ function Kanban({ board, updateBoard, setOpenCard }) {
   );
 }
 
-function Column({ col, board, updateBoard, setOpenCard, drag, setDrag, isOver, setOverCol, moveCard }) {
+function Column({ col, board, updateBoard, setOpenCard, drag, setDrag, isOver, setOverCol, moveCard, askConfirm, sendToTrash }) {
   const [adding, setAdding] = useState(false);
   const [newTitle, setNewTitle] = useState("");
   const [editingTitle, setEditingTitle] = useState(false);
@@ -700,12 +781,21 @@ function Column({ col, board, updateBoard, setOpenCard, drag, setDrag, isOver, s
   };
 
   const deleteCol = () => {
-    updateBoard((b) => {
-      const c = b.columns.find((x) => x.id === col.id);
-      c.cardIds.forEach((id) => delete b.cards[id]);
-      b.columns = b.columns.filter((x) => x.id !== col.id);
-      return b;
-    });
+    askConfirm(
+      `Excluir a coluna "${col.title}"${col.cardIds.length ? ` e seus ${col.cardIds.length} cartão(ões)` : ""}?`,
+      () => {
+        col.cardIds.forEach((id) => {
+          const cd = board.cards[id];
+          if (cd) sendToTrash({ type: "card", label: cd.title, colId: col.id, card: structuredClone(cd) });
+        });
+        updateBoard((b) => {
+          const c = b.columns.find((x) => x.id === col.id);
+          c.cardIds.forEach((id) => delete b.cards[id]);
+          b.columns = b.columns.filter((x) => x.id !== col.id);
+          return b;
+        });
+      }
+    );
   };
 
   return (
@@ -813,7 +903,7 @@ function Column({ col, board, updateBoard, setOpenCard, drag, setDrag, isOver, s
 }
 
 // ---------- modal do cartão ----------
-function CardModal({ card, board, updateBoard, updateCalendar, close }) {
+function CardModal({ card, board, updateBoard, updateCalendar, askConfirm, sendToTrash, close }) {
   const [checkText, setCheckText] = useState("");
   const [tpl, setTpl] = useState("");
   const [schedDate, setSchedDate] = useState(card.due || todayKey());
@@ -871,12 +961,15 @@ function CardModal({ card, board, updateBoard, updateCalendar, close }) {
   };
 
   const deleteCard = () => {
-    updateBoard((b) => {
-      b.columns.forEach((c) => (c.cardIds = c.cardIds.filter((x) => x !== card.id)));
-      delete b.cards[card.id];
-      return b;
+    askConfirm(`Excluir o cartão "${card.title}"? Vai para a lixeira.`, () => {
+      sendToTrash({ type: "card", label: card.title, colId: colOf?.id || null, card: structuredClone(card) });
+      updateBoard((b) => {
+        b.columns.forEach((c) => (c.cardIds = c.cardIds.filter((x) => x !== card.id)));
+        delete b.cards[card.id];
+        return b;
+      });
+      close();
     });
-    close();
   };
 
   const scheduleToCalendar = () => {
@@ -1174,7 +1267,7 @@ function Calendar({ calendar, board, month, setMonth, setOpenDay, filter, setFil
 }
 
 // ---------- modal do dia ----------
-function DayModal({ dateKey: key, calendar, board, updateCalendar, setOpenCard, close }) {
+function DayModal({ dateKey: key, calendar, board, updateCalendar, setOpenCard, askConfirm, sendToTrash, close }) {
   const items = calendar.items[key] || [];
   const [form, setForm] = useState({ title: "", desc: "", product: "octalab", network: "Instagram", status: "ideia" });
   const [y, m, d] = key.split("-").map(Number);
@@ -1197,12 +1290,17 @@ function DayModal({ dateKey: key, calendar, board, updateCalendar, setOpenCard, 
       return c;
     });
 
-  const removeItem = (id) =>
-    updateCalendar((c) => {
-      c.items[key] = c.items[key].filter((x) => x.id !== id);
-      if (c.items[key].length === 0) delete c.items[key];
-      return c;
+  const removeItem = (id) => {
+    const it = (calendar.items[key] || []).find((x) => x.id === id);
+    askConfirm(`Excluir "${it?.title || "este conteúdo"}"? Vai para a lixeira.`, () => {
+      if (it) sendToTrash({ type: "calendar", label: it.title, dateKey: key, item: it });
+      updateCalendar((c) => {
+        c.items[key] = (c.items[key] || []).filter((x) => x.id !== id);
+        if (c.items[key].length === 0) delete c.items[key];
+        return c;
+      });
     });
+  };
 
   const duplicateItem = (id) =>
     updateCalendar((c) => {
@@ -1453,6 +1551,63 @@ function Field({ label, children }) {
       <label className="field-label px-label">{label}</label>
       {children}
     </div>
+  );
+}
+
+function ConfirmModal({ message, onOk, onCancel }) {
+  return (
+    <Overlay close={onCancel}>
+      <div className="modal" style={{ maxWidth: 420 }} onClick={(e) => e.stopPropagation()}>
+        <div className="modal-head">
+          <div className="modal-title px-label">Confirmar exclusão</div>
+          <button className="icon-btn" onClick={onCancel}>×</button>
+        </div>
+        <p style={{ fontSize: 15, lineHeight: 1.5, margin: "12px 0 0" }}>{message}</p>
+        <div className="modal-foot">
+          <button className="btn ghost" onClick={onCancel}>cancelar</button>
+          <button className="btn danger" onClick={onOk}>excluir</button>
+        </div>
+      </div>
+    </Overlay>
+  );
+}
+
+function TrashModal({ trash, onRestore, onPurge, onEmpty, close }) {
+  const items = trash.items || [];
+  return (
+    <Overlay close={close}>
+      <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-head">
+          <div className="modal-title px-label">Lixeira</div>
+          <button className="icon-btn" onClick={close}>×</button>
+        </div>
+        {items.length === 0 ? (
+          <div className="empty">A lixeira está vazia.</div>
+        ) : (
+          <>
+            <p style={{ fontSize: 13, color: T.muted, margin: "8px 0 2px" }}>
+              Itens excluídos — restaure o que precisar.
+            </p>
+            {items.map((e) => (
+              <div key={e.id} className="trash-row">
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div className="trash-type px-label">
+                    {e.type === "calendar" ? "conteúdo" : "cartão"}
+                    {e.type === "calendar" && e.dateKey ? ` · ${fmtShort(e.dateKey)}` : ""}
+                  </div>
+                  <div className="trash-title">{e.label || "(sem título)"}</div>
+                </div>
+                <button className="btn small" onClick={() => onRestore(e.id)}>restaurar</button>
+                <button className="icon-btn" title="Apagar de vez" onClick={() => onPurge(e.id)}>×</button>
+              </div>
+            ))}
+            <div className="modal-foot">
+              <button className="btn ghost small" onClick={onEmpty}>esvaziar lixeira</button>
+            </div>
+          </>
+        )}
+      </div>
+    </Overlay>
   );
 }
 
@@ -2046,11 +2201,33 @@ function GlobalStyle() {
       .di-title { font-size: 15px; font-weight: 600; margin-top: 3px; }
 
       .footer {
-        text-align: center;
+        display: flex; align-items: center; justify-content: center;
+        gap: 14px; flex-wrap: wrap;
         margin-top: 28px;
         font-size: 13px;
         color: ${T.muted};
       }
+      .trash-btn {
+        background: transparent;
+        border: 2px solid ${T.line};
+        border-radius: 999px;
+        padding: 5px 14px;
+        color: ${T.ink};
+        font-size: 13px;
+        cursor: pointer;
+      }
+      .trash-btn:hover { border-color: ${T.ink}; }
+      .trash-row {
+        display: flex; align-items: center; gap: 10px;
+        border: 2px solid ${T.ink};
+        border-radius: 12px;
+        background: #fff;
+        box-shadow: 3px 3px 0 ${T.ink};
+        padding: 9px 12px;
+        margin-top: 10px;
+      }
+      .trash-type { font-size: 11px; color: ${T.muted}; text-transform: uppercase; letter-spacing: .5px; }
+      .trash-title { font-size: 14px; font-weight: 600; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
       /* ---------- tela de entrada: arco (meio círculo) ---------- */
       .landing-poster {
