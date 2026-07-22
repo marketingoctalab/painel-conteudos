@@ -365,8 +365,8 @@ export default function App() {
         <nav className="tabs">
           {[
             ["hoje", "Hoje"],
-            ["kanban", "Quadro"],
             ["calendario", "Calendário"],
+            ["kanban", "Quadro"],
           ].map(([id, label]) => (
             <button
               key={id}
