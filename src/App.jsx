@@ -168,6 +168,88 @@ async function saveKey(key, value) {
   }
 }
 
+// ---------- upload de imagem (Supabase Storage, bucket "creatives") ----------
+async function uploadEstudioImage(file) {
+  if (!file || !supabaseReady) return null;
+  const ext = (file.name.split(".").pop() || "png").toLowerCase();
+  const path = `estudio/${uid()}-${Date.now()}.${ext}`;
+  const { error } = await supabase.storage.from("creatives").upload(path, file, { upsert: true, contentType: file.type });
+  if (error) {
+    console.error("Falha no upload", error);
+    return null;
+  }
+  const { data } = supabase.storage.from("creatives").getPublicUrl(path);
+  return data?.publicUrl || null;
+}
+
+// descrição + imagens de um item do calendário
+function ItemMedia({ item, onPatch }) {
+  const [uploading, setUploading] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
+  const [preview, setPreview] = useState(null);
+  const images = item.images || [];
+
+  const uploadFiles = async (fileList) => {
+    const files = Array.from(fileList || []).filter((f) => f.type.startsWith("image/"));
+    if (!files.length) return;
+    setUploading(true);
+    const urls = [];
+    for (const f of files) {
+      const u = await uploadEstudioImage(f);
+      if (u) urls.push(u);
+    }
+    if (urls.length) onPatch({ images: [...images, ...urls] });
+    setUploading(false);
+  };
+
+  return (
+    <>
+      <textarea
+        className="input"
+        style={{ marginTop: 10, minHeight: 54, resize: "vertical" }}
+        placeholder="Descreva a ideia do conteúdo…"
+        value={item.desc || ""}
+        onChange={(e) => onPatch({ desc: e.target.value })}
+      />
+      <div className="img-strip">
+        {images.map((u, i) => (
+          <div key={i} className="img-thumb">
+            <img src={u} alt="" onClick={() => setPreview(u)} title="Clique para ver em tamanho grande" />
+            <button className="img-del" onClick={() => onPatch({ images: images.filter((_, idx) => idx !== i) })}>×</button>
+          </div>
+        ))}
+        <label
+          className={`img-add px-label ${dragOver ? "drop" : ""}`}
+          title="Clique ou arraste imagens aqui"
+          onDragOver={(e) => { e.preventDefault(); if (!uploading) setDragOver(true); }}
+          onDragEnter={(e) => { e.preventDefault(); if (!uploading) setDragOver(true); }}
+          onDragLeave={() => setDragOver(false)}
+          onDrop={(e) => { e.preventDefault(); setDragOver(false); if (!uploading) uploadFiles(e.dataTransfer.files); }}
+        >
+          <input
+            type="file"
+            accept="image/*"
+            multiple
+            style={{ display: "none" }}
+            onChange={(e) => { uploadFiles(e.target.files); e.target.value = ""; }}
+            disabled={uploading}
+          />
+          {uploading ? "…" : "＋"}
+        </label>
+      </div>
+
+      {preview && (
+        <Overlay close={() => setPreview(null)}>
+          <div className="img-preview-wrap" onClick={(e) => e.stopPropagation()}>
+            <button className="img-preview-close" onClick={() => setPreview(null)}>×</button>
+            <img className="img-preview" src={preview} alt="" />
+          </div>
+        </Overlay>
+      )}
+    </>
+  );
+}
+
 // ---------- app ----------
 export default function App() {
   const [screen, setScreen] = useState("landing"); // landing | app | product:<key>
@@ -1058,7 +1140,7 @@ function Calendar({ calendar, board, month, setMonth, setOpenDay, filter, setFil
 // ---------- modal do dia ----------
 function DayModal({ dateKey: key, calendar, board, updateCalendar, setOpenCard, close }) {
   const items = calendar.items[key] || [];
-  const [form, setForm] = useState({ title: "", product: "octalab", network: "Instagram", status: "ideia" });
+  const [form, setForm] = useState({ title: "", desc: "", product: "octalab", network: "Instagram", status: "ideia" });
   const [y, m, d] = key.split("-").map(Number);
 
   const addItem = () => {
@@ -1066,10 +1148,10 @@ function DayModal({ dateKey: key, calendar, board, updateCalendar, setOpenCard, 
     if (!t) return;
     updateCalendar((c) => {
       if (!c.items[key]) c.items[key] = [];
-      c.items[key].push({ id: uid(), ...form, title: t });
+      c.items[key].push({ id: uid(), ...form, title: t, desc: form.desc.trim(), images: [] });
       return c;
     });
-    setForm((f) => ({ ...f, title: "" }));
+    setForm((f) => ({ ...f, title: "", desc: "" }));
   };
 
   const patchItem = (id, fields) =>
@@ -1128,6 +1210,7 @@ function DayModal({ dateKey: key, calendar, board, updateCalendar, setOpenCard, 
                 </div>
                 <button className="icon-btn" onClick={() => removeItem(it.id)}>×</button>
               </div>
+              <ItemMedia item={it} onPatch={(fields) => patchItem(it.id, fields)} />
               <div className="chip-row" style={{ marginTop: 8 }}>
                 {Object.entries(CAL_STATUS).map(([k, s]) => (
                   <button
@@ -1164,6 +1247,13 @@ function DayModal({ dateKey: key, calendar, board, updateCalendar, setOpenCard, 
             value={form.title}
             onChange={(e) => setForm({ ...form, title: e.target.value })}
             onKeyDown={(e) => e.key === "Enter" && addItem()}
+          />
+          <textarea
+            className="input"
+            style={{ marginTop: 8, minHeight: 48, resize: "vertical" }}
+            placeholder="Descrição da ideia (opcional)"
+            value={form.desc}
+            onChange={(e) => setForm({ ...form, desc: e.target.value })}
           />
           <div className="tpl-row" style={{ marginTop: 8 }}>
             <select className="input" value={form.product} onChange={(e) => setForm({ ...form, product: e.target.value })}>
@@ -1865,6 +1955,49 @@ function GlobalStyle() {
         padding: 10px 12px;
         margin-top: 10px;
       }
+      .img-strip { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+      .img-thumb {
+        position: relative; width: 66px; height: 66px;
+        border: 2px solid ${T.ink}; border-radius: 10px;
+        overflow: hidden; background: #fff;
+      }
+      .img-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; cursor: zoom-in; }
+      .img-preview-wrap { position: relative; max-width: 92vw; max-height: 88vh; }
+      .img-preview {
+        display: block; max-width: 92vw; max-height: 88vh;
+        object-fit: contain;
+        border: 2px solid ${T.ink}; border-radius: 12px;
+        box-shadow: 6px 6px 0 ${T.ink}; background: ${T.paper};
+      }
+      .img-preview-close {
+        position: absolute; top: -14px; right: -14px;
+        width: 36px; height: 36px;
+        border: 2px solid ${T.ink}; border-radius: 50%;
+        background: ${T.paper}; color: ${T.ink};
+        font-size: 20px; cursor: pointer;
+        display: flex; align-items: center; justify-content: center;
+        box-shadow: 3px 3px 0 ${T.ink};
+      }
+      .img-del {
+        position: absolute; top: 2px; right: 2px;
+        width: 18px; height: 18px; border: none; border-radius: 6px;
+        background: ${T.ink}; color: ${T.paper};
+        font-size: 13px; line-height: 1; cursor: pointer;
+        display: flex; align-items: center; justify-content: center; padding: 0;
+      }
+      .img-add {
+        width: 66px; height: 66px;
+        border: 2px dashed ${T.muted}; border-radius: 10px;
+        background: ${T.holoSoft}; color: ${T.ink};
+        font-size: 26px; cursor: pointer;
+        display: flex; align-items: center; justify-content: center;
+      }
+      .img-add:hover { border-color: ${T.ink}; }
+      .img-add.drop {
+        border-style: solid; border-color: ${T.ink};
+        background: #fff; transform: scale(1.08);
+      }
+
       .di-head { display: flex; justify-content: space-between; gap: 8px; }
       .di-meta { font-size: 12.5px; color: ${T.muted}; display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
       .di-title { font-size: 15px; font-weight: 600; margin-top: 3px; }
