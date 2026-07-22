@@ -1,5656 +1,2103 @@
-import React, { useState, useEffect, useId, useRef } from 'react';
-import { ChevronLeft, ChevronRight, Calendar, Copy, Check, ArrowRight, Newspaper, Megaphone, Layers, X, Target, AlertTriangle, Lock, Plus, Trash2, Pencil, Video, Image as ImageIcon, Tag as TagIcon, Scale, FlaskConical, Car, Dumbbell, SlidersHorizontal, BarChart3, BadgeCheck, QrCode, Gift } from 'lucide-react';
-import { supabase, supabaseReady } from './supabase';
+import React, { useState, useEffect, useRef, useMemo } from "react";
+import { supabase, supabaseReady } from "./supabase";
 
-// Senha do Painel Admin. Vem do .env (VITE_ADMIN_PASSWORD); se não houver, usa o padrão abaixo.
-const ADMIN_PASSWORD = import.meta.env.VITE_ADMIN_PASSWORD || 'octalab2026';
+// id único desta aba/sessão — usado para ignorar o próprio eco no realtime
+const CLIENT_ID = Math.random().toString(36).slice(2);
 
-// ============================================================
-// ESTILOS LIQUID GLASS REUTILIZÁVEIS
-// ============================================================
-const glassLight = {
-  background: 'rgba(255,255,255,0.55)',
-  backdropFilter: 'blur(12px) saturate(180%)',
-  WebkitBackdropFilter: 'blur(12px) saturate(180%)',
-  border: '1px solid rgba(255,255,255,0.7)',
-  boxShadow: '0 1px 2px rgba(0,0,0,0.05), inset 0 1px 1px rgba(255,255,255,0.85)'
+/* ============================================================
+   ESTÚDIO — painel pessoal retrô pixel, paleta clara
+   Ref: poster "Cyber Monday" (creme + marrom + holográfico)
+   ============================================================ */
+
+// ---------- tokens ----------
+const T = {
+  bg: "#E9E5DB",        // fundo externo
+  paper: "#F5F2EA",     // cartão/papel
+  ink: "#3B2E28",       // marrom escuro (texto e bordas)
+  muted: "#8C8478",
+  line: "#D8D2C4",
+  danger: "#C2453A",
+  holo: "linear-gradient(90deg,#FFB7C5,#FFE0A3,#BDEAD0,#A9D7EF,#D6B3F5)",
+  holoSoft: "linear-gradient(135deg,#FFD9E2,#FFF0CE,#DDF5E8,#D3EBF9,#EBDDFB)",
 };
-const glassDark = {
-  background: 'rgba(255,255,255,0.08)',
-  backdropFilter: 'blur(12px) saturate(180%)',
-  WebkitBackdropFilter: 'blur(12px) saturate(180%)',
-  border: '1px solid rgba(255,255,255,0.16)',
-  boxShadow: 'inset 0 1px 1px rgba(255,255,255,0.12)'
+
+const PRODUCTS = {
+  octalab: { label: "Octalab", tag: "OC", color: "#8A6FE0" },
+  ecosys: { label: "Ecosys AUTO", tag: "EC", color: "#4E8FD9" },
+  juspilot: { label: "JusPilot", tag: "JP", color: "#3FA37A" },
+  octagym: { label: "OctaGym", tag: "OG", color: "#D96757" },
+  outro: { label: "Outro", tag: "—", color: "#9A9284" },
 };
-// Glass tingido por cor (ex.: verde/vermelho), em fundo claro
-const glassTint = (rgb) => ({
-  background: `rgba(${rgb},0.10)`,
-  backdropFilter: 'blur(12px) saturate(180%)',
-  WebkitBackdropFilter: 'blur(12px) saturate(180%)',
-  border: `1px solid rgba(${rgb},0.28)`,
-  boxShadow: 'inset 0 1px 1px rgba(255,255,255,0.4)'
+
+const NETWORKS = ["Instagram", "LinkedIn", "X", "YouTube", "WhatsApp"];
+
+const CAL_STATUS = {
+  ideia: { label: "Ideia" },
+  producao: { label: "Produção" },
+  aprovacao: { label: "Aprovação" },
+  publicado: { label: "Publicado" },
+};
+
+const PRIORITIES = {
+  nenhuma: { label: "Sem prioridade", chip: "#8C8478" },
+  baixa: { label: "Baixa", chip: "#3F6B4F" },
+  media: { label: "Média", chip: "#8A6A14" },
+  alta: { label: "Alta", chip: "#B25E10" },
+  urgente: { label: "Urgente", chip: "#C2453A" },
+};
+
+// ---------- slots do carrossel de entrada (6 posições) ----------
+// para usar imagem real, preencha "img" com a URL; sem imagem, o tile usa o degradê
+const SLOTS = [
+  {
+    key: "octalab",
+    label: "Octalab",
+    tag: "OC",
+    grad: "linear-gradient(135deg,#8A6FE0,#D6B3F5,#A9D7EF)",
+    manifesto:
+      "A Octalab é uma casa de produtos nativos de IA. Construímos ferramentas que complementam o trabalho humano, encurtam distâncias entre ideia e execução e tratam tecnologia como ofício, não como promessa.",
+    files: ["Logo pack (SVG + PNG)", "MIV completo", "Tipografia", "Paleta de cores", "Templates sociais"],
+  },
+  {
+    key: "ecosys",
+    label: "Ecosys AUTO",
+    tag: "EC",
+    grad: "linear-gradient(135deg,#4E8FD9,#A9D7EF,#DDF5E8)",
+    manifesto:
+      "O Ecosys AUTO é o assistente de vendas com IA para concessionárias. Ele responde rápido, qualifica melhor e devolve ao vendedor o tempo que importa: o da conversa que fecha negócio.",
+    files: ["Logo pack (SVG + PNG)", "MIV completo", "Tipografia", "Paleta de cores", "Mockups de produto"],
+  },
+  {
+    key: "juspilot",
+    label: "JusPilot",
+    tag: "JP",
+    grad: "linear-gradient(135deg,#3FA37A,#BDEAD0,#FFF0CE)",
+    manifesto:
+      "O JusPilot é a plataforma de IA para o dia a dia jurídico. Pesquisa, redige e organiza com precisão, para que advogados dediquem energia ao que exige julgamento humano.",
+    files: ["Logo pack (SVG + PNG)", "MIV completo", "Tipografia", "Paleta de cores", "Templates sociais"],
+  },
+  {
+    key: "octagym",
+    label: "OctaGym",
+    tag: "OG",
+    grad: "linear-gradient(135deg,#D96757,#FFB7C5,#FFE0A3)",
+    manifesto:
+      "O OctaGym é o sistema operacional de academias. Da recepção ao treino, tudo em um só lugar, com dados que ajudam donos e professores a cuidar melhor de cada aluno.",
+    files: ["Logo pack (SVG + PNG)", "MIV completo", "Tipografia", "Paleta de cores", "Materiais de evento"],
+  },
+  {
+    key: "slot5",
+    label: "Em breve",
+    tag: "+",
+    grad: "linear-gradient(135deg,#E9E5DB,#D8D2C4)",
+    manifesto: "Espaço reservado para o próximo produto da casa.",
+    files: [],
+  },
+  {
+    key: "slot6",
+    label: "Em breve",
+    tag: "+",
+    grad: "linear-gradient(135deg,#D8D2C4,#E9E5DB)",
+    manifesto: "Espaço reservado para o próximo produto da casa.",
+    files: [],
+  },
+];
+
+const TEMPLATES = {
+  reel: {
+    label: "Reel / Vídeo",
+    items: ["Roteiro", "Captação / geração", "Edição", "Legenda + copy", "Aprovação", "Publicação"],
+  },
+  estatico: {
+    label: "Post estático",
+    items: ["Conceito", "Arte / imagem", "Copy", "Aprovação", "Publicação"],
+  },
+  carrossel: {
+    label: "Carrossel",
+    items: ["Pauta", "Textos por slide", "Design", "Revisão", "Aprovação", "Publicação"],
+  },
+  campanha: {
+    label: "Campanha Ads",
+    items: ["Briefing", "Criativos", "Copies", "Configurar campanha", "Revisão", "Publicar", "Acompanhar métricas"],
+  },
+};
+
+const uid = () => Math.random().toString(36).slice(2, 10);
+const dk = (y, m, d) => `${y}-${String(m + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+const todayKey = () => {
+  const d = new Date();
+  return dk(d.getFullYear(), d.getMonth(), d.getDate());
+};
+
+const MONTHS = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
+const WEEKDAYS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
+
+const DEFAULT_BOARD = () => ({
+  columns: [
+    { id: uid(), title: "Ideias", cardIds: [] },
+    { id: uid(), title: "Em produção", cardIds: [] },
+    { id: uid(), title: "Revisão / Aprovação", cardIds: [] },
+    { id: uid(), title: "Publicado", cardIds: [] },
+  ],
+  cards: {},
 });
 
-// ============================================================
-// DADOS — 3 MARCAS × 4 POSTS (3 estáticos + 1 carrossel)
-// Tipos: 'noticia' (descobrimento) | 'comercial' (venda direta) | 'carrossel'
-// ============================================================
-
-const clients = {
-  juspilot: {
-    name: 'JusPilot',
-    tagline: 'IA jurídica que lê os autos em segundos',
-    accent: '#D97757',
-    bg: '#101010',
-    text: '#FFFEEE',
-    link: 'juspilot.ai',
-    posts: [
-      // ───────── DIA 1 — SEXTA ─────────
-      {
-        day: 'Sexta',
-        date: 'Sex • Semana 1',
-        kind: 'noticia',
-        theme: 'IA que alucina × IA que cita o que existe',
-        format: 'Post estático — capa única',
-        sourceLabel: 'Fonte: Conjur, abr/2026',
-        sourceUrl: 'https://www.conjur.com.br/2026-abr-23/uso-de-ia-para-inventar-jurisprudencia-resulta-em-condenacao-por-litigancia-de-ma-fe/',
-        slide: {
-          image: '/juspilot/1-noticia.png',
-          type: 'jp-news-cover',
-          chip: 'EM ALTA NO JUDICIÁRIO',
-          headline: 'Mais uma condenação por',
-          highlight: 'jurisprudência inventada por IA.',
-          subline: 'Agora foi advogada e executivo. Multa + ofício à OAB.',
-          source: 'Conjur · abril de 2026',
-          cta: 'LEIA A LEGENDA'
-        },
-        caption: `Uma juíza condenou advogada e executivo por litigância de má-fé após a petição inicial trazer jurisprudência fictícia e doutrina inexistente, geradas por IA generativa sem revisão humana. (Conjur, abr/2026)
-
-A magistrada foi direta: "A utilização de ferramentas de IA generativa sem a devida revisão humana não exime o profissional de sua responsabilidade ética e processual — antes a agrava."
-
-E não é caso isolado. Em 2026 já temos casos no TRT-2, TJ-SC, TJ-GO e Vara do Trabalho de Concórdia. Em todos eles, o problema foi o mesmo: a IA generalista não diferencia tribunal de blog jurídico. Ela completa a frase com o que parece plausível — não com o que existe nos autos.
-
-Por isso o JusPilot opera diferente:
-
-— Base curada de STF, STJ, TJDFT, TJSP.
-— Cada citação vem com link direto para o acórdão.
-— Você confere antes de submeter.
-
-A IA jurídica que respeita o ônus argumentativo do advogado existe. Não é a do ChatGPT genérico.
-
-Conheça em [inserir link]
-
-#advocacia #ia #jurisprudencia #lawtech #juspilot`
-      },
-
-      // ───────── DIA 2 — SEGUNDA (CARROSSEL) ─────────
-      {
-        day: 'Segunda',
-        date: 'Seg • Semana 1',
-        kind: 'carrossel',
-        theme: 'Os 80 milhões de processos parados (desdobramento de notícia)',
-        format: 'Carrossel — 4 lâminas',
-        sourceLabel: 'Fonte: CNJ Justiça em Números 2025 / Canaltech',
-        sourceUrl: 'https://canaltech.com.br/colunas/por-que-a-produtividade-recorde-nao-e-suficiente-para-salvar-o-judiciario/',
-        slides: [
-          {
-            image: '/juspilot/2-carrossel-1.png',
-            type: 'jp-cover',
-            chip: 'CNJ · JUSTIÇA EM NÚMEROS 2025',
-            title: '80,6 milhões',
-            subtitle: 'de processos parados.',
-            body: 'O Judiciário brasileiro fechou 2024 baixando 44,8 milhões — e ainda assim acumulou estoque recorde. A conta não fecha sem IA.'
-          },
-          {
-            image: '/juspilot/2-carrossel-2.png',
-            type: 'jp-numbered',
-            number: '01',
-            title: 'O dado que ninguém comenta',
-            body: 'Se a Justiça parasse de receber novas ações hoje, levaria quase 2 anos para limpar só o estoque atual. O esforço manual não dobra a curva. A matemática não permite.'
-          },
-          {
-            image: '/juspilot/2-carrossel-3.png',
-            type: 'jp-numbered',
-            number: '02',
-            title: 'O CNJ já abriu o caminho',
-            body: 'A Resolução 615/2025 reconhece a IA como ferramenta auxiliar legítima para automação de serviços acessórios e suporte à decisão — desde que com supervisão humana qualificada.'
-          },
-          {
-            image: '/juspilot/2-carrossel-4.png',
-            type: 'jp-final',
-            number: '03',
-            title: 'O advogado também ganha tempo.',
-            body: 'Enquanto os tribunais reorganizam o estoque com IA, o escritório que automatiza a leitura dos autos ganha 72 horas por processo. O JusPilot entrega Resumo Analítico, Linha do Tempo, Riscos e Jurisprudência Correlata em até 34 segundos.',
-            cta: 'Leia o estudo do CNJ'
-          }
-        ],
-        caption: `O CNJ divulgou os dados: 80,6 milhões de processos pendentes no Brasil. (Justiça em Números 2025)
-
-Mesmo com produtividade recorde — 44,8 milhões de processos baixados em 2024 — o estoque continua crescendo. A conclusão da própria reportagem do Canaltech é direta: "a tecnologia é a única variável capaz de dobrar a curva do tempo."
-
-A Resolução CNJ 615/2025 já permite o uso de IA como ferramenta auxiliar para automação e suporte à decisão. Os tribunais estão se mexendo.
-
-E o escritório?
-
-Cada processo manual exige 72 horas de leitura, marcação e estruturação. O JusPilot devolve esse tempo: 34 segundos para Resumo Analítico, Linha do Tempo, Pontos Controvertidos, Riscos da Demanda e Jurisprudência Correlata real dos tribunais.
-
-Enquanto o Judiciário automatiza o que é repetitivo, o advogado automatiza o que é trabalhoso — e usa o tempo no que é insubstituível: a tese.
-
-Conheça o JusPilot em [inserir link]
-
-#advocacia #cnj #judiciario #ia #juspilot`
-      },
-
-      // ───────── DIA 3 — QUARTA ─────────
-      {
-        day: 'Quarta',
-        date: 'Qua • Semana 1',
-        kind: 'noticia',
-        theme: 'A nova ética da IA no Direito',
-        format: 'Post estático — capa única',
-        sourceLabel: 'Fonte: Migalhas, jan/2026',
-        sourceUrl: 'https://www.migalhas.com.br/quentes/433822/',
-        slide: {
-          image: '/juspilot/3-noticia.png',
-          type: 'jp-news-cover',
-          chip: 'OAB · RECOMENDAÇÃO 001/2024',
-          headline: '20 salários-mínimos',
-          highlight: 'de multa por confiar em IA sem checar.',
-          subline: 'A Recomendação da OAB já existe há 2 anos. Os tribunais começaram a aplicar.',
-          source: 'Migalhas · janeiro de 2026',
-          cta: 'LEIA A LEGENDA'
-        },
-        caption: `Um advogado foi multado em 20 salários-mínimos (R$ 30,4 mil) pela 2ª Vara Federal de Londrina/PR por apresentar petições com artigos de lei inexistentes e jurisprudência inverídica, gerados por IA. (Migalhas, jan/2026)
-
-O juiz aplicou duas multas — litigância de má-fé e ato atentatório à dignidade da Justiça — e oficiou a OAB-PR.
-
-O ponto não é "a IA é o problema". O ponto é: a Recomendação 001/2024 do Conselho Federal da OAB já estabeleceu há quase 2 anos as diretrizes para uso de IA generativa na advocacia. Ela exige:
-
-— Entendimento das limitações da ferramenta
-— Verificação rigorosa das informações
-— Transparência aos clientes e interlocutores
-— Vedação à delegação de atos privativos sem supervisão
-
-Em 2026, os tribunais começaram a aplicar com rigor. E o problema continua sendo o mesmo: IA generalista não distingue tribunal de blog jurídico.
-
-O JusPilot foi construído com a Recomendação 001/2024 na cabeça: base curada dos tribunais, cada citação com link para o acórdão, supervisão humana pressuposta como regra — não como opcional.
-
-A IA não te poupa do dever de checar. Ela te dá uma base para checar com segurança.
-
-Conheça em [inserir link]
-
-#advocacia #oab #ia #etica #juspilot`
-      },
-
-      // ───────── DIA 4 — SEXTA (COMERCIAL) ─────────
-      {
-        day: 'Sexta',
-        date: 'Sex • Semana 2',
-        kind: 'comercial',
-        theme: 'Anúncio do produto — 72h × 34s',
-        format: 'Post estático — capa única',
-        slide: {
-          image: '/juspilot/4-comercial.png',
-          type: 'jp-comercial',
-          eyebrow: 'JUSPILOT',
-          title: '72 horas.',
-          highlight: 'Ou 34 segundos.',
-          subline: 'Anexe o processo. Receba Resumo Analítico, Linha do Tempo, Riscos da Demanda e Jurisprudência Correlata real dos tribunais.',
-          cta: 'LEIA A LEGENDA'
-        },
-        caption: `72 horas é o tempo médio que um advogado leva para ler integralmente os autos, marcar trechos, organizar a linha do tempo e pesquisar jurisprudência aplicável de um processo complexo.
-
-34 segundos é o tempo médio que o JusPilot leva para devolver:
-
-→ Resumo Analítico da demanda
-→ Linha do Tempo Processual
-→ Identificação de Partes e Pedidos
-→ Pontos Controvertidos e Riscos da Demanda
-→ Movimentações Relevantes
-→ Teses Jurídicas Aplicáveis
-→ Jurisprudência Correlata real dos tribunais (com link para o acórdão)
-→ Próximos Passos Estratégicos
-
-Tudo estruturado. Tudo fundamentado. Tudo passível de conferência humana.
-
-Advogados não deveriam perder tempo procurando informação. Deveriam usar tempo tomando decisões.
-
-Agende uma demonstração de 15 minutos: [inserir link]
-
-#juspilot #advocacia #produtividadejuridica #ia #lawtech`
-      }
-    ]
-  },
-
-  octalab: {
-    name: 'Octalab',
-    tagline: 'We build tomorrow\'s tech.',
-    accent: '#F4EFE5',
-    bg: '#0F0F13',
-    text: '#F4EFE5',
-    link: 'octalab.ai',
-    posts: [
-      // ───────── DIA 1 — SEXTA ─────────
-      {
-        day: 'Sexta',
-        date: 'Sex • Semana 1',
-        kind: 'noticia',
-        theme: 'SaaSpocalipse — o medo da substituição do software tradicional',
-        format: 'Post estático — capa única',
-        sourceLabel: 'Fonte: Seu Dinheiro / TI Inside, fev/2026',
-        sourceUrl: 'https://www.seudinheiro.com/2026/internacional/armageddon-da-ia-e-o-fim-das-empresas-de-software-como-servico-saas-ou-a-maior-promocao-de-acoes-do-setor-da-decada-ccgg/',
-        slide: {
-          image: '/octalab/1-noticia.png',
-          type: 'oct-news',
-          chip: '"SAASPOCALIPSE" · FEV/2026',
-          title: 'Mercado de SaaS viveu',
-          highlight: 'a maior queda em 30 anos.',
-          subline: 'Investidores correram após o salto dos agentes autônomos de IA. O software tradicional virou pergunta.',
-          source: 'Seu Dinheiro · fevereiro de 2026',
-          cta: 'LEIA A LEGENDA'
-        },
-        caption: `Em fevereiro de 2026, o mercado batizou o evento de "SaaSpocalipse": ações de empresas de software como serviço despencaram, e cerca de US$ 285 bilhões evaporaram das avaliações em poucas horas. O termo foi cunhado por traders da Jefferies. O gatilho foi a maturação de agentes autônomos de IA capazes de executar fluxos de trabalho inteiros, não só conversar sobre eles. (Imprensa financeira, fev/2026)
-
-O movimento tem base em projeções que já circulavam. A Deloitte estima que o mercado de agentes autônomos pode chegar a US$ 8,5 bilhões em 2026 e US$ 35 bilhões em 2030 (TI Inside, fev/2026). O Gartner, por outro lado, traz a dose de realismo: mais de 40% dos projetos de IA agêntica devem ser cancelados até 2027, por custos altos, valor de negócio incerto ou controles de risco frágeis (Gartner, jun/2025).
-
-O recado do mercado, no entanto, é claro: software de prateleira que apenas espera por um clique virou commodity. O valor migra para sistemas que decidem e executam. Em 2026, a pergunta deixou de ser "vamos usar agentes?" e passou a ser "qual processo já está pronto?". Por isso a Octalab nasceu como casa de produtos AI-Native. Não é software com IA acoplada. É software onde IA é a base:
-
-— Modelos multimodais por padrão
-— Agentes com ferramentas just-in-time
-— Embeddings e RAG em produção
-
-Construímos, operamos e somos donos dos produtos: Octamind.ai, PlacaPay, JusPilot, Ecosys Auto, Sonar e mais.
-
-We build tomorrow's tech.
-
-🔗 Conheça em Octalab.ai`
-      },
-
-      // ───────── DIA 2 — SEGUNDA ─────────
-      {
-        day: 'Segunda',
-        date: 'Seg • Semana 1',
-        kind: 'noticia',
-        theme: 'IA agêntica no chão da empresa — caso prático',
-        format: 'Post estático — capa única',
-        sourceLabel: 'Fonte: IT Forum, mai/2026',
-        sourceUrl: 'https://itforum.com.br/noticias/zappts-cresce-33-substituir-softwares-agentes-ia',
-        slide: {
-          image: '/octalab/2-noticia.png',
-          type: 'oct-news',
-          chip: 'TRANSFORMAÇÃO AGÊNTICA',
-          title: 'Empresa cresce 33%',
-          highlight: 'trocando software passivo por agentes de IA.',
-          subline: 'Time-to-market caiu mais de 50%. A Zappts virou caso real do que muita empresa ainda discute em comitê.',
-          source: 'IT Forum · maio de 2026',
-          cta: 'LEIA A LEGENDA'
-        },
-        caption: `A Zappts relata ter crescido 33% depois de substituir softwares passivos por agentes autônomos de IA na própria operação. O time-to-market dos projetos caiu mais de 50%. (IT Forum, mai/2026)
-
-O CEO Pablo Augusto resumiu bem:
-
-"Não se trata somente de automatizar tarefas, mas de delegar decisão e execução de processos críticos para agentes que operam com autonomia, governança e escalabilidade."
-
-A diferença é categórica:
-
-— Software passivo = espera instrução, executa, devolve.
-— Agente autônomo = recebe objetivo, decide o caminho, executa de ponta a ponta.
-
-O movimento, batizado de "Transformação Agêntica", começou em setembro de 2024 e a meta da empresa é dobrar a unidade de agentes inteligentes até o fim de 2026. Não é um piloto: é operação real, com governança montada em volta. Esse é o ponto que muita empresa ainda discute em comitê.`
-      },
-
-      // ───────── DIA 3 — QUARTA (CARROSSEL) ─────────
-      {
-        day: 'Quarta',
-        date: 'Qua • Semana 1',
-        kind: 'carrossel',
-        theme: 'O que muda quando IA vira base, não feature (desdobramento)',
-        format: 'Carrossel — 4 lâminas',
-        sourceLabel: 'Fonte: IDC / Deloitte / IT Forum, 2026',
-        sourceUrl: 'https://tiinside.com.br/25/02/2026/2026-sera-o-ano-da-consolidacao-da-ia-em-larga-escala-aponta-deloitte/',
-        slides: [
-          {
-            image: '/octalab/3-carrossel-1.png',
-            type: 'oct-manifesto',
-            line1: 'IA não é',
-            line2: 'feature.',
-            line3: 'É base.'
-          },
-          {
-            image: '/octalab/3-carrossel-2.png',
-            type: 'oct-light-card',
-            number: '01 / 03',
-            title: 'O dado',
-            body: 'Investimentos em IA no Brasil ultrapassam US$ 3,4 bilhões em 2026, crescendo +30% ao ano. 78% das empresas ampliarão investimentos. (IDC / IBM)\n\nE 47% dos profissionais já usam IA "por fora" — sem aprovação oficial. Shadow AI virou padrão. O mercado sabe que precisa.'
-          },
-          {
-            image: '/octalab/3-carrossel-3.png',
-            type: 'oct-dark-card',
-            number: '02 / 03',
-            title: 'O problema',
-            body: 'A maioria ainda trata IA como camada. Plugin em CRM. Botão de "resumir" no editor. Chat lateral. Quando o agente autônomo aparece, vira retrabalho de arquitetura.\n\nSoftware passivo + IA acoplada = dívida técnica disfarçada.'
-          },
-          {
-            image: '/octalab/3-carrossel-4.png',
-            type: 'oct-signature',
-            line1: 'AI-Native',
-            line2: 'não é estilo.',
-            line3: 'É arquitetura.',
-            cta: 'Conheça nossas soluções'
-          }
-        ],
-        caption: `Em 2026, os gastos com IA no Brasil — somando software, serviços e infraestrutura — devem ultrapassar US$ 3,4 bilhões, crescendo mais de 30% ao ano (IDC). No setor privado, 78% das empresas planejam ampliar os investimentos em IA (IBM).
-
-Mas a maturidade não acompanha o apetite. Segundo pesquisa da Abiacom (com 200 profissionais, fim de 2025), 47% já usam IA sem aprovação formal — o chamado "Shadow AI" — e 59% das empresas ainda não têm diretrizes formais para o uso da tecnologia.
-
-O mercado entendeu que precisa de IA. O que falta é fazer direito. Boa parte das empresas está apenas acoplando IA a softwares passivos e legados, e quando o agente autônomo entra em cena, esse arranjo vira retrabalho.
-
-Por isso a Octalab opera como casa de produtos AI-Native. Cada produto nasce com:
-
-→ Modelos multimodais por padrão
-→ Agentes com ferramentas just-in-time
-→ Embeddings e RAG em produção
-→ Observabilidade nativa
-→ RLS multi-tenant obrigatório
-→ Roadmap guiado por dados
-
-Não é "tem IA". É "é IA".
-
-Nossas soluções: Octamind.ai, PlacaPay, Octagym.ai, Octalife.ai, Octalk.ai, Octabuild.ai, JusPilot, Ecosys Auto, Sonar.
-
-We build tomorrow's tech. Conheça pelo link da bio.`
-      }
-    ]
-  },
-
-  ecosys: {
-    name: 'Ecosys Auto',
-    tagline: 'A IA que atende sua revenda 24/7',
-    accent: '#22D3EE',
-    bg: '#0A1628',
-    text: '#FFFFFF',
-    link: 'ecosysauto.com.br',
-    posts: [
-      // ───────── DIA 1 — SEXTA ─────────
-      {
-        day: 'Sexta',
-        date: 'Sex • Semana 1',
-        kind: 'noticia',
-        theme: '68% dos brasileiros querem comprar carro em 2026',
-        format: 'Post estático — capa única',
-        sourceLabel: 'Fonte: Webmotors / Diário do Litoral, mar/2026',
-        sourceUrl: 'https://www.diariodolitoral.com.br/variedades/automotor/quase-7-em-cada-10-brasileiros-querem-trocar-ou-comprar-carro-em-2026/216300/',
-        slide: {
-          type: 'eco-news-cover',
-          chip: 'PESQUISA WEBMOTORS · 2026',
-          data: '68%',
-          headline: 'dos brasileiros',
-          highlight: 'querem comprar um carro este ano.',
-          subline: '45% planejam fechar no 1º semestre. A janela está aberta — e quem responde primeiro fica com o lead.',
-          source: 'Webmotors · março de 2026',
-          cta: 'LEIA A LEGENDA'
-        },
-        caption: `68% dos brasileiros pretendem comprar um carro em 2026. (Pesquisa Webmotors, mar/2026)
-
-E mais: 45% planejam fechar no 1º semestre — um salto de 8 pontos percentuais em relação a 2025. A janela está aberta como nunca.
-
-Mas tem um detalhe na pesquisa que pouca gente comenta: o comprador hoje está na era do imediatismo. Ele pesquisa em 3+ fontes, espera resposta no WhatsApp em minutos e fecha com quem responde primeiro. Se sua revenda demora, ele vai para o concorrente vizinho. Sem rancor, só lógica.
-
-E a sua revenda, hoje:
-
-— Responde lead à noite? Aos fins de semana?
-— Tem número único da loja, ou cada vendedor com WhatsApp pessoal?
-— Sabe quanto tempo leva para o primeiro "alô"?
-
-O ecosys AUTO IA atende sua revenda 24/7. Responde em até 30 segundos. Qualifica, cria lead no CRM com histórico, sugere o próximo passo para o vendedor humano fechar.
-
-A demanda existe. A pesquisa Webmotors prova. A pergunta é quem vai capturar.
-
-Pare de perder venda de carro por demora.
-
-Conheça em [inserir link]
-
-powered by Octalab.ai
-
-#revenda #seminovos #multimarca #vendadecarro #ecosysauto`
-      },
-
-      // ───────── DIA 2 — SEGUNDA (CARROSSEL) ─────────
-      {
-        day: 'Segunda',
-        date: 'Seg • Semana 1',
-        kind: 'carrossel',
-        theme: 'Recorde Fenauto + a fila do WhatsApp (desdobramento)',
-        format: 'Carrossel — 4 lâminas',
-        sourceLabel: 'Fonte: Fenauto / O Tempo, abr/2026',
-        sourceUrl: 'https://www.otempo.com.br/autotempo/2026/4/17/seminovos-batem-4-3-mi-de-vendas-no-brasil-no-1-trimestre-de-2026',
-        slides: [
-          {
-            type: 'eco-data-cover',
-            chip: 'FENAUTO · 1º TRIMESTRE 2026',
-            data: '4,37 mi',
-            title: 'de seminovos vendidos',
-            highlight: 'só no 1º trimestre.',
-            subline: '+12,7% sobre 2025. Recorde histórico. E o trimestre fechou em alta.'
-          },
-          {
-            type: 'eco-numbered',
-            number: '01',
-            title: 'A demanda explodiu.',
-            body: 'Foram 1,67 milhão de unidades só em março — alta de 22,8% sobre fevereiro. Mais de 1,4 milhão de carros trocaram de dono por mês no Brasil em 2026.'
-          },
-          {
-            type: 'eco-numbered-dark',
-            number: '02',
-            title: 'Mas a operação não acompanhou.',
-            body: 'Pesquisa Octadesk: 37% dos consumidores preferem WhatsApp como canal de atendimento na compra. E o tempo médio de resposta da revenda continua sendo de dezenas de minutos.\n\nLead que espera, lead que esfria.'
-          },
-          {
-            type: 'eco-solution-final',
-            title: 'A IA do ecosys AUTO',
-            highlight: 'responde em até 30 segundos.',
-            body: 'Número único da loja. IAs por caixa de entrada. Lead criado no CRM com histórico e próximo passo. 24/7.',
-            cta: 'Pare de perder venda de carro por demora'
-          }
-        ],
-        caption: `A Fenauto fechou o 1º trimestre de 2026 com recorde histórico: 4,37 milhões de seminovos vendidos no Brasil — alta de 12,7% sobre 2025. (Fenauto, abr/2026)
-
-Só em março foram 1,67 milhão de unidades. Mais de 1,4 milhão de carros trocando de dono por mês.
-
-A demanda está explodindo. A pergunta é: a sua operação está pronta?
-
-A pesquisa Octadesk (E-commerce Trends 2026) mostra que 37% dos consumidores preferem o WhatsApp como canal de atendimento. E o comprador de carro tem um comportamento ainda mais agressivo: pesquisa em 3+ fontes, exige resposta imediata e fecha com quem responde primeiro.
-
-Sua revenda perde venda no horário comercial por demora. Perde mais ainda fora dele.
-
-O ecosys AUTO IA atende 24/7. Responde em até 30 segundos. Número único da loja, IAs configuráveis por caixa de entrada, conversa sincronizada no CRM, score de qualidade por atendimento.
-
-Não é falta de mercado. Não é falta de produto. Em 2026, é falta de velocidade.
-
-Pare de perder venda de carro por demora.
-
-Conheça em [inserir link]
-
-powered by Octalab.ai
-
-#revenda #seminovos #fenauto #ecosysauto`
-      },
-
-      // ───────── DIA 3 — QUARTA ─────────
-      {
-        day: 'Quarta',
-        date: 'Qua • Semana 1',
-        kind: 'noticia',
-        theme: '80% pesquisam carro online antes de pisar na loja',
-        format: 'Post estático — capa única',
-        sourceLabel: 'Fonte: Trakcar / pesquisas de mercado, 2026',
-        sourceUrl: 'https://www.trakcar.com.br/comprar-carro-pela-internet-e-seguro-em-2026/',
-        slide: {
-          type: 'eco-news-cover',
-          chip: 'COMPORTAMENTO DO COMPRADOR · 2026',
-          data: '80%',
-          headline: 'dos compradores',
-          highlight: 'começam a pesquisa do carro online.',
-          subline: 'Quando ele pisa na loja, já comparou 3 anúncios, 2 financiamentos e checou o seu Google. A venda começa no clique.',
-          source: 'Setor automotivo · 2026',
-          cta: 'LEIA A LEGENDA'
-        },
-        caption: `Mais de 80% das pessoas que vão comprar um veículo começam a pesquisa online. (Setor automotivo, 2026)
-
-Quando o cliente entra na sua revenda, ele:
-
-— Já comparou 3+ anúncios em portais
-— Já consultou tabela FIPE
-— Já leu reviews do modelo
-— Já avaliou seu Google e suas avaliações
-— Provavelmente já mandou mensagem no seu WhatsApp
-
-A decisão de comprar começa muito antes da visita. E o anúncio mal escrito, a foto fora de ordem, a demora pra responder a primeira pergunta — tudo isso elimina sua revenda da disputa antes do test drive acontecer.
-
-O ecosys AUTO opera nessa nova realidade:
-
-→ Descrição de anúncio gerada com IA, no padrão dos portais
-→ Fotos na ordem certa replicadas para WebMotors, OLX e similares
-→ Construtor de site da loja incluído (menos dependência de marketplace)
-→ WhatsApp governado: número único, IAs por caixa, score de qualidade
-→ CRM com probabilidade de fechamento e próximo passo sugerido
-
-A jornada do cliente é digital. Sua revenda precisa estar onde a decisão é tomada — não só onde o contrato é assinado.
-
-Conheça em [inserir link]
-
-powered by Octalab.ai
-
-#revenda #marketingautomotivo #ecosysauto`
-      },
-
-      // ───────── DIA 4 — SEXTA (COMERCIAL) ─────────
-      {
-        day: 'Sexta',
-        date: 'Sex • Semana 2',
-        kind: 'comercial',
-        theme: 'Anúncio comercial — 24/7 + 30 segundos',
-        format: 'Post estático — capa única',
-        slide: {
-          type: 'eco-comercial',
-          eyebrow: 'ECOSYS AUTO',
-          title: 'A IA que atende',
-          highlight: 'sua revenda 24/7.',
-          subline: 'Responde em até 30 segundos. Vira lead no CRM. Sugere o próximo passo. Dorme nunca.',
-          cta: 'LEIA A LEGENDA'
-        },
-        caption: `Uma plataforma. Uma operação. Uma IA.
-
-O ecosys AUTO é a plataforma all-in-one para revendas de seminovos e multimarcas. Com IA nativa em todo o fluxo:
-
-→ Gestão de estoque (Kanban, tarefas, FIPE, finanças por veículo)
-→ CRM com probabilidade de fechamento
-→ WhatsApp governado (número único, IAs por caixa, score de qualidade)
-→ Anúncios integrados a portais
-→ F&I com Credere + seguro integrado
-→ Contratos e assinatura digital
-→ DRE em tempo real, conciliação bancária
-→ Construtor de site da loja incluso
-
-E a IA do ecosys AUTO atende 24/7. Responde em até 30 segundos. Qualifica o lead. Cria no CRM com histórico e próximo passo sugerido para o vendedor humano fechar.
-
-Lead frio é lead que esfriou esperando você.
-
-Pare de perder venda de carro por demora.
-
-Plano completo: R$ 499/mês. Implementação: R$ 1.000. Anual com 20% de desconto.
-
-Agende uma demonstração: [inserir link]
-
-powered by Octalab.ai
-
-#ecosysauto #revenda #seminovos #multimarca`
-      }
-    ]
-  },
-
-  octagym: {
-    name: 'Octagym',
-    tagline: 'O sistema operacional da academia moderna',
-    accent: '#EF0A36',
-    bg: '#0F0F13',
-    text: '#F4EFE5',
-    link: 'octagym.ai',
-    posts: [
-      // ───────── POST 1 — ANÚNCIO ÂNCORA ─────────
-      {
-        day: 'Post 1',
-        date: 'Lançamento',
-        kind: 'comercial',
-        theme: 'Anúncio âncora — Octagym + Ironberg Brasília',
-        format: 'Post estático — capa única',
-        slide: {
-          type: 'ogy-launch',
-          chip: 'LANÇAMENTO · BRASÍLIA-DF',
-          line1: 'A maior academia',
-          highlight: 'do mundo',
-          line2: 'não vai ser operada',
-          line3: 'como uma academia comum.',
-          subline: '11.000 m². Ironberg chega ao Brasil. Octagym é o sistema por trás.',
-          cta: 'LEIA A LEGENDA'
-        },
-        caption: `A maior academia do mundo não será operada como uma academia comum.
-
-A Ironberg chega ao Brasil com uma operação histórica para o mercado fitness: 11.000 m² em Brasília-DF.
-
-E a Octagym estará por trás dessa estrutura, conectando tecnologia, inteligência e escala em uma única plataforma.
-
-Do anúncio ao aluno fiel.
-Marketing. Vendas. Atendimento. Cobrança. Retenção.
-Tudo conectado. Tudo no lugar.
-
-O futuro da gestão de alta performance começou.
-
-Conheça em [inserir link]
-
-powered by Octalab.ai
-
-#octagym #ironberg #academia #fitness #sistemaoperacional`
-      },
-
-      // ───────── POST 2 — PROVA DE POTÊNCIA COMERCIAL ─────────
-      {
-        day: 'Post 2',
-        date: 'Prova de produto',
-        kind: 'comercial',
-        theme: '+R$ 150 mil na pré-venda sem time comercial',
-        format: 'Post estático — capa única',
-        slide: {
-          type: 'ogy-proof',
-          chip: 'PRÉ-VENDA IRONBERG · 2026',
-          data: '+R$ 150 mil',
-          label: 'vendidos na pré-venda',
-          divider: 'sem',
-          highlight: 'um único vendedor.',
-          subline: 'Só o módulo financeiro do Octagym. Matrícula, pagamento e contrato — por dentro do sistema.',
-          cta: 'LEIA A LEGENDA'
-        },
-        caption: `Mais de R$ 150 mil em matrículas vendidas na pré-venda da Ironberg Brasília.
-
-Sem time comercial. Sem corretor. Sem ligação fria. Sem CRM externo.
-
-Só o módulo financeiro do Octagym fazendo o trabalho: cliente entra, conhece o plano, paga e recebe o contrato — tudo por dentro do sistema.
-
-A gente fala muito de "sistema completo". Esse é o teste real: receita acontecendo antes mesmo da academia abrir a porta.
-
-Você vê o faturamento no celular antes do café.
-
-O futuro da gestão de alta performance começou.
-
-Conheça em [inserir link]
-
-powered by Octalab.ai
-
-#octagym #fitness #academia #vendas #financeiro`
-      },
-
-      // ───────── POST 3 — POSICIONAMENTO DE PRODUTO ─────────
-      {
-        day: 'Post 3',
-        date: 'O que é o Octagym',
-        kind: 'comercial',
-        theme: 'Sistema operacional, não plataforma',
-        format: 'Post estático — capa única',
-        slide: {
-          type: 'ogy-positioning',
-          eyebrow: 'OCTAGYM.AI',
-          title1: 'Do anúncio',
-          title2: 'ao aluno fiel.',
-          subline: 'Marketing, vendas, atendimento, cobrança e retenção conectados em uma única plataforma.',
-          modules: ['Marketing', 'Vendas', 'Atendimento', 'Cobrança', 'Retenção'],
-          cta: 'LEIA A LEGENDA'
-        },
-        caption: `Sua academia roda em 7 sistemas diferentes? Em planilhas que ninguém atualiza? Em WhatsApps individuais que perdem cliente todo dia?
-
-Octagym não é um app de check-in. Não é só um CRM. Não é um gateway de pagamento.
-
-É o sistema operacional da academia. O software que opera o negócio do começo ao fim.
-
-→ Marketing — campanhas, captura de lead, atribuição
-→ Vendas — matrícula, plano, contrato e pagamento por dentro
-→ Atendimento — cada conversa amarrada ao aluno
-→ Cobrança — recorrência, inadimplência, retentativa
-→ Retenção — frequência, churn previsto, ação no tempo certo
-
-Uma operação. Uma base de dados. Uma fonte da verdade.
-
-Conheça em [inserir link]
-
-powered by Octalab.ai
-
-#octagym #fitness #academia #gestao`
-      },
-
-      // ───────── POST 4 — MANIFESTO DE CATEGORIA ─────────
-      {
-        day: 'Post 4',
-        date: 'Manifesto',
-        kind: 'comercial',
-        theme: 'A academia moderna precisa de um SO',
-        format: 'Post estático — capa única',
-        slide: {
-          type: 'ogy-manifesto',
-          line1: 'A academia moderna',
-          line2: 'precisa de',
-          line3: 'inteligência.',
-          line4: 'Automação.',
-          line5: 'Controle.',
-          line6: 'Escala.',
-          divider: 'Ela precisa de um',
-          highlight: 'sistema operacional.',
-          cta: 'LEIA A LEGENDA'
-        },
-        caption: `Academia hoje não compete por equipamento. Compete por operação.
-
-Quem retém mais aluno por mais tempo, ganha. Quem antecipa o churn, ganha. Quem responde lead em segundos, ganha. Quem cobra automático sem perder cliente, ganha.
-
-Nada disso acontece em planilha. Nada disso acontece em 7 sistemas desconectados.
-
-A academia moderna precisa de inteligência, automação, controle e escala em uma única plataforma.
-
-Ela precisa de um sistema operacional.
-
-Octagym.ai — construído para academias que não querem mais ser operadas como uma academia comum.
-
-Conheça em [inserir link]
-
-powered by Octalab.ai
-
-#octagym #fitness #academia #gestao #tecnologia`
-      }
-    ]
-  },
-
-  juspilotTrafego: {
-    name: 'JusPilot · Tráfego',
-    tagline: 'Campanha de aquisição — 4 ângulos de tráfego',
-    accent: '#D97757',
-    bg: '#101010',
-    text: '#FFFEEE',
-    link: 'juspilot.ai',
-    posts: [
-      // ───────── AD 01 — VELOCIDADE ─────────
-      {
-        day: 'Ad 01',
-        date: 'Velocidade',
-        kind: 'campanha',
-        theme: 'Velocidade & Contraste Temporal',
-        format: 'Estático único 1:1 · Tráfego/Conversão · Funil topo–meio',
-        slide: {
-          type: 'ad-velocidade',
-          eyebrow: 'JUSPILOT · IA JURÍDICA',
-          title1: '72 horas.',
-          title2: 'Ou 34 segundos.',
-          subline: 'Leitura integral dos autos, Resumo Analítico, Linha do Tempo e Jurisprudência Correlata real. Em segundos.',
-          cta: 'COMEÇAR AGORA'
-        },
-        caption: `Quanto tempo seu escritório perde lendo autos antes de chegar à tese?
-
-O JusPilot lê o processo inteiro e devolve, em até 34 segundos:
-
-→ Resumo Analítico da demanda
-→ Linha do Tempo Processual
-→ Pontos Controvertidos e Riscos da Demanda
-→ Jurisprudência Correlata real dos tribunais
-
-Crie sua conta gratuita e teste com um processo seu hoje. Sem cartão.
-
-[inserir link]
-
-— — — — META ADS — — — —
-Headline: 72 horas viraram 34 segundos.
-Description: IA jurídica que lê os autos e devolve análise estruturada. Trial gratuito.
-Botão: Cadastre-se
-
-Público: Sócios e gestores de operações · Médios escritórios (5–30 advogados)
-Objetivo: Trial direto · Cadastro na plataforma
-Ângulo: Velocidade
-Gatilho: Contraste numérico extremo (72h × 34s)`
-      },
-
-      // ───────── AD 02 — ALUCINAÇÃO ─────────
-      {
-        day: 'Ad 02',
-        date: 'Risco / Segurança',
-        kind: 'campanha',
-        theme: 'Alucinação de IA × Fundamentação Real',
-        format: 'Estático único 1:1 · Tráfego/Conversão · Funil meio',
-        slide: {
-          type: 'ad-alucinacao',
-          eyebrow: 'JUSPILOT · IA JURÍDICA',
-          title1: 'Outra IA inventou',
-          title2: 'jurisprudência?',
-          title3: 'O JusPilot não.',
-          subline: 'Base curada de STF, STJ, TJDFT, TJSP. Cada citação vem com link para o acórdão.',
-          proof: '20 salários-mínimos · TRT-2 · OAB-SP. As multas começaram.',
-          cta: 'TESTAR GRÁTIS'
-        },
-        caption: `Em 2026 já temos casos de multa por jurisprudência inventada por IA em todos esses tribunais: TRT-2, TJ-SC, TJ-GO, 2ª Vara Federal de Londrina. A Recomendação 001/2024 da OAB existe — e os juízes começaram a aplicar.
-
-O problema não é "usar IA". É usar IA generalista que não diferencia tribunal de blog jurídico.
-
-O JusPilot opera com base curada de STF, STJ, TJDFT, TJSP. Cada citação que aparece no Resumo vem com link direto para o acórdão. Você confere antes de submeter.
-
-Crie sua conta gratuita e teste com um processo seu hoje.
-
-[inserir link]
-
-— — — — META ADS — — — —
-Headline: A IA jurídica que respeita o ônus argumentativo.
-Description: Base curada dos tribunais. Cada citação com link para o acórdão. Trial gratuito.
-Botão: Cadastre-se
-
-Público: Sócios e gestores de operações · Médios escritórios (5–30 advogados)
-Objetivo: Trial direto · Cadastro na plataforma
-Ângulo: Risco / Segurança jurídica
-Gatilho: Notícia em alta (multas da OAB) + diferencial técnico`
-      },
-
-      // ───────── AD 03 — OUTPUTS ─────────
-      {
-        day: 'Ad 03',
-        date: 'Outputs do produto',
-        kind: 'campanha',
-        theme: 'Outputs do produto — o que você recebe',
-        format: 'Estático único 1:1 · Tráfego/Conversão · Funil meio–fundo',
-        slide: {
-          type: 'ad-outputs',
-          eyebrow: 'JUSPILOT · IA JURÍDICA',
-          title1: 'Anexe o processo.',
-          title2: 'Receba 5 análises.',
-          outputs: [
-            '01 · Resumo Analítico',
-            '02 · Linha do Tempo Processual',
-            '03 · Pontos Controvertidos e Riscos',
-            '04 · Jurisprudência Correlata',
-            '05 · Próximos Passos Estratégicos'
-          ],
-          subline: 'Em até 34 segundos. Com fundamentação dos tribunais.',
-          cta: 'CRIAR CONTA GRATUITA'
-        },
-        caption: `Você anexa o processo. O JusPilot devolve cinco análises estruturadas em até 34 segundos:
-
-→ Resumo Analítico da demanda
-→ Linha do Tempo Processual
-→ Pontos Controvertidos e Riscos da Demanda
-→ Jurisprudência Correlata real dos tribunais (com link para o acórdão)
-→ Próximos Passos Estratégicos
-
-Sua próxima petição começa com o trabalho braçal pronto.
-
-Teste hoje, sem cartão.
-
-[inserir link]
-
-— — — — META ADS — — — —
-Headline: 5 análises estruturadas. Em 34 segundos.
-Description: Resumo, linha do tempo, riscos, jurisprudência e estratégia. Anexe o processo.
-Botão: Experimentar
-
-Público: Sócios e gestores de operações · Médios escritórios (5–30 advogados)
-Objetivo: Trial direto · Cadastro na plataforma
-Ângulo: Demonstração de valor concreto
-Gatilho: Lista de entregáveis tangíveis · "o que recebo se assinar"`
-      },
-
-      // ───────── AD 04 — MANIFESTO ─────────
-      {
-        day: 'Ad 04',
-        date: 'Manifesto',
-        kind: 'campanha',
-        theme: 'Manifesto — decidir × procurar',
-        format: 'Estático único 1:1 · Tráfego/Conversão · Funil topo',
-        slide: {
-          type: 'ad-manifesto',
-          eyebrow: 'JUSPILOT',
-          line1: 'Advogados não deveriam',
-          line2: 'perder tempo',
-          line3: 'procurando informação.',
-          divider: 'Deveriam usar tempo',
-          highlight: 'tomando decisões.',
-          cta: 'CONHECER'
-        },
-        caption: `O que define o trabalho do advogado sócio? A tese. A estratégia. A leitura fina do caso. A decisão.
-
-E o que toma o tempo dele todo dia? Ler 800 páginas, marcar trecho, copiar para o Word, procurar jurisprudência em 4 bases.
-
-O JusPilot devolve o tempo da tese. Lê os autos integralmente, estrutura a análise, entrega Jurisprudência Correlata real dos tribunais — em até 34 segundos.
-
-Você decide com mais clareza. E mais rápido.
-
-Crie sua conta. Sem cartão.
-
-[inserir link]
-
-— — — — META ADS — — — —
-Headline: Decisão em vez de busca.
-Description: O JusPilot lê os autos. Você decide a tese. Trial gratuito.
-Botão: Cadastre-se
-
-Público: Sócios e gestores de operações · Médios escritórios (5–30 advogados)
-Objetivo: Trial direto · Cadastro na plataforma
-Ângulo: Posicionamento / identitário
-Gatilho: Frase-manifesto · identificação do sócio com o problema`
-      }
-    ]
+// ---------- persistência (Supabase, com sync em tempo real entre o time) ----------
+async function loadKey(key, fallback) {
+  if (!supabaseReady) {
+    try { const r = localStorage.getItem(key); return r ? JSON.parse(r) : fallback; }
+    catch { return fallback; }
   }
-};
+  try {
+    const { data, error } = await supabase.from("estudio_docs").select("value").eq("id", key).maybeSingle();
+    if (error || !data) return fallback;
+    return data.value ?? fallback;
+  } catch {
+    return fallback;
+  }
+}
+async function saveKey(key, value) {
+  if (!supabaseReady) {
+    try { localStorage.setItem(key, JSON.stringify(value)); } catch { /* ignore */ }
+    return;
+  }
+  try {
+    await supabase.from("estudio_docs").upsert({ id: key, value, client_id: CLIENT_ID, updated_at: new Date().toISOString() });
+  } catch (e) {
+    console.error("Falha ao salvar", e);
+  }
+}
 
-// ============================================================
-// RENDERIZADORES — UM POR MARCA (capa única ou carrossel)
-// ============================================================
+// ---------- app ----------
+export default function App() {
+  const [screen, setScreen] = useState("landing"); // landing | app | product:<key>
+  const [tab, setTab] = useState("hoje");
+  const [board, setBoard] = useState(null);
+  const [calendar, setCalendar] = useState(null);
+  const [openCard, setOpenCard] = useState(null);
+  const [openDay, setOpenDay] = useState(null);
+  const [calFilter, setCalFilter] = useState("todos");
+  const [month, setMonth] = useState(() => {
+    const d = new Date();
+    return { y: d.getFullYear(), m: d.getMonth() };
+  });
+  const saveTimer = useRef({});
 
-// ─── JUSPILOT ───
-function JusPilotRender({ slide }) {
-  const base = {
-    width: '100%',
-    aspectRatio: '1 / 1',
-    background: '#101010',
-    color: '#FFFEEE',
-    fontFamily: 'Geist, system-ui, sans-serif',
-    borderRadius: '14px',
-    padding: '38px 34px',
-    display: 'flex',
-    flexDirection: 'column',
-    position: 'relative',
-    overflow: 'hidden'
+  useEffect(() => {
+    (async () => {
+      const b = await loadKey("estudio:board", DEFAULT_BOARD());
+      Object.values(b.cards).forEach((c) => {
+        if (c.due === undefined) c.due = "";
+        if (c.link === undefined) c.link = "";
+        if (!c.checklist) c.checklist = [];
+        if (!c.priority) c.priority = "nenhuma";
+      });
+      setBoard(b);
+      setCalendar(await loadKey("estudio:calendar", { items: {} }));
+    })();
+  }, []);
+
+  // sincroniza em tempo real: aplica alterações feitas por outras pessoas
+  useEffect(() => {
+    if (!supabaseReady) return;
+    const ch = supabase
+      .channel("estudio-docs")
+      .on("postgres_changes", { event: "*", schema: "public", table: "estudio_docs" }, (payload) => {
+        const row = payload.new;
+        if (!row || row.client_id === CLIENT_ID) return; // ignora o próprio eco
+        if (row.id === "estudio:board" && row.value) setBoard(row.value);
+        else if (row.id === "estudio:calendar" && row.value) setCalendar(row.value);
+      })
+      .subscribe();
+    return () => supabase.removeChannel(ch);
+  }, []);
+
+  const persist = (key, value) => {
+    clearTimeout(saveTimer.current[key]);
+    saveTimer.current[key] = setTimeout(() => saveKey(key, value), 400);
   };
 
-  const logo = (
-    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', fontWeight: 600, zIndex: 2, position: 'relative' }}>
-      <div style={{
-        width: '22px', height: '22px',
-        background: '#D97757',
-        borderRadius: '5px',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        fontSize: '13px', fontWeight: 700, color: '#FFFEEE'
-      }}>J</div>
-      <span>Juspilot</span>
-    </div>
-  );
+  const updateBoard = (fn) =>
+    setBoard((b) => {
+      const nb = fn(structuredClone(b));
+      persist("estudio:board", nb);
+      return nb;
+    });
 
-  // Capa de notícia
-  if (slide.type === 'jp-news-cover') {
+  const updateCalendar = (fn) =>
+    setCalendar((c) => {
+      const nc = fn(structuredClone(c));
+      persist("estudio:calendar", nc);
+      return nc;
+    });
+
+  if (!board || !calendar) {
     return (
-      <div style={{ ...base, background: 'linear-gradient(160deg, #101010 0%, #1f1410 100%)' }}>
-        {/* Textura sutil */}
-        <div style={{
-          position: 'absolute', inset: 0,
-          backgroundImage: 'radial-gradient(circle at 80% 20%, rgba(217,119,87,0.15) 0%, transparent 50%)'
-        }}/>
-        {logo}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', position: 'relative', zIndex: 1 }}>
-          <div style={{
-            display: 'inline-flex', alignSelf: 'flex-start',
-            border: '1px solid rgba(217,119,87,0.45)',
-            background: 'rgba(217,119,87,0.08)',
-            borderRadius: '999px', padding: '6px 12px',
-            fontSize: '10px', letterSpacing: '0.15em', fontWeight: 600,
-            color: '#D97757', marginBottom: '20px'
-          }}>
-            {slide.chip}
-          </div>
-          <h2 style={{ fontSize: '30px', fontWeight: 500, lineHeight: 1.15, margin: 0, letterSpacing: '-0.02em' }}>
-            {slide.headline}
-          </h2>
-          <h1 style={{
-            fontSize: '32px', fontWeight: 700, lineHeight: 1.1, margin: '4px 0 18px 0',
-            letterSpacing: '-0.02em', color: '#D97757'
-          }}>
-            {slide.highlight}
-          </h1>
-          <p style={{ fontSize: '13px', lineHeight: 1.55, opacity: 0.8, margin: '0 0 18px 0', maxWidth: '95%' }}>
-            {slide.subline}
-          </p>
-          <div style={{
-            fontSize: '10px', letterSpacing: '0.1em',
-            opacity: 0.55, textTransform: 'uppercase', fontWeight: 500
-          }}>
-            {slide.source}
-          </div>
-        </div>
-        <div style={{
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          fontSize: '11px', zIndex: 1, position: 'relative'
-        }}>
-          <span style={{ opacity: 0.5 }}>juspilot.ai</span>
-          <div style={{
-            display: 'inline-flex',
-            border: '1px solid #D97757', borderRadius: '999px',
-            padding: '7px 13px', fontSize: '10px', fontWeight: 700,
-            color: '#D97757', letterSpacing: '0.12em', alignItems: 'center', gap: '6px'
-          }}>
-            {slide.cta} <ArrowRight size={11} />
-          </div>
+      <div className="page center">
+        <GlobalStyle />
+        <div className="loading">
+          <div className="loading-tv">☺</div>
+          <div className="px-label">carregando…</div>
         </div>
       </div>
     );
   }
 
-  // Capa de carrossel
-  if (slide.type === 'jp-cover') {
+  const dateStr = new Date().toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long" });
+
+  if (screen === "landing") {
     return (
-      <div style={base}>
-        {logo}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-          {slide.chip && (
-            <div style={{
-              fontSize: '10px', letterSpacing: '0.18em', textTransform: 'uppercase',
-              color: '#D97757', marginBottom: '14px', fontWeight: 600
-            }}>{slide.chip}</div>
-          )}
-          <h1 style={{ fontSize: '60px', fontWeight: 700, lineHeight: 0.98, margin: 0, letterSpacing: '-0.04em', color: '#D97757' }}>
-            {slide.title}
-          </h1>
-          <h2 style={{ fontSize: '28px', fontWeight: 500, lineHeight: 1.1, margin: '6px 0 22px 0', letterSpacing: '-0.02em' }}>
-            {slide.subtitle}
-          </h2>
-          <p style={{ fontSize: '14px', lineHeight: 1.55, opacity: 0.8, margin: 0, maxWidth: '92%' }}>
-            {slide.body}
-          </p>
-        </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', opacity: 0.5 }}>
-          <span>juspilot.ai</span>
-        </div>
+      <div className="page center">
+        <GlobalStyle />
+        <Landing
+          onEnter={() => setScreen("app")}
+          onProduct={(k) => setScreen("product:" + k)}
+        />
       </div>
     );
   }
 
-  // Card numerado
-  if (slide.type === 'jp-numbered') {
+  if (screen.startsWith("product:")) {
+    const slot = SLOTS.find((s) => s.key === screen.slice(8)) || SLOTS[0];
     return (
-      <div style={base}>
-        {logo}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-          <div style={{ fontSize: '64px', fontWeight: 700, color: '#D97757', lineHeight: 1, marginBottom: '14px', letterSpacing: '-0.04em' }}>
-            {slide.number}
-          </div>
-          <h2 style={{ fontSize: '26px', fontWeight: 600, lineHeight: 1.15, margin: '0 0 14px 0', letterSpacing: '-0.02em' }}>
-            {slide.title}
-          </h2>
-          <p style={{ fontSize: '14px', lineHeight: 1.55, opacity: 0.85, margin: 0, maxWidth: '95%' }}>
-            {slide.body}
-          </p>
-        </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', opacity: 0.5 }}>
-          <span>juspilot.ai</span>
-        </div>
+      <div className="page">
+        <GlobalStyle />
+        <ProductPage
+          slot={slot}
+          onBack={() => setScreen("landing")}
+          onEnter={() => setScreen("app")}
+        />
       </div>
     );
   }
 
-  // Card final com CTA
-  if (slide.type === 'jp-final') {
-    return (
-      <div style={{ ...base, background: 'linear-gradient(135deg, #101010 0%, #2a1810 100%)' }}>
-        {logo}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-          <div style={{ fontSize: '40px', fontWeight: 700, color: '#D97757', lineHeight: 1, marginBottom: '14px', letterSpacing: '-0.04em' }}>
-            {slide.number}
-          </div>
-          <h2 style={{ fontSize: '24px', fontWeight: 600, lineHeight: 1.15, margin: '0 0 14px 0', letterSpacing: '-0.02em' }}>
-            {slide.title}
-          </h2>
-          <p style={{ fontSize: '13.5px', lineHeight: 1.55, opacity: 0.85, margin: '0 0 20px 0', maxWidth: '95%' }}>
-            {slide.body}
-          </p>
-          <div style={{
-            display: 'inline-flex', alignSelf: 'flex-start',
-            border: '1px solid #D97757', borderRadius: '999px',
-            padding: '10px 16px', fontSize: '11px', fontWeight: 600,
-            color: '#FFFEEE', alignItems: 'center', gap: '8px'
-          }}>
-            {slide.cta} <ArrowRight size={12} />
-          </div>
-        </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', opacity: 0.5 }}>
-          <span>juspilot.ai</span>
-        </div>
-      </div>
-    );
-  }
-
-  // AD 01 — VELOCIDADE
-  if (slide.type === 'ad-velocidade') {
-    return (
-      <div style={{ ...base, background: 'radial-gradient(circle at 75% 25%, #2a1810 0%, #101010 65%)' }}>
-        {logo}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-          <div style={{ fontSize: '10px', letterSpacing: '0.25em', color: '#D97757', marginBottom: '14px', fontWeight: 700 }}>
-            {slide.eyebrow}
-          </div>
-          <h1 style={{ fontSize: '74px', fontWeight: 700, lineHeight: 0.92, margin: 0, letterSpacing: '-0.05em', color: '#FFFEEE', textShadow: '0 4px 30px rgba(217,119,87,0.15)' }}>
-            {slide.title1}
-          </h1>
-          <h2 style={{ fontSize: '56px', fontWeight: 400, lineHeight: 0.98, margin: '6px 0 22px 0', letterSpacing: '-0.04em', color: '#D97757', fontStyle: 'italic' }}>
-            {slide.title2}
-          </h2>
-          <p style={{ fontSize: '13.5px', lineHeight: 1.55, opacity: 0.85, margin: 0, maxWidth: '95%' }}>
-            {slide.subline}
-          </p>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <span style={{ fontSize: '10.5px', opacity: 0.5 }}>juspilot.ai</span>
-          <div style={{ background: '#D97757', color: '#101010', borderRadius: '6px', padding: '11px 16px', fontSize: '11px', fontWeight: 800, letterSpacing: '0.1em', display: 'inline-flex', alignItems: 'center', gap: '7px' }}>
-            {slide.cta} <ArrowRight size={12} />
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // AD 02 — ALUCINAÇÃO
-  if (slide.type === 'ad-alucinacao') {
-    return (
-      <div style={{ ...base, background: '#101010' }}>
-        <div style={{ position: 'absolute', top: '-10%', left: '-10%', width: '50%', height: '50%', background: 'radial-gradient(circle, rgba(220,38,38,0.18) 0%, transparent 65%)', filter: 'blur(40px)' }} />
-        {logo}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', position: 'relative', zIndex: 1 }}>
-          <div style={{ fontSize: '10px', letterSpacing: '0.25em', color: '#D97757', marginBottom: '14px', fontWeight: 700 }}>
-            {slide.eyebrow}
-          </div>
-          <h2 style={{ fontSize: '32px', fontWeight: 500, lineHeight: 1.1, margin: 0, letterSpacing: '-0.02em', color: 'rgba(255,254,238,0.75)' }}>
-            {slide.title1}
-          </h2>
-          <h2 style={{ fontSize: '40px', fontWeight: 700, lineHeight: 1.05, margin: '2px 0 4px 0', letterSpacing: '-0.03em', color: '#FCA5A5' }}>
-            {slide.title2}
-          </h2>
-          <h1 style={{ fontSize: '34px', fontWeight: 600, lineHeight: 1.1, margin: '8px 0 18px 0', letterSpacing: '-0.02em', color: '#D97757' }}>
-            {slide.title3}
-          </h1>
-          <p style={{ fontSize: '12.5px', lineHeight: 1.55, opacity: 0.85, margin: '0 0 14px 0', maxWidth: '95%' }}>
-            {slide.subline}
-          </p>
-          <div style={{ display: 'inline-flex', alignSelf: 'flex-start', alignItems: 'center', gap: '8px', border: '1px solid rgba(252,165,165,0.3)', background: 'rgba(220,38,38,0.08)', borderRadius: '6px', padding: '8px 12px', fontSize: '11px', color: '#FCA5A5', fontWeight: 500 }}>
-            <AlertTriangle size={12} /> {slide.proof}
-          </div>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', zIndex: 1, position: 'relative' }}>
-          <span style={{ fontSize: '10.5px', opacity: 0.5 }}>juspilot.ai</span>
-          <div style={{ background: '#D97757', color: '#101010', borderRadius: '6px', padding: '11px 16px', fontSize: '11px', fontWeight: 800, letterSpacing: '0.1em', display: 'inline-flex', alignItems: 'center', gap: '7px' }}>
-            {slide.cta} <ArrowRight size={12} />
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // AD 03 — OUTPUTS
-  if (slide.type === 'ad-outputs') {
-    return (
-      <div style={{ ...base, background: 'linear-gradient(160deg, #101010 0%, #1a0e09 100%)' }}>
-        {logo}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-          <div style={{ fontSize: '10px', letterSpacing: '0.25em', color: '#D97757', marginBottom: '14px', fontWeight: 700 }}>
-            {slide.eyebrow}
-          </div>
-          <h2 style={{ fontSize: '30px', fontWeight: 500, lineHeight: 1.1, margin: 0, letterSpacing: '-0.02em' }}>
-            {slide.title1}
-          </h2>
-          <h1 style={{ fontSize: '38px', fontWeight: 700, lineHeight: 1.05, margin: '4px 0 18px 0', letterSpacing: '-0.03em', color: '#D97757' }}>
-            {slide.title2}
-          </h1>
-          <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 16px 0' }}>
-            {slide.outputs.map((o, i) => (
-              <li key={i} style={{ fontSize: '12px', padding: '7px 0', borderTop: i === 0 ? '1px solid rgba(217,119,87,0.25)' : 'none', borderBottom: '1px solid rgba(217,119,87,0.15)', display: 'flex', alignItems: 'center', gap: '10px', letterSpacing: '0.02em', fontWeight: 500 }}>
-                <span style={{ color: '#D97757', fontWeight: 700, minWidth: '24px' }}>{o.split(' · ')[0]}</span>
-                <span style={{ opacity: 0.9 }}>{o.split(' · ')[1]}</span>
-              </li>
-            ))}
-          </ul>
-          <p style={{ fontSize: '12px', lineHeight: 1.5, opacity: 0.75, margin: 0, fontStyle: 'italic' }}>
-            {slide.subline}
-          </p>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <span style={{ fontSize: '10.5px', opacity: 0.5 }}>juspilot.ai</span>
-          <div style={{ background: '#D97757', color: '#101010', borderRadius: '6px', padding: '11px 16px', fontSize: '10.5px', fontWeight: 800, letterSpacing: '0.1em', display: 'inline-flex', alignItems: 'center', gap: '7px' }}>
-            {slide.cta} <ArrowRight size={12} />
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // AD 04 — MANIFESTO
-  if (slide.type === 'ad-manifesto') {
-    return (
-      <div style={{ ...base, background: '#101010' }}>
-        <div style={{ position: 'absolute', top: '12%', bottom: '20%', left: '34px', width: '2px', background: 'linear-gradient(180deg, transparent, #D97757, transparent)', opacity: 0.5 }} />
-        {logo}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', paddingLeft: '14px' }}>
-          <div style={{ fontSize: '10px', letterSpacing: '0.3em', color: '#D97757', marginBottom: '20px', fontWeight: 700 }}>
-            {slide.eyebrow}
-          </div>
-          <h2 style={{ fontSize: '26px', fontWeight: 400, lineHeight: 1.2, margin: 0, letterSpacing: '-0.02em', opacity: 0.7 }}>{slide.line1}</h2>
-          <h2 style={{ fontSize: '32px', fontWeight: 600, lineHeight: 1.15, margin: '2px 0', letterSpacing: '-0.02em', color: '#D97757' }}>{slide.line2}</h2>
-          <h2 style={{ fontSize: '26px', fontWeight: 400, lineHeight: 1.2, margin: '0 0 18px 0', letterSpacing: '-0.02em', opacity: 0.7 }}>{slide.line3}</h2>
-          <div style={{ height: '1px', width: '40px', background: '#D97757', marginBottom: '18px' }} />
-          <h2 style={{ fontSize: '26px', fontWeight: 400, lineHeight: 1.2, margin: 0, letterSpacing: '-0.02em' }}>{slide.divider}</h2>
-          <h1 style={{ fontSize: '34px', fontWeight: 700, lineHeight: 1.1, margin: '2px 0', letterSpacing: '-0.025em', color: '#D97757' }}>{slide.highlight}</h1>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <span style={{ fontSize: '10.5px', opacity: 0.5 }}>juspilot.ai</span>
-          <div style={{ border: '1px solid #D97757', color: '#D97757', borderRadius: '6px', padding: '10px 16px', fontSize: '11px', fontWeight: 700, letterSpacing: '0.12em', display: 'inline-flex', alignItems: 'center', gap: '7px' }}>
-            {slide.cta} <ArrowRight size={12} />
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Comercial — capa única
-  if (slide.type === 'jp-comercial') {
-    return (
-      <div style={{ ...base, background: 'radial-gradient(circle at 70% 30%, #2a1810 0%, #101010 70%)' }}>
-        {logo}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-          <div style={{
-            fontSize: '10px', letterSpacing: '0.25em',
-            color: '#D97757', marginBottom: '16px', fontWeight: 600
-          }}>
-            {slide.eyebrow}
-          </div>
-          <h1 style={{ fontSize: '64px', fontWeight: 700, lineHeight: 0.95, margin: 0, letterSpacing: '-0.04em' }}>
-            {slide.title}
-          </h1>
-          <h2 style={{ fontSize: '50px', fontWeight: 400, lineHeight: 0.98, margin: '6px 0 24px 0', letterSpacing: '-0.035em', color: '#D97757' }}>
-            {slide.highlight}
-          </h2>
-          <p style={{ fontSize: '13.5px', lineHeight: 1.55, opacity: 0.85, margin: 0, maxWidth: '92%' }}>
-            {slide.subline}
-          </p>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <span style={{ fontSize: '11px', opacity: 0.5 }}>juspilot.ai</span>
-          <div style={{
-            border: '1px solid #D97757', borderRadius: '999px',
-            padding: '8px 14px', fontSize: '10px', fontWeight: 700,
-            color: '#D97757', letterSpacing: '0.12em',
-            display: 'inline-flex', alignItems: 'center', gap: '6px'
-          }}>
-            {slide.cta} <ArrowRight size={11} />
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  return <div style={base}>...</div>;
-}
-
-// ─── OCTALAB ───
-function OctalabRender({ slide }) {
-  const baseDark = {
-    width: '100%',
-    aspectRatio: '1 / 1',
-    background: '#0F0F13',
-    color: '#F4EFE5',
-    fontFamily: 'Geist, system-ui, sans-serif',
-    borderRadius: '14px',
-    padding: '40px 34px',
-    display: 'flex',
-    flexDirection: 'column',
-    position: 'relative',
-    overflow: 'hidden'
-  };
-  const baseLight = { ...baseDark, background: '#F4EFE5', color: '#0F0F13' };
-
-  const Octagon = ({ size = 18, color = '#F4EFE5' }) => (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <path d="M7 2L17 2L22 7L22 17L17 22L7 22L2 17L2 7L7 2Z" stroke={color} strokeWidth="1.5" fill="none"/>
-      <path d="M9 5.5L15 5.5L18.5 9L18.5 15L15 18.5L9 18.5L5.5 15L5.5 9L9 5.5Z" stroke={color} strokeWidth="0.8" fill="none"/>
-    </svg>
-  );
-
-  const logo = (isDark) => (
-    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', position: 'relative', zIndex: 2 }}>
-      <Octagon color={isDark ? '#F4EFE5' : '#0F0F13'} />
-      <span><strong>Octalab</strong><span style={{ opacity: 0.6, fontWeight: 300 }}>.ai</span></span>
-    </div>
-  );
-
-  const Graph = ({ opacity = 0.12 }) => (
-    <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', opacity }} viewBox="0 0 400 400">
-      <circle cx="80" cy="100" r="22" fill="none" stroke="#F4EFE5" strokeWidth="1"/>
-      <circle cx="320" cy="80" r="14" fill="none" stroke="#F4EFE5" strokeWidth="1"/>
-      <circle cx="350" cy="280" r="28" fill="none" stroke="#F4EFE5" strokeWidth="1"/>
-      <circle cx="60" cy="340" r="18" fill="none" stroke="#F4EFE5" strokeWidth="1"/>
-      <circle cx="200" cy="380" r="10" fill="none" stroke="#F4EFE5" strokeWidth="1"/>
-      <line x1="80" y1="100" x2="320" y2="80" stroke="#F4EFE5" strokeWidth="0.5"/>
-      <line x1="320" y1="80" x2="350" y2="280" stroke="#F4EFE5" strokeWidth="0.5"/>
-      <line x1="350" y1="280" x2="60" y2="340" stroke="#F4EFE5" strokeWidth="0.5"/>
-      <line x1="60" y1="340" x2="80" y2="100" stroke="#F4EFE5" strokeWidth="0.5"/>
-    </svg>
-  );
-
-  // Capa de notícia
-  if (slide.type === 'oct-news') {
-    return (
-      <div style={baseDark}>
-        <Graph opacity={0.1} />
-        <div style={{ position: 'relative', zIndex: 1 }}>{logo(true)}</div>
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', position: 'relative', zIndex: 1 }}>
-          <div style={{
-            display: 'inline-flex', alignSelf: 'flex-start',
-            border: '1px solid rgba(244,239,229,0.25)',
-            borderRadius: '999px', padding: '6px 12px',
-            fontSize: '10px', letterSpacing: '0.15em', fontWeight: 500,
-            marginBottom: '20px'
-          }}>
-            {slide.chip}
-          </div>
-          <h2 style={{ fontSize: '30px', fontWeight: 400, lineHeight: 1.15, margin: 0, letterSpacing: '-0.02em' }}>
-            {slide.title}
-          </h2>
-          <h1 style={{
-            fontSize: '32px', fontWeight: 600, lineHeight: 1.1, margin: '4px 0 18px 0',
-            letterSpacing: '-0.02em'
-          }}>
-            {slide.highlight}
-          </h1>
-          <p style={{ fontSize: '13px', lineHeight: 1.55, opacity: 0.75, margin: '0 0 18px 0', maxWidth: '95%' }}>
-            {slide.subline}
-          </p>
-          <div style={{
-            fontSize: '10px', letterSpacing: '0.1em',
-            opacity: 0.55, textTransform: 'uppercase', fontWeight: 500
-          }}>
-            {slide.source}
-          </div>
-        </div>
-        <div style={{
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          fontSize: '11px', zIndex: 1, position: 'relative'
-        }}>
-          <span style={{ opacity: 0.5 }}>octalab.ai</span>
-          <div style={{
-            display: 'inline-flex',
-            border: '1px solid #F4EFE5', borderRadius: '999px',
-            padding: '7px 13px', fontSize: '10px', fontWeight: 600,
-            letterSpacing: '0.12em', alignItems: 'center', gap: '6px'
-          }}>
-            {slide.cta} <ArrowRight size={11} />
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Manifesto (3 linhas)
-  if (slide.type === 'oct-manifesto') {
-    return (
-      <div style={baseDark}>
-        <Graph opacity={0.18} />
-        <div style={{ position: 'relative', zIndex: 1 }}>{logo(true)}</div>
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', position: 'relative', zIndex: 1 }}>
-          <h1 style={{ fontSize: '56px', fontWeight: 300, lineHeight: 1.05, margin: 0, letterSpacing: '-0.03em' }}>{slide.line1}</h1>
-          <h1 style={{ fontSize: '56px', fontWeight: 600, lineHeight: 1.05, margin: 0, letterSpacing: '-0.03em' }}>{slide.line2}</h1>
-          <h1 style={{ fontSize: '56px', fontWeight: 300, lineHeight: 1.05, margin: 0, letterSpacing: '-0.03em' }}>{slide.line3}</h1>
-        </div>
-      </div>
-    );
-  }
-
-  // Card claro (carrossel)
-  if (slide.type === 'oct-light-card') {
-    return (
-      <div style={baseLight}>
-        {logo(false)}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-          <div style={{ fontSize: '11px', letterSpacing: '0.18em', opacity: 0.5, marginBottom: '14px', fontWeight: 600 }}>
-            {slide.number}
-          </div>
-          <h2 style={{ fontSize: '32px', fontWeight: 500, lineHeight: 1.15, margin: '0 0 16px 0', letterSpacing: '-0.02em' }}>
-            {slide.title}
-          </h2>
-          <p style={{ fontSize: '13.5px', lineHeight: 1.55, margin: 0, opacity: 0.8, maxWidth: '95%', whiteSpace: 'pre-line' }}>
-            {slide.body}
-          </p>
-        </div>
-        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-          <div style={{
-            width: '32px', height: '32px', borderRadius: '50%',
-            background: '#0F0F13', display: 'flex', alignItems: 'center', justifyContent: 'center'
-          }}>
-            <ArrowRight size={14} color="#F4EFE5" />
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Card escuro (carrossel)
-  if (slide.type === 'oct-dark-card') {
-    return (
-      <div style={baseDark}>
-        {logo(true)}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-          <div style={{ fontSize: '11px', letterSpacing: '0.18em', opacity: 0.5, marginBottom: '14px', fontWeight: 600 }}>
-            {slide.number}
-          </div>
-          <h2 style={{ fontSize: '32px', fontWeight: 500, lineHeight: 1.15, margin: '0 0 16px 0', letterSpacing: '-0.02em' }}>
-            {slide.title}
-          </h2>
-          <p style={{ fontSize: '13.5px', lineHeight: 1.55, margin: 0, opacity: 0.78, maxWidth: '95%', whiteSpace: 'pre-line' }}>
-            {slide.body}
-          </p>
-        </div>
-        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-          <div style={{
-            width: '32px', height: '32px', borderRadius: '50%', border: '1px solid #F4EFE5',
-            display: 'flex', alignItems: 'center', justifyContent: 'center'
-          }}>
-            <ArrowRight size={14} color="#F4EFE5" />
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Assinatura final (carrossel)
-  if (slide.type === 'oct-signature') {
-    return (
-      <div style={baseDark}>
-        <Graph opacity={0.18} />
-        <div style={{ position: 'relative', zIndex: 1 }}>{logo(true)}</div>
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', position: 'relative', zIndex: 1 }}>
-          <h1 style={{ fontSize: '54px', fontWeight: 600, lineHeight: 1.05, margin: 0, letterSpacing: '-0.03em' }}>{slide.line1}</h1>
-          <h1 style={{ fontSize: '54px', fontWeight: 600, lineHeight: 1.05, margin: 0, letterSpacing: '-0.03em', opacity: 0.55 }}>{slide.line2}</h1>
-          <h1 style={{ fontSize: '54px', fontWeight: 600, lineHeight: 1.05, margin: '0 0 24px 0', letterSpacing: '-0.03em' }}>{slide.line3}</h1>
-          {slide.cta && (
-            <div style={{
-              display: 'inline-flex', alignSelf: 'flex-start',
-              border: '1px solid #F4EFE5', borderRadius: '999px',
-              padding: '10px 16px', fontSize: '11px', fontWeight: 600,
-              letterSpacing: '0.05em', alignItems: 'center', gap: '8px'
-            }}>
-              {slide.cta} <ArrowRight size={12} />
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  }
-
-  // Comercial — capa única
-  if (slide.type === 'oct-comercial') {
-    return (
-      <div style={baseDark}>
-        <Graph opacity={0.15} />
-        <div style={{ position: 'relative', zIndex: 1 }}>{logo(true)}</div>
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', position: 'relative', zIndex: 1 }}>
-          <h1 style={{ fontSize: '34px', fontWeight: 400, lineHeight: 1.2, margin: 0, letterSpacing: '-0.02em' }}>{slide.line1}</h1>
-          <h1 style={{ fontSize: '34px', fontWeight: 400, lineHeight: 1.2, margin: 0, letterSpacing: '-0.02em' }}>{slide.line2}</h1>
-          <h1 style={{ fontSize: '34px', fontWeight: 400, lineHeight: 1.2, margin: '0 0 24px 0', letterSpacing: '-0.02em' }}>{slide.line3}</h1>
-          <div style={{
-            height: '1px', background: 'rgba(244,239,229,0.25)', width: '60px', marginBottom: '20px'
-          }}/>
-          <h2 style={{ fontSize: '38px', fontWeight: 700, lineHeight: 1, margin: 0, letterSpacing: '-0.03em' }}>
-            {slide.divider}
-          </h2>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', zIndex: 1, position: 'relative' }}>
-          <span style={{ fontSize: '11px', opacity: 0.5 }}>We build tomorrow's tech.</span>
-          <div style={{
-            border: '1px solid #F4EFE5', borderRadius: '999px',
-            padding: '8px 14px', fontSize: '10px', fontWeight: 700,
-            letterSpacing: '0.12em', display: 'inline-flex', alignItems: 'center', gap: '6px'
-          }}>
-            {slide.cta} <ArrowRight size={11} />
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  return <div style={baseDark}>...</div>;
-}
-
-// ─── ECOSYS AUTO ───
-function EcosysRender({ slide }) {
-  const base = {
-    width: '100%',
-    aspectRatio: '1 / 1',
-    background: 'linear-gradient(180deg, #0A1628 0%, #050B14 100%)',
-    color: '#FFFFFF',
-    fontFamily: 'Geist, system-ui, sans-serif',
-    borderRadius: '14px',
-    padding: '28px',
-    display: 'flex',
-    flexDirection: 'column',
-    position: 'relative',
-    overflow: 'hidden'
-  };
-
-  const logo = (
-    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', position: 'relative', zIndex: 2 }}>
-      <svg width="24" height="24" viewBox="0 0 32 32" fill="none">
-        <rect x="2" y="2" width="9" height="9" fill="#22D3EE"/>
-        <rect x="13" y="2" width="6" height="6" fill="#FFFFFF"/>
-        <rect x="2" y="13" width="6" height="6" fill="#FFFFFF"/>
-        <rect x="13" y="13" width="9" height="9" fill="#FFFFFF"/>
-      </svg>
-      <div style={{ lineHeight: 1 }}>
-        <div style={{ fontSize: '12px', fontWeight: 500 }}>ecosys</div>
-        <div style={{ fontSize: '8.5px', letterSpacing: '0.2em', opacity: 0.7 }}>AUTO</div>
-      </div>
-      <div style={{ marginLeft: 'auto', fontSize: '10px', opacity: 0.5 }}>2026</div>
-    </div>
-  );
-
-  const footer = (
-    <div style={{ display: 'flex', justifyContent: 'center', fontSize: '10px', opacity: 0.6, position: 'relative', zIndex: 2 }}>
-      <span>powered by <strong style={{ color: '#FFFFFF' }}>Octalab.ai</strong></span>
-    </div>
-  );
-
-  const NightScene = () => (
-    <div style={{ position: 'absolute', inset: 0, opacity: 0.4 }}>
-      <div style={{
-        position: 'absolute', bottom: 0, left: 0, right: 0, height: '50%',
-        background: 'linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.7) 100%)'
-      }}/>
-      <div style={{
-        position: 'absolute', top: '20%', right: '10%', width: '180px', height: '180px',
-        background: 'radial-gradient(circle, rgba(255,180,80,0.18) 0%, transparent 60%)',
-        borderRadius: '50%', filter: 'blur(25px)'
-      }}/>
-      <div style={{
-        position: 'absolute', bottom: '15%', left: '5%', width: '140px', height: '140px',
-        background: 'radial-gradient(circle, rgba(34,211,238,0.15) 0%, transparent 60%)',
-        borderRadius: '50%', filter: 'blur(20px)'
-      }}/>
-    </div>
-  );
-
-  // Capa de notícia — dado grande
-  if (slide.type === 'eco-news-cover') {
-    return (
-      <div style={base}>
-        <NightScene />
-        {logo}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', position: 'relative', zIndex: 2 }}>
-          <div style={{
-            display: 'inline-flex', alignSelf: 'flex-start',
-            border: '1px solid rgba(34,211,238,0.45)',
-            background: 'rgba(34,211,238,0.1)',
-            borderRadius: '999px', padding: '5px 11px',
-            fontSize: '9.5px', letterSpacing: '0.15em', fontWeight: 600,
-            color: '#22D3EE', marginBottom: '18px'
-          }}>
-            {slide.chip}
-          </div>
-          <div style={{
-            fontSize: '72px', fontWeight: 700, lineHeight: 0.95, margin: 0,
-            letterSpacing: '-0.04em', color: '#FFFFFF',
-            textShadow: '0 4px 30px rgba(0,0,0,0.6)'
-          }}>
-            {slide.data}
-          </div>
-          <h2 style={{ fontSize: '20px', fontWeight: 500, lineHeight: 1.2, margin: '8px 0 0 0', letterSpacing: '-0.01em' }}>
-            {slide.headline}
-          </h2>
-          <h2 style={{
-            fontSize: '20px', fontWeight: 700, lineHeight: 1.2, margin: '2px 0 14px 0',
-            letterSpacing: '-0.01em',
-            background: 'linear-gradient(180deg, transparent 60%, rgba(34,211,238,0.55) 60%)',
-            display: 'inline-block', width: 'fit-content', padding: '0 5px'
-          }}>
-            {slide.highlight}
-          </h2>
-          <p style={{ fontSize: '12px', lineHeight: 1.55, margin: '0 0 14px 0', opacity: 0.85, maxWidth: '92%' }}>
-            {slide.subline}
-          </p>
-          <div style={{
-            fontSize: '10px', letterSpacing: '0.1em',
-            opacity: 0.6, textTransform: 'uppercase', fontWeight: 500
-          }}>
-            {slide.source}
-          </div>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'relative', zIndex: 2 }}>
-          <div style={{
-            background: '#22D3EE', color: '#0A1628',
-            borderRadius: '999px', padding: '8px 14px',
-            fontSize: '10px', fontWeight: 700, letterSpacing: '0.12em',
-            display: 'inline-flex', alignItems: 'center', gap: '6px'
-          }}>
-            {slide.cta} <ArrowRight size={11} />
-          </div>
-          <span style={{ fontSize: '9px', opacity: 0.6 }}>powered by <strong style={{ color: '#FFFFFF' }}>Octalab.ai</strong></span>
-        </div>
-      </div>
-    );
-  }
-
-  // Capa de carrossel (dado grande)
-  if (slide.type === 'eco-data-cover') {
-    return (
-      <div style={base}>
-        <NightScene />
-        {logo}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', position: 'relative', zIndex: 2 }}>
-          <div style={{
-            display: 'inline-flex', alignSelf: 'flex-start',
-            border: '1px solid rgba(34,211,238,0.4)',
-            borderRadius: '999px', padding: '5px 11px',
-            fontSize: '9.5px', letterSpacing: '0.15em', fontWeight: 600,
-            color: '#22D3EE', marginBottom: '14px'
-          }}>
-            {slide.chip}
-          </div>
-          <div style={{
-            fontSize: '70px', fontWeight: 700, lineHeight: 0.95, margin: 0,
-            letterSpacing: '-0.04em'
-          }}>
-            {slide.data}
-          </div>
-          <h2 style={{ fontSize: '22px', fontWeight: 500, lineHeight: 1.2, margin: '8px 0 0 0' }}>
-            {slide.title}
-          </h2>
-          <h2 style={{
-            fontSize: '22px', fontWeight: 700, lineHeight: 1.2, margin: '4px 0 14px 0',
-            background: 'linear-gradient(180deg, transparent 60%, rgba(34,211,238,0.55) 60%)',
-            display: 'inline-block', width: 'fit-content', padding: '0 5px'
-          }}>
-            {slide.highlight}
-          </h2>
-          <p style={{ fontSize: '12px', lineHeight: 1.5, margin: 0, opacity: 0.85, maxWidth: '92%' }}>
-            {slide.subline}
-          </p>
-        </div>
-        {footer}
-      </div>
-    );
-  }
-
-  // Card numerado claro (alternância)
-  if (slide.type === 'eco-numbered') {
-    return (
-      <div style={base}>
-        {logo}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', position: 'relative', zIndex: 2 }}>
-          <div style={{
-            fontSize: '56px', fontWeight: 700, lineHeight: 1, margin: 0,
-            color: '#22D3EE', letterSpacing: '-0.04em'
-          }}>
-            {slide.number}
-          </div>
-          <h2 style={{ fontSize: '24px', fontWeight: 600, lineHeight: 1.2, margin: '12px 0 14px 0', letterSpacing: '-0.02em' }}>
-            {slide.title}
-          </h2>
-          <p style={{ fontSize: '13px', lineHeight: 1.55, margin: 0, opacity: 0.85, maxWidth: '95%', whiteSpace: 'pre-line' }}>
-            {slide.body}
-          </p>
-        </div>
-        {footer}
-      </div>
-    );
-  }
-
-  // Card numerado mais denso (mostrando dor)
-  if (slide.type === 'eco-numbered-dark') {
-    return (
-      <div style={{ ...base, background: 'linear-gradient(180deg, #0A1628 0%, #1a2a44 100%)' }}>
-        <div style={{ position: 'absolute', inset: 0, opacity: 0.3 }}>
-          <div style={{
-            position: 'absolute', inset: 0,
-            background: 'radial-gradient(ellipse at 80% 80%, rgba(220,38,38,0.2), transparent 60%)'
-          }}/>
-        </div>
-        {logo}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', position: 'relative', zIndex: 2 }}>
-          <div style={{
-            fontSize: '56px', fontWeight: 700, lineHeight: 1, margin: 0,
-            color: '#FCA5A5', letterSpacing: '-0.04em'
-          }}>
-            {slide.number}
-          </div>
-          <h2 style={{ fontSize: '24px', fontWeight: 600, lineHeight: 1.2, margin: '12px 0 14px 0', letterSpacing: '-0.02em' }}>
-            {slide.title}
-          </h2>
-          <p style={{ fontSize: '13px', lineHeight: 1.55, margin: 0, opacity: 0.9, maxWidth: '95%', whiteSpace: 'pre-line' }}>
-            {slide.body}
-          </p>
-        </div>
-        {footer}
-      </div>
-    );
-  }
-
-  // Card final do carrossel — solução
-  if (slide.type === 'eco-solution-final') {
-    return (
-      <div style={base}>
-        <NightScene />
-        {logo}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', position: 'relative', zIndex: 2 }}>
-          <h2 style={{ fontSize: '26px', fontWeight: 600, lineHeight: 1.2, margin: 0, letterSpacing: '-0.02em' }}>
-            {slide.title}
-          </h2>
-          <h2 style={{
-            fontSize: '26px', fontWeight: 700, lineHeight: 1.2, margin: '4px 0 18px 0',
-            background: 'linear-gradient(180deg, transparent 60%, rgba(34,211,238,0.55) 60%)',
-            display: 'inline-block', width: 'fit-content', padding: '0 6px'
-          }}>
-            {slide.highlight}
-          </h2>
-          <p style={{ fontSize: '13px', lineHeight: 1.55, margin: '0 0 24px 0', opacity: 0.9, maxWidth: '95%' }}>
-            {slide.body}
-          </p>
-          <div style={{
-            display: 'inline-flex', alignSelf: 'flex-start',
-            background: '#DC2626', color: '#FFFFFF',
-            borderRadius: '8px', padding: '12px 18px',
-            fontSize: '11px', fontWeight: 700, letterSpacing: '0.04em',
-            alignItems: 'center', gap: '8px'
-          }}>
-            {slide.cta} <ArrowRight size={12} />
-          </div>
-        </div>
-        {footer}
-      </div>
-    );
-  }
-
-  // Comercial — capa única
-  if (slide.type === 'eco-comercial') {
-    return (
-      <div style={base}>
-        <NightScene />
-        {logo}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', position: 'relative', zIndex: 2 }}>
-          <div style={{
-            fontSize: '10px', letterSpacing: '0.25em',
-            color: '#22D3EE', marginBottom: '14px', fontWeight: 700
-          }}>
-            {slide.eyebrow}
-          </div>
-          <h1 style={{ fontSize: '36px', fontWeight: 600, lineHeight: 1.1, margin: 0, letterSpacing: '-0.02em' }}>
-            {slide.title}
-          </h1>
-          <h2 style={{
-            fontSize: '36px', fontWeight: 700, lineHeight: 1.1, margin: '4px 0 18px 0',
-            background: 'linear-gradient(180deg, transparent 60%, rgba(34,211,238,0.55) 60%)',
-            display: 'inline-block', width: 'fit-content', padding: '0 6px'
-          }}>
-            {slide.highlight}
-          </h2>
-          <p style={{ fontSize: '13px', lineHeight: 1.55, margin: 0, opacity: 0.9, maxWidth: '92%' }}>
-            {slide.subline}
-          </p>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'relative', zIndex: 2 }}>
-          <div style={{
-            background: '#22D3EE', color: '#0A1628',
-            borderRadius: '999px', padding: '8px 14px',
-            fontSize: '10px', fontWeight: 700, letterSpacing: '0.12em',
-            display: 'inline-flex', alignItems: 'center', gap: '6px'
-          }}>
-            {slide.cta} <ArrowRight size={11} />
-          </div>
-          <span style={{ fontSize: '9px', opacity: 0.6 }}>powered by <strong style={{ color: '#FFFFFF' }}>Octalab.ai</strong></span>
-        </div>
-      </div>
-    );
-  }
-
-  return <div style={base}>...</div>;
-}
-
-// ─── OCTAGYM ───
-function OctagymRender({ slide }) {
-  const base = {
-    width: '100%',
-    aspectRatio: '1 / 1',
-    background: '#0F0F13',
-    color: '#F4EFE5',
-    fontFamily: 'Geist, system-ui, sans-serif',
-    borderRadius: '14px',
-    padding: '36px 32px',
-    display: 'flex',
-    flexDirection: 'column',
-    position: 'relative',
-    overflow: 'hidden'
-  };
-
-  const Octagon = ({ size = 18, color = '#EF0A36' }) => (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <path d="M7 2L17 2L22 7L22 17L17 22L7 22L2 17L2 7L7 2Z" stroke={color} strokeWidth="1.5" fill="none"/>
-      <path d="M9 5.5L15 5.5L18.5 9L18.5 15L15 18.5L9 18.5L5.5 15L5.5 9L9 5.5Z" stroke={color} strokeWidth="0.8" fill="none"/>
-    </svg>
-  );
-
-  const logo = (
-    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', position: 'relative', zIndex: 2 }}>
-      <Octagon />
-      <span>
-        <strong style={{ color: '#F4EFE5' }}>Octa</strong>
-        <span style={{ color: '#EF0A36', fontWeight: 700 }}>gym</span>
-        <span style={{ opacity: 0.55, fontWeight: 300 }}>.ai</span>
-      </span>
-    </div>
-  );
-
-  // Atmosfera "academia" — luz vermelha vinda de cima
-  const GymAtmosphere = () => (
-    <div style={{ position: 'absolute', inset: 0, opacity: 0.55 }}>
-      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '35%', background: 'radial-gradient(ellipse at center top, rgba(239,10,54,0.35), transparent 70%)' }}/>
-      <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '50%', background: 'linear-gradient(180deg, transparent, rgba(0,0,0,0.7))' }}/>
-      <svg style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '30%', opacity: 0.3 }} viewBox="0 0 400 120">
-        <line x1="0" y1="20" x2="400" y2="20" stroke="#EF0A36" strokeWidth="0.5"/>
-        <line x1="0" y1="50" x2="400" y2="50" stroke="#EF0A36" strokeWidth="0.5"/>
-        <line x1="80" y1="0" x2="80" y2="120" stroke="#EF0A36" strokeWidth="0.5"/>
-        <line x1="200" y1="0" x2="200" y2="120" stroke="#EF0A36" strokeWidth="0.5"/>
-        <line x1="320" y1="0" x2="320" y2="120" stroke="#EF0A36" strokeWidth="0.5"/>
-      </svg>
-    </div>
-  );
-
-  // POST 1 — LANÇAMENTO
-  if (slide.type === 'ogy-launch') {
-    return (
-      <div style={base}>
-        <GymAtmosphere />
-        {logo}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', position: 'relative', zIndex: 2 }}>
-          <div style={{ display: 'inline-flex', alignSelf: 'flex-start', border: '1px solid rgba(239,10,54,0.55)', background: 'rgba(239,10,54,0.1)', borderRadius: '999px', padding: '5px 12px', fontSize: '9.5px', letterSpacing: '0.18em', fontWeight: 700, color: '#EF0A36', marginBottom: '20px' }}>
-            {slide.chip}
-          </div>
-          <h2 style={{ fontSize: '30px', fontWeight: 500, lineHeight: 1.1, margin: 0, letterSpacing: '-0.02em' }}>{slide.line1}</h2>
-          <h1 style={{ fontSize: '46px', fontWeight: 700, lineHeight: 1, margin: '2px 0 4px 0', letterSpacing: '-0.03em', color: '#EF0A36' }}>{slide.highlight}</h1>
-          <h2 style={{ fontSize: '24px', fontWeight: 500, lineHeight: 1.15, margin: '6px 0 0 0', letterSpacing: '-0.02em' }}>{slide.line2}</h2>
-          <h2 style={{ fontSize: '24px', fontWeight: 700, lineHeight: 1.15, margin: '0 0 18px 0', letterSpacing: '-0.02em' }}>{slide.line3}</h2>
-          <p style={{ fontSize: '13px', lineHeight: 1.55, margin: 0, opacity: 0.85, maxWidth: '95%' }}>{slide.subline}</p>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'relative', zIndex: 2 }}>
-          <div style={{ background: '#EF0A36', color: '#F4EFE5', borderRadius: '6px', padding: '9px 14px', fontSize: '10px', fontWeight: 800, letterSpacing: '0.12em', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-            {slide.cta} <ArrowRight size={11} />
-          </div>
-          <span style={{ fontSize: '9px', opacity: 0.55 }}>powered by <strong style={{ color: '#F4EFE5' }}>Octalab.ai</strong></span>
-        </div>
-      </div>
-    );
-  }
-
-  // POST 2 — PROVA
-  if (slide.type === 'ogy-proof') {
-    return (
-      <div style={{ ...base, background: 'linear-gradient(135deg, #0F0F13 0%, #1a0510 100%)' }}>
-        <div style={{ position: 'absolute', top: '-15%', right: '-15%', width: '60%', height: '60%', background: 'radial-gradient(circle, rgba(239,10,54,0.25) 0%, transparent 60%)', filter: 'blur(30px)', zIndex: 1 }}/>
-        {logo}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', position: 'relative', zIndex: 2 }}>
-          <div style={{ display: 'inline-flex', alignSelf: 'flex-start', border: '1px solid rgba(239,10,54,0.55)', background: 'rgba(239,10,54,0.1)', borderRadius: '999px', padding: '5px 12px', fontSize: '9.5px', letterSpacing: '0.18em', fontWeight: 700, color: '#EF0A36', marginBottom: '18px' }}>
-            {slide.chip}
-          </div>
-          <div style={{ fontSize: '64px', fontWeight: 700, lineHeight: 0.95, margin: 0, letterSpacing: '-0.04em', color: '#F4EFE5', textShadow: '0 4px 30px rgba(239,10,54,0.25)' }}>
-            {slide.data}
-          </div>
-          <div style={{ fontSize: '14px', opacity: 0.85, margin: '6px 0 18px 0', fontWeight: 500 }}>{slide.label}</div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '14px' }}>
-            <div style={{ height: '1px', flex: 1, background: 'rgba(239,10,54,0.4)' }}/>
-            <div style={{ fontSize: '11px', letterSpacing: '0.2em', fontWeight: 700, color: '#EF0A36', textTransform: 'uppercase' }}>{slide.divider}</div>
-            <div style={{ height: '1px', flex: 1, background: 'rgba(239,10,54,0.4)' }}/>
-          </div>
-          <h2 style={{ fontSize: '36px', fontWeight: 700, lineHeight: 1.05, margin: '0 0 18px 0', letterSpacing: '-0.03em', color: '#EF0A36' }}>{slide.highlight}</h2>
-          <p style={{ fontSize: '12.5px', lineHeight: 1.55, margin: 0, opacity: 0.85, maxWidth: '95%' }}>{slide.subline}</p>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'relative', zIndex: 2 }}>
-          <div style={{ background: '#EF0A36', color: '#F4EFE5', borderRadius: '6px', padding: '9px 14px', fontSize: '10px', fontWeight: 800, letterSpacing: '0.12em', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-            {slide.cta} <ArrowRight size={11} />
-          </div>
-          <span style={{ fontSize: '9px', opacity: 0.55 }}>powered by <strong style={{ color: '#F4EFE5' }}>Octalab.ai</strong></span>
-        </div>
-      </div>
-    );
-  }
-
-  // POST 3 — POSICIONAMENTO
-  if (slide.type === 'ogy-positioning') {
-    return (
-      <div style={{ ...base, background: '#F4EFE5', color: '#0F0F13' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', position: 'relative', zIndex: 2 }}>
-          <Octagon color="#EF0A36" />
-          <span>
-            <strong style={{ color: '#0F0F13' }}>Octa</strong>
-            <span style={{ color: '#EF0A36', fontWeight: 700 }}>gym</span>
-            <span style={{ opacity: 0.45, fontWeight: 300 }}>.ai</span>
-          </span>
-        </div>
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', position: 'relative', zIndex: 2 }}>
-          <div style={{ fontSize: '10px', letterSpacing: '0.25em', color: '#EF0A36', marginBottom: '16px', fontWeight: 700 }}>{slide.eyebrow}</div>
-          <h1 style={{ fontSize: '44px', fontWeight: 600, lineHeight: 1, margin: 0, letterSpacing: '-0.03em', color: '#0F0F13' }}>{slide.title1}</h1>
-          <h1 style={{ fontSize: '44px', fontWeight: 700, lineHeight: 1, margin: '2px 0 18px 0', letterSpacing: '-0.03em', color: '#EF0A36' }}>{slide.title2}</h1>
-          <p style={{ fontSize: '13px', lineHeight: 1.55, margin: '0 0 20px 0', opacity: 0.78, maxWidth: '92%' }}>{slide.subline}</p>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-            {slide.modules.map((m, i) => (
-              <div key={i} style={{ background: i % 2 === 0 ? '#0F0F13' : '#EF0A36', color: '#F4EFE5', borderRadius: '999px', padding: '6px 12px', fontSize: '11px', fontWeight: 600, letterSpacing: '0.02em' }}>{m}</div>
-            ))}
-          </div>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'relative', zIndex: 2 }}>
-          <div style={{ background: '#0F0F13', color: '#F4EFE5', borderRadius: '6px', padding: '9px 14px', fontSize: '10px', fontWeight: 800, letterSpacing: '0.12em', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-            {slide.cta} <ArrowRight size={11} />
-          </div>
-          <span style={{ fontSize: '9px', opacity: 0.55 }}>powered by <strong style={{ color: '#0F0F13' }}>Octalab.ai</strong></span>
-        </div>
-      </div>
-    );
-  }
-
-  // POST 4 — MANIFESTO
-  if (slide.type === 'ogy-manifesto') {
-    return (
-      <div style={{ ...base, background: '#EF0A36', color: '#F4EFE5' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', position: 'relative', zIndex: 2 }}>
-          <Octagon color="#F4EFE5" />
-          <span>
-            <strong style={{ color: '#F4EFE5' }}>Octa</strong>
-            <span style={{ color: '#F4EFE5', fontWeight: 700, opacity: 0.75 }}>gym</span>
-            <span style={{ opacity: 0.55, fontWeight: 300 }}>.ai</span>
-          </span>
-        </div>
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', position: 'relative', zIndex: 2 }}>
-          <h2 style={{ fontSize: '24px', fontWeight: 400, lineHeight: 1.15, margin: 0, letterSpacing: '-0.02em', opacity: 0.85 }}>{slide.line1}</h2>
-          <h2 style={{ fontSize: '24px', fontWeight: 400, lineHeight: 1.15, margin: '0 0 14px 0', letterSpacing: '-0.02em', opacity: 0.85 }}>{slide.line2}</h2>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', marginBottom: '18px' }}>
-            <h1 style={{ fontSize: '34px', fontWeight: 700, lineHeight: 1.05, margin: 0, letterSpacing: '-0.03em' }}>{slide.line3}</h1>
-            <h1 style={{ fontSize: '34px', fontWeight: 700, lineHeight: 1.05, margin: 0, letterSpacing: '-0.03em' }}>{slide.line4}</h1>
-            <h1 style={{ fontSize: '34px', fontWeight: 700, lineHeight: 1.05, margin: 0, letterSpacing: '-0.03em' }}>{slide.line5}</h1>
-            <h1 style={{ fontSize: '34px', fontWeight: 700, lineHeight: 1.05, margin: 0, letterSpacing: '-0.03em' }}>{slide.line6}</h1>
-          </div>
-          <div style={{ height: '1px', width: '50px', background: '#F4EFE5', opacity: 0.5, marginBottom: '14px' }}/>
-          <h2 style={{ fontSize: '22px', fontWeight: 400, lineHeight: 1.2, margin: 0, letterSpacing: '-0.02em', opacity: 0.85 }}>{slide.divider}</h2>
-          <h1 style={{ fontSize: '34px', fontWeight: 700, lineHeight: 1.05, margin: '2px 0', letterSpacing: '-0.03em', color: '#0F0F13' }}>{slide.highlight}</h1>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'relative', zIndex: 2 }}>
-          <div style={{ background: '#0F0F13', color: '#F4EFE5', borderRadius: '6px', padding: '9px 14px', fontSize: '10px', fontWeight: 800, letterSpacing: '0.12em', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-            {slide.cta} <ArrowRight size={11} />
-          </div>
-          <span style={{ fontSize: '9px', opacity: 0.6 }}>powered by <strong style={{ color: '#F4EFE5' }}>Octalab.ai</strong></span>
-        </div>
-      </div>
-    );
-  }
-
-  return <div style={base}>...</div>;
-}
-
-// ============================================================
-// ROTEADORES E COMPONENTES VISUAIS
-// ============================================================
-
-// Detecta se uma URL é vídeo pela extensão
-function isVideoUrl(url = '') {
-  return /\.(mp4|webm|mov|m4v|ogg|ogv)(\?|#|$)/i.test(url);
-}
-
-// Miniatura de mídia (imagem ou vídeo) — usada nas listas/cards
-function MediaThumb({ src, style }) {
-  if (isVideoUrl(src)) {
-    return <video src={`${src}#t=0.1`} muted playsInline preload="metadata" style={style} />;
-  }
-  return <img src={src} alt="" style={style} />;
-}
-
-// Exibe um criativo pronto (imagem ou vídeo) na proporção natural — nunca corta ou distorce
-function SlideImage({ src, portrait }) {
-  const style = portrait
-    ? { display: 'block', width: '100%', height: '100%', objectFit: 'contain', background: '#101010' }
-    : { display: 'block', width: '100%', height: 'auto', borderRadius: '14px', background: '#101010' };
-  if (isVideoUrl(src)) {
-    return <video src={src} controls playsInline preload="metadata" style={style} />;
-  }
-  return <img src={src} alt="" loading="lazy" style={style} />;
-}
-
-function renderSlide(slide, brand, portrait) {
-  if (slide.image) return <SlideImage src={slide.image} portrait={portrait} />;
-  if (brand === 'juspilot' || brand === 'juspilotTrafego') return <JusPilotRender slide={slide} />;
-  if (brand === 'octalab') return <OctalabRender slide={slide} />;
-  if (brand === 'ecosys') return <EcosysRender slide={slide} />;
-  if (brand === 'octagym') return <OctagymRender slide={slide} />;
-}
-
-function Carousel({ slides, brand, portrait }) {
-  const [index, setIndex] = useState(0);
-  const total = slides.length;
   return (
-    <div>
-      <div style={{ position: 'relative', maxWidth: portrait ? '360px' : '460px', margin: '0 auto' }}>
-        {portrait ? (
-          <div style={{ aspectRatio: '3 / 4', borderRadius: '14px', overflow: 'hidden', background: '#101010' }}>
-            {renderSlide(slides[index], brand, true)}
+    <div className="page">
+      <GlobalStyle />
+      <div className="poster">
+        <button className="back-link px-label" onClick={() => setScreen("landing")}>← entrada</button>
+        <div className="eyebrow">painel pessoal de conteúdo</div>
+        <h1 className="hero">ESTÚDIO</h1>
+        <div className="hero-sub">{dateStr}</div>
+
+        <nav className="tabs">
+          {[
+            ["hoje", "Hoje"],
+            ["kanban", "Quadro"],
+            ["calendario", "Calendário"],
+          ].map(([id, label]) => (
+            <button
+              key={id}
+              className={`tab ${tab === id ? "active" : ""}`}
+              onClick={() => setTab(id)}
+            >
+              {label}
+            </button>
+          ))}
+        </nav>
+
+        <div className="marquee" aria-hidden="true">
+          <div className="marquee-track">
+            {Array.from({ length: 2 }).map((_, i) => (
+              <span key={i} className="marquee-seg">
+                organize → produza → aprove → publique → repita →&nbsp;
+                organize → produza → aprove → publique → repita →&nbsp;
+              </span>
+            ))}
           </div>
-        ) : renderSlide(slides[index], brand)}
-        <button
-          onClick={() => setIndex((index - 1 + total) % total)}
-          style={{
-            ...glassLight,
-            position: 'absolute', left: '-18px', top: '50%', transform: 'translateY(-50%)',
-            width: '36px', height: '36px', borderRadius: '50%', cursor: 'pointer',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            boxShadow: '0 4px 16px rgba(0,0,0,0.12), inset 0 1px 1px rgba(255,255,255,0.85)'
-          }}
-        >
-          <ChevronLeft size={16} color="#0a0a0a" />
-        </button>
-        <button
-          onClick={() => setIndex((index + 1) % total)}
-          style={{
-            ...glassLight,
-            position: 'absolute', right: '-18px', top: '50%', transform: 'translateY(-50%)',
-            width: '36px', height: '36px', borderRadius: '50%', cursor: 'pointer',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            boxShadow: '0 4px 16px rgba(0,0,0,0.12), inset 0 1px 1px rgba(255,255,255,0.85)'
-          }}
-        >
-          <ChevronRight size={16} color="#0a0a0a" />
-        </button>
-      </div>
-      <div style={{ display: 'flex', justifyContent: 'center', gap: '6px', marginTop: '14px' }}>
-        {slides.map((_, i) => (
-          <button
-            key={i}
-            onClick={() => setIndex(i)}
-            style={{
-              width: i === index ? '24px' : '6px', height: '6px',
-              borderRadius: '3px',
-              background: i === index ? '#000' : 'rgba(0,0,0,0.25)',
-              border: 'none', cursor: 'pointer', transition: 'all 0.25s'
-            }}
+        </div>
+
+        {tab === "hoje" && (
+          <TodayView board={board} calendar={calendar} setOpenCard={setOpenCard} setOpenDay={setOpenDay} />
+        )}
+        {tab === "kanban" && (
+          <Kanban board={board} updateBoard={updateBoard} setOpenCard={setOpenCard} />
+        )}
+        {tab === "calendario" && (
+          <Calendar
+            calendar={calendar}
+            board={board}
+            month={month}
+            setMonth={setMonth}
+            setOpenDay={setOpenDay}
+            filter={calFilter}
+            setFilter={setCalFilter}
           />
+        )}
+
+        <footer className="footer px-label">estúdio · feito para uso diário · dados salvos automaticamente</footer>
+      </div>
+
+      {openCard && board.cards[openCard] && (
+        <CardModal
+          card={board.cards[openCard]}
+          board={board}
+          updateBoard={updateBoard}
+          updateCalendar={updateCalendar}
+          close={() => setOpenCard(null)}
+        />
+      )}
+      {openDay && (
+        <DayModal
+          dateKey={openDay}
+          calendar={calendar}
+          board={board}
+          updateCalendar={updateCalendar}
+          setOpenCard={setOpenCard}
+          close={() => setOpenDay(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+// ---------- utilidades ----------
+function dueState(card, board) {
+  if (!card.due) return null;
+  const col = board.columns.find((c) => c.cardIds.includes(card.id));
+  const isPub = col && /publicado/i.test(col.title);
+  if (isPub) return null;
+  const t = todayKey();
+  if (card.due < t) return "atrasado";
+  if (card.due === t) return "hoje";
+  return "futuro";
+}
+
+function weekRange() {
+  const now = new Date();
+  const start = new Date(now);
+  start.setDate(now.getDate() - now.getDay());
+  const days = [];
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(start);
+    d.setDate(start.getDate() + i);
+    days.push(dk(d.getFullYear(), d.getMonth(), d.getDate()));
+  }
+  return days;
+}
+
+const fmtShort = (iso) => iso.split("-").reverse().slice(0, 2).join("/");
+
+// ---------- visão HOJE ----------
+function TodayView({ board, calendar, setOpenCard, setOpenDay }) {
+  const tk = todayKey();
+  const week = weekRange();
+  const todayItems = calendar.items[tk] || [];
+
+  const overdue = [];
+  const dueToday = [];
+  const pending = [];
+  Object.values(board.cards).forEach((card) => {
+    const st = dueState(card, board);
+    if (st === "atrasado") overdue.push(card);
+    else if (st === "hoje") dueToday.push(card);
+    const open = card.checklist.filter((i) => !i.done).length;
+    if (open > 0 && st !== "atrasado" && st !== "hoje") pending.push({ card, open });
+  });
+
+  const netCount = {};
+  NETWORKS.forEach((n) => (netCount[n] = 0));
+  week.forEach((d) =>
+    (calendar.items[d] || []).forEach((it) => {
+      if (netCount[it.network] !== undefined) netCount[it.network]++;
+    })
+  );
+
+  return (
+    <div className="view">
+      <div className="px-label sec">Semana por rede</div>
+      <div className="net-grid">
+        {NETWORKS.map((n) => (
+          <div key={n} className={`net-box ${netCount[n] === 0 ? "zero" : ""}`}>
+            <div className="net-num">{netCount[n]}</div>
+            <div className="net-name">{n}</div>
+            {netCount[n] === 0 && <div className="net-warn">vazio</div>}
+          </div>
         ))}
       </div>
-      <div style={{ textAlign: 'center', fontSize: '11px', color: 'rgba(0,0,0,0.5)', marginTop: '6px' }}>
-        Lâmina {index + 1} de {total}
-      </div>
-    </div>
-  );
-}
 
-function KindBadge({ kind }) {
-  const map = {
-    noticia: { label: 'NOTÍCIA · DESCOBERTA', icon: <Newspaper size={11} />, rgb: '10,10,10' },
-    comercial: { label: 'COMERCIAL · ANÚNCIO', icon: <Megaphone size={11} />, rgb: '22,163,74' },
-    carrossel: { label: 'CARROSSEL', icon: <Layers size={11} />, rgb: '124,58,237' },
-    campanha: { label: 'CAMPANHA · TRÁFEGO', icon: <Target size={11} />, rgb: '217,119,87' },
-    video: { label: 'VÍDEO', icon: <Video size={11} />, rgb: '37,99,235' },
-    estatico: { label: 'POST ESTÁTICO', icon: <ImageIcon size={11} />, rgb: '15,118,110' }
-  };
-  const v = map[kind] || { label: String(kind || '').toUpperCase(), icon: <TagIcon size={11} />, rgb: '100,116,139' };
-  return (
-    <div style={{
-      display: 'inline-flex', alignItems: 'center', gap: '5px',
-      background: `rgba(${v.rgb},0.07)`, color: `rgb(${v.rgb})`,
-      border: `1px solid rgba(${v.rgb},0.18)`,
-      padding: '4px 9px', borderRadius: '999px',
-      fontSize: '9.5px', fontWeight: 700, letterSpacing: '0.07em'
-    }}>
-      {v.icon} {v.label}
-    </div>
-  );
-}
-
-// Chips das tags livres de um post
-function TagChips({ tags, dark }) {
-  if (!tags || !tags.length) return null;
-  return (
-    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '8px' }}>
-      {tags.map((t, i) => (
-        <span key={i} style={{
-          display: 'inline-flex', alignItems: 'center', gap: '4px',
-          background: dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
-          color: dark ? 'rgba(255,255,255,0.8)' : 'rgba(0,0,0,0.6)',
-          border: '1px solid ' + (dark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.08)'),
-          borderRadius: '999px', padding: '3px 9px', fontSize: '10.5px', fontWeight: 600
-        }}>
-          <TagIcon size={9} /> {t}
-        </span>
-      ))}
-    </div>
-  );
-}
-
-// Renderiza o criativo do post. Só mostra imagem real quando o admin subiu
-// um criativo do computador (customSlides). Sem upload → placeholder "criativo a subir".
-function PostCreative({ post, brand, customSlides, portrait }) {
-  const custom = customSlides && customSlides.length ? customSlides.map(u => ({ image: u })) : null;
-
-  if (custom) {
-    if (custom.length > 1) {  // vários uploads = carrossel
-      return portrait
-        ? <div style={{ width: '100%', maxWidth: '400px' }}><Carousel slides={custom} brand={brand} portrait /></div>
-        : <Carousel slides={custom} brand={brand} />;
-    }
-    return portrait    // 1 upload = capa única
-      ? <div style={{ width: '100%', maxWidth: '320px', aspectRatio: '3 / 4', borderRadius: '14px', overflow: 'hidden', background: '#101010' }}>{renderSlide(custom[0], brand, true)}</div>
-      : <div style={{ maxWidth: '460px', margin: '0 auto' }}>{renderSlide(custom[0], brand)}</div>;
-  }
-
-  // Sem criativo anexado: pré-visualização padrão com headline/subtítulo
-  const box = portrait
-    ? { width: '100%', maxWidth: '320px', aspectRatio: '3 / 4' }
-    : { width: '100%', maxWidth: '460px', margin: '0 auto', aspectRatio: '4 / 5' };
-  return (
-    <div style={{ ...box, borderRadius: '14px', background: 'linear-gradient(150deg, #1a1a1a, #0a0a0a)', color: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: '24px', gap: '10px' }}>
-      <ImageIcon size={26} color="rgba(255,255,255,0.35)" />
-      <div style={{ fontSize: portrait ? '17px' : '20px', fontWeight: 600, letterSpacing: '-0.02em', lineHeight: 1.25 }}>{post.headline || post.theme}</div>
-      {post.subtitle && <div style={{ fontSize: '13px', opacity: 0.6, lineHeight: 1.4 }}>{post.subtitle}</div>}
-      <div style={{ marginTop: '6px', fontSize: '10.5px', opacity: 0.4, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Criativo a subir</div>
-    </div>
-  );
-}
-
-function PostCard({ post, brand, brandData, review, onReview, customSlides }) {
-  const [showCaption, setShowCaption] = useState(false);
-  const [copied, setCopied] = useState(false);
-  const [showReproveBox, setShowReproveBox] = useState(false);
-  const [draft, setDraft] = useState('');
-  const status = review?.status || 'pending'; // 'pending' | 'approved' | 'reproved'
-  const suggestion = review?.suggestion || '';
-  const copy = () => {
-    navigator.clipboard.writeText(post.caption);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
-  };
-
-  return (
-    <div style={{
-      background: '#FFFFFF',
-      borderRadius: '18px',
-      padding: '28px 26px',
-      boxShadow: '0 1px 3px rgba(0,0,0,0.04), 0 6px 20px rgba(0,0,0,0.05)',
-      border: '1px solid rgba(0,0,0,0.06)'
-    }}>
-      <div style={{ marginBottom: '16px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px', flexWrap: 'wrap' }}>
-          <div style={{
-            display: 'inline-flex', alignItems: 'center', gap: '5px',
-            background: 'rgba(0,0,0,0.05)', color: 'rgba(0,0,0,0.6)',
-            border: '1px solid rgba(0,0,0,0.08)',
-            padding: '4px 10px', borderRadius: '999px',
-            fontSize: '10.5px', fontWeight: 600, letterSpacing: '0.03em'
-          }}>
-            <Calendar size={10} /> {post.date}
-          </div>
-          <KindBadge kind={post.kind} />
-        </div>
-        <h3 style={{ fontSize: '17px', fontWeight: 600, margin: '0 0 4px 0', color: '#0a0a0a', letterSpacing: '-0.01em', lineHeight: 1.3 }}>
-          {post.theme}
-        </h3>
-        {post.subtitle && (
-          <div style={{ fontSize: '13px', color: 'rgba(0,0,0,0.6)', margin: '0 0 4px 0', lineHeight: 1.4 }}>{post.subtitle}</div>
-        )}
-        <div style={{ fontSize: '11.5px', color: 'rgba(0,0,0,0.5)' }}>
-          {post.format}{post.sourceLabel ? ` · ${post.sourceLabel}` : ''}
-        </div>
-        <TagChips tags={post.tags} />
-      </div>
-
-      <PostCreative post={post} brand={brand} customSlides={customSlides} />
-
-      <div style={{ marginTop: '22px', borderTop: '1px solid rgba(0,0,0,0.06)', paddingTop: '18px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px', gap: '8px', flexWrap: 'wrap' }}>
-          <div style={{ fontSize: '10.5px', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(0,0,0,0.5)' }}>
-            Legenda
-          </div>
-          <div style={{ display: 'flex', gap: '6px' }}>
-            <button
-              onClick={() => setShowCaption(!showCaption)}
-              style={{
-                ...glassLight,
-                borderRadius: '999px', padding: '6px 12px',
-                fontSize: '11px', fontWeight: 600, cursor: 'pointer', color: 'rgba(0,0,0,0.7)'
-              }}
-            >
-              {showCaption ? 'Esconder' : 'Ver completa'}
+      {overdue.length > 0 && (
+        <>
+          <div className="px-label sec danger">Atrasados</div>
+          {overdue.map((c) => (
+            <button key={c.id} className="row danger" onClick={() => setOpenCard(c.id)}>
+              <ProdTag k={c.product} />
+              <span className="row-title">{c.title}</span>
+              <span className="row-end">● {fmtShort(c.due)}</span>
             </button>
-            <button
-              onClick={copy}
-              style={{
-                ...(copied ? glassTint('16,185,129') : glassLight),
-                color: copied ? '#047857' : 'rgba(0,0,0,0.7)',
-                borderRadius: '999px', padding: '6px 12px',
-                fontSize: '11px', fontWeight: 600, cursor: 'pointer',
-                display: 'flex', alignItems: 'center', gap: '5px'
-              }}
-            >
-              {copied ? <><Check size={11} /> Copiado</> : <><Copy size={11} /> Copiar</>}
-            </button>
-          </div>
-        </div>
-        <div style={{
-          fontSize: '13px', lineHeight: 1.6, color: 'rgba(0,0,0,0.78)',
-          whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', fontFamily: 'system-ui, sans-serif',
-          maxHeight: showCaption ? 'none' : '90px',
-          overflow: 'hidden', position: 'relative'
-        }}>
-          {post.caption}
-          {!showCaption && (
-            <div style={{
-              position: 'absolute', bottom: 0, left: 0, right: 0, height: '50px',
-              background: 'linear-gradient(transparent, #FFFFFF)'
-            }}/>
-          )}
-        </div>
-        {post.sourceUrl && (
-          <a
-            href={post.sourceUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{
-              display: 'inline-flex', alignItems: 'center', gap: '5px',
-              marginTop: '12px', fontSize: '11px',
-              color: '#2563eb', textDecoration: 'none'
-            }}
-          >
-            <Newspaper size={11} /> Ver notícia original →
-          </a>
-        )}
-      </div>
-
-      {/* APROVAR / REPROVAR */}
-      <div style={{ marginTop: '18px', borderTop: '1px solid rgba(0,0,0,0.06)', paddingTop: '18px' }}>
-        {status === 'approved' ? (
-          <div style={{
-            ...glassTint('22,163,74'),
-            display: 'flex', alignItems: 'center', gap: '8px',
-            color: '#047857',
-            borderRadius: '12px', padding: '12px 14px',
-            fontSize: '13px', fontWeight: 600
-          }}>
-            <Check size={15} /> Conteúdo aprovado
-            <button
-              onClick={() => onReview({ status: 'pending', suggestion: '' })}
-              style={{
-                marginLeft: 'auto', background: 'none', border: 'none',
-                color: '#047857', fontSize: '11px', cursor: 'pointer',
-                textDecoration: 'underline', opacity: 0.7
-              }}
-            >desfazer</button>
-          </div>
-        ) : status === 'reproved' ? (
-          <div style={{
-            ...glassTint('220,38,38'), color: '#b91c1c',
-            borderRadius: '12px', padding: '12px 14px'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', fontWeight: 600, marginBottom: '8px' }}>
-              <X size={15} /> Conteúdo reprovado
-              <button
-                onClick={() => onReview({ status: 'pending', suggestion: '' })}
-                style={{
-                  marginLeft: 'auto', background: 'none', border: 'none',
-                  color: '#b91c1c', fontSize: '11px', cursor: 'pointer',
-                  textDecoration: 'underline', opacity: 0.7
-                }}
-              >desfazer</button>
-            </div>
-            <div style={{ fontSize: '12px', color: 'rgba(0,0,0,0.6)', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>
-              <strong style={{ color: '#b91c1c' }}>Sugestão:</strong> {suggestion}
-            </div>
-          </div>
-        ) : showReproveBox ? (
-          <div>
-            <label style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(0,0,0,0.6)', display: 'block', marginBottom: '8px' }}>
-              Sugestão de melhoria
-            </label>
-            <textarea
-              value={draft}
-              onChange={e => setDraft(e.target.value)}
-              placeholder="Descreva o que precisa melhorar neste conteúdo..."
-              rows={3}
-              autoFocus
-              style={{
-                width: '100%', boxSizing: 'border-box',
-                border: '1px solid rgba(0,0,0,0.15)', borderRadius: '8px',
-                padding: '10px 12px', fontSize: '13px', lineHeight: 1.5,
-                fontFamily: 'inherit', resize: 'vertical', outline: 'none'
-              }}
-            />
-            <div style={{ display: 'flex', gap: '8px', marginTop: '10px', justifyContent: 'flex-end' }}>
-              <button
-                onClick={() => { setShowReproveBox(false); setDraft(''); }}
-                style={{
-                  ...glassLight,
-                  borderRadius: '999px', padding: '9px 18px',
-                  fontSize: '12.5px', fontWeight: 600, cursor: 'pointer', color: 'rgba(0,0,0,0.7)'
-                }}
-              >Cancelar</button>
-              <button
-                onClick={() => { onReview({ status: 'reproved', suggestion: draft.trim() }); setShowReproveBox(false); setDraft(''); }}
-                disabled={draft.trim() === ''}
-                style={{
-                  ...glassTint('220,38,38'),
-                  opacity: draft.trim() === '' ? 0.4 : 1,
-                  color: '#dc2626',
-                  borderRadius: '999px', padding: '9px 18px',
-                  fontSize: '12.5px', fontWeight: 600,
-                  cursor: draft.trim() === '' ? 'not-allowed' : 'pointer'
-                }}
-              >Enviar sugestão</button>
-            </div>
-          </div>
-        ) : (
-          <div style={{ display: 'flex', gap: '10px' }}>
-            <button
-              onClick={() => onReview({ status: 'approved', suggestion: '' })}
-              style={{
-                ...glassTint('22,163,74'), color: '#15803d',
-                flex: 1, borderRadius: '12px', padding: '12px',
-                fontSize: '13.5px', fontWeight: 600, cursor: 'pointer',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '7px'
-              }}
-            >
-              <Check size={15} /> Aprovar
-            </button>
-            <button
-              onClick={() => setShowReproveBox(true)}
-              style={{
-                ...glassTint('220,38,38'), color: '#dc2626',
-                flex: 1, borderRadius: '12px', padding: '12px',
-                fontSize: '13.5px', fontWeight: 600, cursor: 'pointer',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '7px'
-              }}
-            >
-              <X size={15} /> Reprovar
-            </button>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// Card horizontal: criativo à esquerda, textos + aprovar/reprovar à direita. Usado no detalhe do dia.
-function PostCardWide({ post, brand, brandData, review, onReview, customSlides, posting }) {
-  const [showCaption, setShowCaption] = useState(false);
-  const [copied, setCopied] = useState(false);
-  const [showReproveBox, setShowReproveBox] = useState(false);
-  const [draft, setDraft] = useState('');
-  const status = review?.status || 'pending';
-  const suggestion = review?.suggestion || '';
-  const copy = () => {
-    navigator.clipboard.writeText(post.caption);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
-  };
-
-  return (
-    <div style={{
-      background: '#FFFFFF', borderRadius: '18px', overflow: 'hidden',
-      boxShadow: '0 1px 3px rgba(0,0,0,0.04), 0 6px 20px rgba(0,0,0,0.05)',
-      border: '1px solid rgba(0,0,0,0.06)',
-      display: 'flex', flexWrap: 'wrap', alignItems: 'stretch'
-    }}>
-      {/* ESQUERDA: criativo */}
-      <div style={{
-        flex: '1 1 380px', minWidth: '300px',
-        background: '#f3f3f1', borderRight: '1px solid rgba(0,0,0,0.06)',
-        padding: '30px 34px', display: 'flex', alignItems: 'center', justifyContent: 'center'
-      }}>
-        <PostCreative post={post} brand={brand} customSlides={customSlides} portrait />
-      </div>
-
-      {/* DIREITA: textos + ações */}
-      <div style={{ flex: '1 1 360px', minWidth: '300px', padding: '26px', display: 'flex', flexDirection: 'column' }}>
-        {/* Cabeçalho */}
-        <div style={{ marginBottom: '14px' }}>
-          {brandData && (
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: 600, color: 'rgba(0,0,0,0.6)', marginBottom: '8px' }}>
-              <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: brandData.accent }} /> {brandData.name}
-            </div>
-          )}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px', flexWrap: 'wrap' }}>
-            <div style={{
-              display: 'inline-flex', alignItems: 'center', gap: '5px',
-              background: 'rgba(0,0,0,0.05)', color: 'rgba(0,0,0,0.6)', border: '1px solid rgba(0,0,0,0.08)',
-              padding: '4px 10px', borderRadius: '999px', fontSize: '10.5px', fontWeight: 600, letterSpacing: '0.03em'
-            }}>
-              <Calendar size={10} /> {post.date}
-            </div>
-            <KindBadge kind={post.kind} />
-            {posting && <PostingBadge status={posting} />}
-          </div>
-          <h3 style={{ fontSize: '18px', fontWeight: 600, margin: '0 0 4px 0', color: '#0a0a0a', letterSpacing: '-0.01em', lineHeight: 1.3 }}>
-            {post.theme}
-          </h3>
-          {post.subtitle && (
-            <div style={{ fontSize: '13px', color: 'rgba(0,0,0,0.6)', margin: '0 0 4px 0', lineHeight: 1.4 }}>{post.subtitle}</div>
-          )}
-          <div style={{ fontSize: '11.5px', color: 'rgba(0,0,0,0.5)' }}>
-            {post.format}{post.sourceLabel ? ` · ${post.sourceLabel}` : ''}
-          </div>
-          <TagChips tags={post.tags} />
-        </div>
-
-        {/* Legenda */}
-        <div style={{ borderTop: '1px solid rgba(0,0,0,0.06)', paddingTop: '16px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px', gap: '8px', flexWrap: 'wrap' }}>
-            <div style={{ fontSize: '10.5px', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(0,0,0,0.5)' }}>
-              Legenda
-            </div>
-            <div style={{ display: 'flex', gap: '6px' }}>
-              <button onClick={() => setShowCaption(!showCaption)} style={{ ...glassLight, borderRadius: '999px', padding: '6px 12px', fontSize: '11px', fontWeight: 600, cursor: 'pointer', color: 'rgba(0,0,0,0.7)' }}>
-                {showCaption ? 'Esconder' : 'Ver completa'}
-              </button>
-              <button onClick={copy} style={{
-                ...(copied ? glassTint('16,185,129') : glassLight),
-                color: copied ? '#047857' : 'rgba(0,0,0,0.7)',
-                borderRadius: '999px', padding: '6px 12px', fontSize: '11px', fontWeight: 600, cursor: 'pointer',
-                display: 'flex', alignItems: 'center', gap: '5px'
-              }}>
-                {copied ? <><Check size={11} /> Copiado</> : <><Copy size={11} /> Copiar</>}
-              </button>
-            </div>
-          </div>
-          <div style={{
-            fontSize: '13px', lineHeight: 1.6, color: 'rgba(0,0,0,0.78)',
-            whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', fontFamily: 'system-ui, sans-serif',
-            maxHeight: showCaption ? '320px' : '100px', overflowY: showCaption ? 'auto' : 'hidden', position: 'relative'
-          }}>
-            {post.caption}
-            {!showCaption && (
-              <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '50px', background: 'linear-gradient(transparent, #FFFFFF)' }} />
-            )}
-          </div>
-          {post.sourceUrl && (
-            <a href={post.sourceUrl} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', marginTop: '12px', fontSize: '11px', color: '#2563eb', textDecoration: 'none' }}>
-              <Newspaper size={11} /> Ver notícia original →
-            </a>
-          )}
-        </div>
-
-        {/* APROVAR / REPROVAR — abaixo dos textos */}
-        <div style={{ marginTop: 'auto', paddingTop: '18px' }}>
-          {status === 'approved' ? (
-            <div style={{ ...glassTint('22,163,74'), display: 'flex', alignItems: 'center', gap: '8px', color: '#047857', borderRadius: '12px', padding: '12px 14px', fontSize: '13px', fontWeight: 600 }}>
-              <Check size={15} /> Conteúdo aprovado
-              <button onClick={() => onReview({ status: 'pending', suggestion: '' })} style={{ marginLeft: 'auto', background: 'none', border: 'none', color: '#047857', fontSize: '11px', cursor: 'pointer', textDecoration: 'underline', opacity: 0.7 }}>desfazer</button>
-            </div>
-          ) : status === 'reproved' ? (
-            <div style={{ ...glassTint('220,38,38'), color: '#b91c1c', borderRadius: '12px', padding: '12px 14px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', fontWeight: 600, marginBottom: '8px' }}>
-                <X size={15} /> Conteúdo reprovado
-                <button onClick={() => onReview({ status: 'pending', suggestion: '' })} style={{ marginLeft: 'auto', background: 'none', border: 'none', color: '#b91c1c', fontSize: '11px', cursor: 'pointer', textDecoration: 'underline', opacity: 0.7 }}>desfazer</button>
-              </div>
-              <div style={{ fontSize: '12px', color: 'rgba(0,0,0,0.6)', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>
-                <strong style={{ color: '#b91c1c' }}>Sugestão:</strong> {suggestion}
-              </div>
-            </div>
-          ) : showReproveBox ? (
-            <div>
-              <label style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(0,0,0,0.6)', display: 'block', marginBottom: '8px' }}>Sugestão de melhoria</label>
-              <textarea
-                value={draft} onChange={e => setDraft(e.target.value)}
-                placeholder="Descreva o que precisa melhorar neste conteúdo..." rows={3} autoFocus
-                style={{ width: '100%', boxSizing: 'border-box', border: '1px solid rgba(0,0,0,0.15)', borderRadius: '8px', padding: '10px 12px', fontSize: '13px', lineHeight: 1.5, fontFamily: 'inherit', resize: 'vertical', outline: 'none' }}
-              />
-              <div style={{ display: 'flex', gap: '8px', marginTop: '10px', justifyContent: 'flex-end' }}>
-                <button onClick={() => { setShowReproveBox(false); setDraft(''); }} style={{ ...glassLight, borderRadius: '999px', padding: '9px 18px', fontSize: '12.5px', fontWeight: 600, cursor: 'pointer', color: 'rgba(0,0,0,0.7)' }}>Cancelar</button>
-                <button onClick={() => { onReview({ status: 'reproved', suggestion: draft.trim() }); setShowReproveBox(false); setDraft(''); }} disabled={draft.trim() === ''} style={{ ...glassTint('220,38,38'), opacity: draft.trim() === '' ? 0.4 : 1, color: '#dc2626', borderRadius: '999px', padding: '9px 18px', fontSize: '12.5px', fontWeight: 600, cursor: draft.trim() === '' ? 'not-allowed' : 'pointer' }}>Enviar sugestão</button>
-              </div>
-            </div>
-          ) : (
-            <div style={{ display: 'flex', gap: '10px' }}>
-              <button onClick={() => onReview({ status: 'approved', suggestion: '' })} style={{ ...glassTint('22,163,74'), color: '#15803d', flex: 1, borderRadius: '12px', padding: '12px', fontSize: '13.5px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '7px' }}>
-                <Check size={15} /> Aprovar
-              </button>
-              <button onClick={() => setShowReproveBox(true)} style={{ ...glassTint('220,38,38'), color: '#dc2626', flex: 1, borderRadius: '12px', padding: '12px', fontSize: '13.5px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '7px' }}>
-                <X size={15} /> Reprovar
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ============================================================
-// CALENDÁRIO EDITORIAL — junho/2026 (combinado, todas as marcas)
-// ============================================================
-
-const WEEKDAYS = ['dom.', 'seg.', 'ter.', 'qua.', 'qui.', 'sex.', 'sáb.'];
-const STATUS_COLOR = { approved: '#16a34a', reproved: '#dc2626', pending: '#9ca3af' };
-const KIND_LABEL = { noticia: 'Notícia', comercial: 'Comercial', carrossel: 'Carrossel', campanha: 'Campanha', video: 'Vídeo', estatico: 'Estático' };
-// Tipos disponíveis ao criar um post no admin
-const POST_TYPES = [
-  { key: 'estatico', label: 'Estático', icon: <ImageIcon size={15} /> },
-  { key: 'carrossel', label: 'Carrossel', icon: <Layers size={15} /> },
-  { key: 'video', label: 'Vídeo', icon: <Video size={15} /> }
-];
-// Tags sugeridas (o admin também pode digitar as próprias)
-const TAG_SUGGESTIONS = ['Reels', 'Feed', 'Stories', 'Urgente', 'Institucional', 'Promoção', 'Campanha'];
-
-// Converte um post customizado (do Supabase) para o formato usado pelos cards
-function customToPost(p) {
-  return {
-    day: p.day || 'Avulso',
-    date: 'Criado no admin',
-    kind: p.kind || 'estatico',
-    theme: p.headline || '(sem título)',
-    headline: p.headline || '',
-    subtitle: p.subtitle || '',
-    format: KIND_LABEL[p.kind] || 'Post',
-    caption: p.caption || '',
-    tags: Array.isArray(p.tags) ? p.tags : [],
-    custom: true
-  };
-}
-
-// Aplica a edição do admin (override) sobre um post fixo
-function applyOverride(post, ov) {
-  return {
-    ...post,
-    theme: ov.headline || post.theme,
-    headline: ov.headline || post.theme,
-    subtitle: ov.subtitle ?? post.subtitle ?? '',
-    caption: ov.caption ?? post.caption,
-    kind: ov.kind || post.kind,
-    tags: Array.isArray(ov.tags) ? ov.tags : (post.tags || [])
-  };
-}
-
-// Posts de uma marca: fixos (do código, com edições aplicadas) + criados no admin
-function postsOf(brandKey, customList = []) {
-  const overrides = {};
-  const customs = [];
-  customList.forEach(p => {
-    if (p.brand !== brandKey) return;
-    if (String(p.id).startsWith('custom-')) customs.push(p);
-    else overrides[p.id] = p; // edição de um post fixo
-  });
-  const builtin = (clients[brandKey]?.posts || []).map((post, i) => {
-    const id = `${brandKey}-${i}`;
-    const ov = overrides[id];
-    return { id, post: ov ? applyOverride(post, ov) : post, custom: false, edited: !!ov };
-  });
-  const custom = customs.map(p => ({ id: p.id, post: customToPost(p), custom: true, edited: false }));
-  return [...builtin, ...custom];
-}
-
-function iso(y, m, d) {
-  return `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-}
-
-// Calendário de junho/2026 — quadrados de mesmo tamanho, tags clipadas dentro do dia.
-// Mostra apenas o que está agendado em `schedule`. onDayClick(iso) ao clicar num dia.
-function MonthCalendar({ schedule, reviews, calBrand, setCalBrand, onDayClick, customPosts = [] }) {
-  const activeBrands = Object.entries(clients).filter(([, c]) => !c.comingSoon);
-
-  // Agrupa por data (respeitando o filtro de marca) — inclui posts criados no admin
-  const byDate = {};
-  activeBrands.forEach(([brandKey, c]) => {
-    if (calBrand !== 'all' && calBrand !== brandKey) return;
-    postsOf(brandKey, customPosts).forEach(({ id, post }) => {
-      const date = schedule[id];
-      if (!date) return;
-      (byDate[date] ||= []).push({ id, c, post, status: reviews[id]?.status || 'pending' });
-    });
-  });
-
-  // Mês exibido (navegável). Começa no mês atual.
-  const now = new Date();
-  const [ym, setYm] = useState({ y: now.getFullYear(), m: now.getMonth() }); // m: 0-11
-  const prevMonth = () => setYm(v => { const d = new Date(v.y, v.m - 1, 1); return { y: d.getFullYear(), m: d.getMonth() }; });
-  const nextMonth = () => setYm(v => { const d = new Date(v.y, v.m + 1, 1); return { y: d.getFullYear(), m: d.getMonth() }; });
-  const monthTitle = `${MONTHS[ym.m].charAt(0).toUpperCase() + MONTHS[ym.m].slice(1)} de ${ym.y}`;
-
-  // 6 semanas × 7 dias do mês exibido, começando no domingo da 1ª semana
-  const startOffset = new Date(ym.y, ym.m, 1).getDay();
-  const cells = [];
-  for (let i = 0; i < 42; i++) {
-    const d = new Date(ym.y, ym.m, 1 - startOffset + i);
-    cells.push({ iso: iso(d.getFullYear(), d.getMonth(), d.getDate()), day: d.getDate(), inMonth: d.getMonth() === ym.m, dow: d.getDay() });
-  }
-  const todayIso = iso(now.getFullYear(), now.getMonth(), now.getDate());
-  const navBtn = { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', borderRadius: '10px', border: '1px solid rgba(0,0,0,0.1)', background: '#fff', color: '#0a0a0a', cursor: 'pointer' };
-
-  const Tag = ({ item }) => (
-    <div title={item.post.theme} style={{
-      display: 'flex', alignItems: 'center', gap: '4px',
-      background: `${item.c.accent}14`, border: `1px solid ${item.c.accent}33`,
-      borderRadius: '5px', padding: '2px 5px', marginBottom: '3px',
-      maxWidth: '100%', overflow: 'hidden'
-    }}>
-      <span style={{ flexShrink: 0, width: '6px', height: '6px', borderRadius: '50%', background: item.c.accent }} />
-      <span style={{ flex: 1, minWidth: 0, fontSize: '9.5px', fontWeight: 600, color: '#0a0a0a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-        {KIND_LABEL[item.post.kind] || item.post.kind} · {item.c.name}
-      </span>
-      <span style={{ flexShrink: 0, width: '6px', height: '6px', borderRadius: '50%', background: STATUS_COLOR[item.status] }} />
-    </div>
-  );
-
-  return (
-    <div>
-      {/* Navegação de mês + legenda de status */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px', marginBottom: '16px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <button onClick={prevMonth} aria-label="Mês anterior" style={navBtn}><ChevronLeft size={16} /></button>
-          <span style={{ fontSize: '15px', fontWeight: 700, minWidth: '150px', textAlign: 'center', textTransform: 'capitalize' }}>{monthTitle}</span>
-          <button onClick={nextMonth} aria-label="Próximo mês" style={navBtn}><ChevronRight size={16} /></button>
-        </div>
-        <div style={{ display: 'flex', gap: '12px', fontSize: '11px', color: 'rgba(0,0,0,0.55)', fontWeight: 600 }}>
-          {[['approved', 'Aprovado'], ['reproved', 'Reprovado'], ['pending', 'Pendente']].map(([k, label]) => (
-            <span key={k} style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
-              <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: STATUS_COLOR[k] }} /> {label}
-            </span>
           ))}
-        </div>
-      </div>
-
-      {/* Grade do mês */}
-      <div style={{ overflowX: 'auto' }}>
-        <div style={{ minWidth: '720px' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '8px', marginBottom: '8px' }}>
-            {WEEKDAYS.map(w => (
-              <div key={w} style={{ textAlign: 'center', fontSize: '11px', fontWeight: 600, color: 'rgba(0,0,0,0.45)', textTransform: 'capitalize' }}>{w}</div>
-            ))}
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gridAutoRows: '110px', gap: '8px' }}>
-            {cells.map(cell => {
-              const items = byDate[cell.iso] || [];
-              const isToday = cell.iso === todayIso;
-              const visible = items.slice(0, 2);
-              const extra = items.length - visible.length;
-              return (
-                <div
-                  key={cell.iso}
-                  onClick={() => cell.inMonth && onDayClick(cell.iso)}
-                  style={{
-                    height: '110px', boxSizing: 'border-box', borderRadius: '12px', padding: '7px',
-                    background: cell.inMonth ? '#ffffff' : '#f2f2f0',
-                    border: isToday ? '2px solid #dc2626' : '1px solid rgba(0,0,0,0.07)',
-                    opacity: cell.inMonth ? 1 : 0.45,
-                    cursor: cell.inMonth ? 'pointer' : 'default',
-                    display: 'flex', flexDirection: 'column', overflow: 'hidden',
-                    transition: 'box-shadow 0.15s ease'
-                  }}
-                  onMouseEnter={e => { if (cell.inMonth) e.currentTarget.style.boxShadow = '0 4px 14px rgba(0,0,0,0.10)'; }}
-                  onMouseLeave={e => { e.currentTarget.style.boxShadow = 'none'; }}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '4px', flexShrink: 0 }}>
-                    <span style={{
-                      fontSize: '12.5px', fontWeight: 700,
-                      color: isToday ? '#dc2626' : (cell.inMonth ? '#0a0a0a' : 'rgba(0,0,0,0.4)')
-                    }}>{cell.day}</span>
-                  </div>
-                  <div style={{ flex: 1, overflow: 'hidden' }}>
-                    {visible.map(it => <Tag key={it.id} item={it} />)}
-                    {extra > 0 && (
-                      <div style={{ fontSize: '9.5px', fontWeight: 700, color: 'rgba(0,0,0,0.5)', paddingLeft: '3px' }}>+{extra} mais</div>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-const MONTHS = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
-// 'YYYY-MM' -> "Junho" (com ano só se for diferente do atual)
-function monthLabel(ym) {
-  const [y, m] = ym.split('-').map(Number);
-  const name = MONTHS[m - 1];
-  const label = name.charAt(0).toUpperCase() + name.slice(1);
-  return y === new Date().getFullYear() ? label : `${label} ${y}`;
-}
-const WEEKDAYS_LONG = ['domingo', 'segunda-feira', 'terça-feira', 'quarta-feira', 'quinta-feira', 'sexta-feira', 'sábado'];
-function dayLabel(isoStr) {
-  if (isoStr === 'unscheduled') return 'Não agendados';
-  const [y, m, d] = isoStr.split('-').map(Number);
-  const dt = new Date(y, m - 1, d);
-  return `${WEEKDAYS_LONG[dt.getDay()]}, ${d} de ${MONTHS[m - 1]}`;
-}
-
-// Painel de detalhe de um dia: lista os conteúdos agendados nele e reutiliza PostCard (ver + aprovar)
-function DayDetail({ day, schedule, reviews, setReview, onClose, creatives = {}, customPosts = [], getPosting }) {
-  const items = [];
-  Object.entries(clients).filter(([, c]) => !c.comingSoon).forEach(([brandKey, c]) => {
-    postsOf(brandKey, customPosts).forEach(({ id, post }) => {
-      if (schedule[id] === day) items.push({ id, brandKey, c, post });
-    });
-  });
-
-  return (
-    <div
-      onClick={onClose}
-      style={{
-        position: 'fixed', inset: 0, zIndex: 100,
-        background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)',
-        display: 'flex', justifyContent: 'center', alignItems: 'flex-start',
-        padding: '24px', overflowY: 'auto'
-      }}
-    >
-      <div
-        onClick={e => e.stopPropagation()}
-        style={{
-          background: '#f5f5f3', borderRadius: '20px', width: '100%', maxWidth: '980px',
-          margin: 'auto', overflow: 'hidden', boxShadow: '0 20px 60px rgba(0,0,0,0.3)'
-        }}
-      >
-        {/* Cabeçalho do dia */}
-        <div style={{ background: '#0a0a0a', color: '#fafafa', padding: '20px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div>
-            <div style={{ fontSize: '11px', opacity: 0.55, letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: '3px' }}>
-              Conteúdos do dia
-            </div>
-            <h2 style={{ fontSize: '20px', fontWeight: 600, margin: 0, letterSpacing: '-0.02em', textTransform: 'capitalize' }}>
-              {dayLabel(day)}
-            </h2>
-          </div>
-          <button onClick={onClose} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', cursor: 'pointer', color: '#fafafa', borderRadius: '999px', width: '32px', height: '32px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
-            <X size={16} />
-          </button>
-        </div>
-
-        <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
-          {items.length === 0 ? (
-            <div style={{ textAlign: 'center', color: 'rgba(0,0,0,0.5)', fontSize: '14px', padding: '24px' }}>
-              Nenhum conteúdo neste dia.
-            </div>
-          ) : items.map(({ id, brandKey, c, post }) => (
-            <PostCardWide
-              key={id}
-              post={post}
-              brand={brandKey}
-              brandData={c}
-              review={reviews[id]}
-              onReview={data => setReview(id, data)}
-              customSlides={creatives[id]}
-              posting={getPosting ? getPosting(id) : undefined}
-            />
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function ddmm(isoStr) {
-  const [, m, d] = isoStr.split('-').map(Number);
-  return `${String(d).padStart(2, '0')}/${String(m).padStart(2, '0')}`;
-}
-
-// Modal do admin: clicar num dia abre a lista de conteúdos disponíveis para colocar/tirar do dia
-function DayAssign({ day, schedule, reviews, setSchedulePost, onClose, customPosts = [] }) {
-  const activeBrands = Object.entries(clients).filter(([, c]) => !c.comingSoon);
-  const countHere = Object.entries(schedule).filter(([, d]) => d === day).length;
-
-  return (
-    <div
-      onClick={onClose}
-      style={{
-        position: 'fixed', inset: 0, zIndex: 100,
-        background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)',
-        display: 'flex', justifyContent: 'center', alignItems: 'flex-start', padding: '24px', overflowY: 'auto'
-      }}
-    >
-      <div onClick={e => e.stopPropagation()} style={{ background: '#f5f5f3', borderRadius: '20px', width: '100%', maxWidth: '560px', margin: 'auto', overflow: 'hidden', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
-        <div style={{ background: '#0a0a0a', color: '#fafafa', padding: '20px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div>
-            <div style={{ fontSize: '11px', opacity: 0.55, letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: '3px' }}>
-              Montar dia · {countHere} selecionado{countHere === 1 ? '' : 's'}
-            </div>
-            <h2 style={{ fontSize: '20px', fontWeight: 600, margin: 0, letterSpacing: '-0.02em', textTransform: 'capitalize' }}>{dayLabel(day)}</h2>
-          </div>
-          <button onClick={onClose} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', cursor: 'pointer', color: '#fafafa', borderRadius: '999px', width: '32px', height: '32px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
-            <X size={16} />
-          </button>
-        </div>
-
-        <div style={{ padding: '20px' }}>
-          <p style={{ fontSize: '12.5px', color: 'rgba(0,0,0,0.55)', margin: '0 0 16px 0', lineHeight: 1.5 }}>
-            Selecione os conteúdos que devem aparecer neste dia. Você pode escolher mais de um.
-          </p>
-          {activeBrands.map(([brandKey, c]) => (
-            <div key={brandKey} style={{ marginBottom: '18px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '7px', marginBottom: '8px' }}>
-                <span style={{ width: '9px', height: '9px', borderRadius: '50%', background: c.accent }} />
-                <span style={{ fontSize: '13px', fontWeight: 700 }}>{c.name}</span>
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                {postsOf(brandKey, customPosts).map(({ id, post }) => {
-                  const assignedDate = schedule[id];
-                  const here = assignedDate === day;
-                  const elsewhere = assignedDate && !here;
-                  const status = reviews[id]?.status || 'pending';
-                  return (
-                    <label key={id} style={{
-                      display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer',
-                      background: here ? `${c.accent}12` : '#fff',
-                      border: '1px solid ' + (here ? `${c.accent}55` : 'rgba(0,0,0,0.08)'),
-                      borderRadius: '10px', padding: '10px 12px'
-                    }}>
-                      <input
-                        type="checkbox"
-                        checked={here}
-                        onChange={e => setSchedulePost(id, e.target.checked ? day : null)}
-                        style={{ width: '17px', height: '17px', accentColor: c.accent, flexShrink: 0, cursor: 'pointer' }}
-                      />
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: '10.5px', color: 'rgba(0,0,0,0.45)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '2px' }}>
-                          {post.day} · {KIND_LABEL[post.kind] || post.kind}
-                        </div>
-                        <div style={{ fontSize: '13px', fontWeight: 600, color: '#0a0a0a', lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {post.theme}
-                        </div>
-                      </div>
-                      <span style={{ flexShrink: 0, width: '8px', height: '8px', borderRadius: '50%', background: STATUS_COLOR[status] }} title="status" />
-                      {elsewhere && (
-                        <span style={{ flexShrink: 0, fontSize: '10px', fontWeight: 700, color: '#b45309', background: '#fef3c7', borderRadius: '999px', padding: '2px 8px' }}>
-                          em {ddmm(assignedDate)}
-                        </span>
-                      )}
-                    </label>
-                  );
-                })}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// Área de upload de criativos do admin: arrasta/solta ou escolhe da pasta.
-// "Subir criativo" troca por uma capa única; "Subir carrossel" acrescenta vários.
-function CreativeUploader({ id, urls = [], uploading, onUpload, onRemove }) {
-  const [dragOver, setDragOver] = useState(false);
-
-  const btnBase = {
-    display: 'inline-flex', alignItems: 'center', gap: '6px',
-    borderRadius: '999px', padding: '7px 14px', fontSize: '12px', fontWeight: 600,
-    cursor: uploading ? 'not-allowed' : 'pointer', opacity: uploading ? 0.5 : 1
-  };
-
-  const handleDrop = (e) => {
-    e.preventDefault();
-    setDragOver(false);
-    if (uploading) return;
-    if (e.dataTransfer.files?.length) onUpload(id, e.dataTransfer.files, { append: true });
-  };
-
-  return (
-    <div style={{ marginTop: '14px', borderTop: '1px dashed rgba(0,0,0,0.12)', paddingTop: '14px' }}>
-      <div style={{ fontSize: '10.5px', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'rgba(0,0,0,0.45)', marginBottom: '10px' }}>
-        Criativos{urls.length ? ` · ${urls.length}` : ''}
-      </div>
-
-      {urls.length > 0 && (
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '12px' }}>
-          {urls.map((u, i) => (
-            <div key={u + i} style={{ position: 'relative', width: '64px', height: '64px', borderRadius: '8px', overflow: 'hidden', border: '1px solid rgba(0,0,0,0.1)', background: '#101010' }}>
-              <MediaThumb src={u} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-              {isVideoUrl(u) && (
-                <span style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
-                  <Video size={18} color="#fff" style={{ filter: 'drop-shadow(0 1px 3px rgba(0,0,0,0.6))' }} />
-                </span>
-              )}
-              <button
-                onClick={() => onRemove(id, i)}
-                title="Remover criativo"
-                style={{ position: 'absolute', top: '2px', right: '2px', width: '18px', height: '18px', borderRadius: '50%', border: 'none', background: 'rgba(0,0,0,0.7)', color: '#fff', cursor: 'pointer', fontSize: '12px', lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-              >×</button>
-            </div>
-          ))}
-        </div>
+        </>
       )}
 
-      <div
-        onDragOver={e => { e.preventDefault(); if (!uploading) setDragOver(true); }}
-        onDragLeave={() => setDragOver(false)}
-        onDrop={handleDrop}
-        style={{
-          border: `1.5px dashed ${dragOver ? '#0a0a0a' : 'rgba(0,0,0,0.18)'}`,
-          background: dragOver ? 'rgba(0,0,0,0.04)' : 'transparent',
-          borderRadius: '10px', padding: '14px', textAlign: 'center', transition: 'all 0.15s ease'
-        }}
-      >
-        <div style={{ fontSize: '11.5px', color: 'rgba(0,0,0,0.5)', marginBottom: '12px' }}>
-          {uploading ? 'Subindo criativos…' : 'Arraste imagens ou vídeos aqui ou escolha da pasta'}
-        </div>
-        <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', flexWrap: 'wrap' }}>
-          <label style={{ ...btnBase, background: '#0a0a0a', color: '#fff' }}>
-            <input
-              type="file" accept="image/*,video/*" style={{ display: 'none' }} disabled={uploading}
-              onChange={e => { if (e.target.files?.length) onUpload(id, e.target.files, { append: false }); e.target.value = ''; }}
-            />
-            Subir criativo
-          </label>
-          <label style={{ ...btnBase, background: 'rgba(0,0,0,0.05)', color: 'rgba(0,0,0,0.75)', border: '1px solid rgba(0,0,0,0.12)' }}>
-            <input
-              type="file" accept="image/*,video/*" multiple style={{ display: 'none' }} disabled={uploading}
-              onChange={e => { if (e.target.files?.length) onUpload(id, e.target.files, { append: true }); e.target.value = ''; }}
-            />
-            <Layers size={13} /> Subir carrossel
-          </label>
-        </div>
-      </div>
+      <div className="px-label sec">Entregas de hoje</div>
+      {dueToday.length === 0 && todayItems.length === 0 && (
+        <div className="empty">Nada marcado para hoje. Dia livre — ou calendário vazio?</div>
+      )}
+      {dueToday.map((c) => (
+        <button key={c.id} className="row" onClick={() => setOpenCard(c.id)}>
+          <ProdTag k={c.product} />
+          <PrioDot k={c.priority} />
+          <span className="row-title">{c.title}</span>
+          <span className="row-end">entrega hoje</span>
+        </button>
+      ))}
+      {todayItems.map((it) => (
+        <button key={it.id} className="row" onClick={() => setOpenDay(tk)}>
+          <ProdTag k={it.product} />
+          <span className="row-title">{it.title}</span>
+          <span className="row-end">{it.network} · {CAL_STATUS[it.status]?.label}</span>
+        </button>
+      ))}
+
+      {pending.length > 0 && (
+        <>
+          <div className="px-label sec">Checklists em aberto</div>
+          {pending.slice(0, 8).map(({ card, open }) => (
+            <button key={card.id} className="row" onClick={() => setOpenCard(card.id)}>
+              <ProdTag k={card.product} />
+              <PrioDot k={card.priority} />
+              <span className="row-title">{card.title}</span>
+              <span className="row-end">{open} item{open > 1 ? "s" : ""}</span>
+            </button>
+          ))}
+        </>
+      )}
     </div>
   );
 }
 
-// Tela de senha do Painel Admin. Aparece sempre que o usuário tenta abrir o admin.
-function AdminGate({ expected, onSuccess, onCancel }) {
-  const [pw, setPw] = useState('');
-  const [error, setError] = useState(false);
-
-  const submit = (e) => {
-    e.preventDefault();
-    if (pw === expected) {
-      onSuccess();
-    } else {
-      setError(true);
-      setPw('');
-    }
-  };
-
+function ProdTag({ k }) {
+  const p = PRODUCTS[k] || PRODUCTS.outro;
   return (
-    <div style={{ minHeight: '100vh', background: '#0a0a0a', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px', fontFamily: 'Geist, -apple-system, BlinkMacSystemFont, system-ui, sans-serif' }}>
-      <form onSubmit={submit} style={{ width: '100%', maxWidth: '360px', textAlign: 'center' }}>
-        <div style={{ width: '48px', height: '48px', borderRadius: '14px', background: 'rgba(255,255,255,0.08)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginBottom: '20px' }}>
-          <Lock size={22} color="#fafafa" />
-        </div>
-        <h1 style={{ color: '#fafafa', fontSize: '22px', fontWeight: 600, margin: '0 0 6px', letterSpacing: '-0.02em' }}>Painel Admin</h1>
-        <p style={{ color: 'rgba(255,255,255,0.55)', fontSize: '13px', margin: '0 0 24px' }}>Digite a senha para acessar.</p>
-        <input
-          type="password"
-          value={pw}
-          autoFocus
-          onChange={e => { setPw(e.target.value); setError(false); }}
-          placeholder="Senha"
-          style={{ width: '100%', boxSizing: 'border-box', padding: '13px 16px', borderRadius: '12px', border: error ? '1px solid #f87171' : '1px solid rgba(255,255,255,0.15)', background: 'rgba(255,255,255,0.06)', color: '#fafafa', fontSize: '15px', outline: 'none', marginBottom: '12px' }}
-        />
-        {error && <div style={{ color: '#f87171', fontSize: '12.5px', marginBottom: '12px' }}>Senha incorreta.</div>}
-        <button type="submit" style={{ width: '100%', padding: '13px', borderRadius: '12px', border: 'none', background: '#fafafa', color: '#0a0a0a', fontSize: '14px', fontWeight: 600, cursor: 'pointer', marginBottom: '10px' }}>Entrar</button>
-        <button type="button" onClick={onCancel} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)', fontSize: '13px', cursor: 'pointer' }}>Cancelar</button>
-      </form>
-    </div>
-  );
-}
-
-// Avatares geométricos (estilo "boring avatars"): 4 da referência + 1 criado para o 5º perfil
-const AVATAR_DESIGNS = [
-  { base: '#ff005b', blob: '#ffb238', transform: 'translate(9 -5) rotate(219 18 18) scale(1)',   rx: 6,  face: 'translate(4.5 -4) rotate(9 18 18)',  mouth: 'M15 19c2 1 4 1 6 0',       open: false, eyes: [10, 24], color: '#000000' },
-  { base: '#ff7d10', blob: '#0a0310', transform: 'translate(5 -1) rotate(55 18 18) scale(1.1)',  rx: 6,  face: 'translate(7 -6) rotate(-5 18 18)',  mouth: 'M15 20c2 1 4 1 6 0',       open: false, eyes: [14, 20], color: '#FFFFFF' },
-  { base: '#0a0310', blob: '#1e3a8a', transform: 'translate(-3 7) rotate(227 18 18) scale(1.2)', rx: 36, face: 'translate(-3 3.5) rotate(7 18 18)', mouth: 'M13,21 a1,0.75 0 0,0 10,0', open: true,  eyes: [12, 22], color: '#FFFFFF' },
-  { base: '#d8fcb3', blob: '#89fcb3', transform: 'translate(9 -5) rotate(219 18 18) scale(1)',   rx: 6,  face: 'translate(4.5 -4) rotate(9 18 18)',  mouth: 'M15 19c2 1 4 1 6 0',       open: false, eyes: [10, 24], color: '#000000' },
-  { base: '#6d28d9', blob: '#22d3ee', transform: 'translate(-4 6) rotate(135 18 18) scale(1.15)', rx: 36, face: 'translate(2 -3) rotate(-7 18 18)', mouth: 'M15 19c2 1 4 1 6 0',        open: false, eyes: [11, 23], color: '#FFFFFF' }
-];
-
-// Perfis de revisão (sem login), cada um com um avatar geométrico e uma cor representativa
-const PROFILES = [
-  { key: 'marcos', name: 'MARCOS', avatar: 1, tint: '#ff7d10' },
-  { key: 'silvio', name: 'SILVIO', avatar: 3, tint: '#89fcb3' },
-  { key: 'thiago', name: 'THIAGO', avatar: 4, tint: '#22d3ee' }
-];
-const profileByName = (name) => PROFILES.find(p => p.name === name) || null;
-
-// Renderiza um avatar geométrico. useId garante máscara única por instância (mesmo design usado 2x).
-function BoringAvatar({ index = 0, size = 40 }) {
-  const raw = useId();
-  const maskId = 'bav' + raw.replace(/[^a-zA-Z0-9]/g, '');
-  const d = AVATAR_DESIGNS[index] || AVATAR_DESIGNS[0];
-  return (
-    <svg viewBox="0 0 36 36" width={size} height={size} fill="none" role="img" xmlns="http://www.w3.org/2000/svg">
-      <mask id={maskId} maskUnits="userSpaceOnUse" x="0" y="0" width="36" height="36">
-        <rect width="36" height="36" rx="72" fill="#FFFFFF" />
-      </mask>
-      <g mask={`url(#${maskId})`}>
-        <rect width="36" height="36" fill={d.base} />
-        <rect x="0" y="0" width="36" height="36" transform={d.transform} fill={d.blob} rx={d.rx} />
-        <g transform={d.face}>
-          {d.open
-            ? <path d={d.mouth} fill={d.color} />
-            : <path d={d.mouth} stroke={d.color} fill="none" strokeLinecap="round" />}
-          <rect x={d.eyes[0]} y="14" width="1.5" height="2" rx="1" fill={d.color} />
-          <rect x={d.eyes[1]} y="14" width="1.5" height="2" rx="1" fill={d.color} />
-        </g>
-      </g>
-    </svg>
-  );
-}
-
-// Efeito "gooey": alterna entre os textos com morph borrado + filtro de limiar
-const TITLE_PARTS = ['Painel de', 'Conteúdos'];
-function GooeyText({ texts, morphTime = 1, cooldownTime = 1.2, fontSize = 'clamp(48px, 9vw, 104px)', color = '#0a0a0a', height = 'clamp(64px, 13vw, 130px)' }) {
-  const text1Ref = useRef(null);
-  const text2Ref = useRef(null);
-
-  useEffect(() => {
-    let frame;
-    let textIndex = texts.length - 1;
-    let time = new Date();
-    let morph = 0;
-    let cooldown = cooldownTime;
-
-    if (text1Ref.current && text2Ref.current) {
-      text1Ref.current.textContent = texts[textIndex % texts.length];
-      text2Ref.current.textContent = texts[(textIndex + 1) % texts.length];
-    }
-
-    const setMorph = (fraction) => {
-      if (!text1Ref.current || !text2Ref.current) return;
-      text2Ref.current.style.filter = `blur(${Math.min(8 / fraction - 8, 100)}px)`;
-      text2Ref.current.style.opacity = `${Math.pow(fraction, 0.4) * 100}%`;
-      fraction = 1 - fraction;
-      text1Ref.current.style.filter = `blur(${Math.min(8 / fraction - 8, 100)}px)`;
-      text1Ref.current.style.opacity = `${Math.pow(fraction, 0.4) * 100}%`;
-    };
-
-    const doCooldown = () => {
-      morph = 0;
-      if (!text1Ref.current || !text2Ref.current) return;
-      text2Ref.current.style.filter = '';
-      text2Ref.current.style.opacity = '100%';
-      text1Ref.current.style.filter = '';
-      text1Ref.current.style.opacity = '0%';
-    };
-
-    const doMorph = () => {
-      morph -= cooldown;
-      cooldown = 0;
-      let fraction = morph / morphTime;
-      if (fraction > 1) { cooldown = cooldownTime; fraction = 1; }
-      setMorph(fraction);
-    };
-
-    function animate() {
-      frame = requestAnimationFrame(animate);
-      const newTime = new Date();
-      const shouldIncrementIndex = cooldown > 0;
-      const dt = (newTime.getTime() - time.getTime()) / 1000;
-      time = newTime;
-      cooldown -= dt;
-      if (cooldown <= 0) {
-        if (shouldIncrementIndex) {
-          textIndex = (textIndex + 1) % texts.length;
-          if (text1Ref.current && text2Ref.current) {
-            text1Ref.current.textContent = texts[textIndex % texts.length];
-            text2Ref.current.textContent = texts[(textIndex + 1) % texts.length];
-          }
-        }
-        doMorph();
-      } else {
-        doCooldown();
-      }
-    }
-
-    animate();
-    return () => cancelAnimationFrame(frame);
-  }, [texts, morphTime, cooldownTime]);
-
-  const spanStyle = {
-    position: 'absolute', left: 0, right: 0, top: '50%', transform: 'translateY(-50%)',
-    width: '100%', userSelect: 'none', textAlign: 'center', whiteSpace: 'nowrap',
-    fontWeight: 600, letterSpacing: '-0.04em', lineHeight: 1.02, fontFamily: 'inherit', color, fontSize
-  };
-
-  return (
-    <div style={{ position: 'relative', width: '100%' }}>
-      <svg style={{ position: 'absolute', height: 0, width: 0 }} aria-hidden="true" focusable="false">
-        <defs>
-          <filter id="threshold">
-            <feColorMatrix in="SourceGraphic" type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 255 -140" />
-          </filter>
-        </defs>
-      </svg>
-      <div style={{ position: 'relative', height, filter: 'url(#threshold)' }}>
-        <span ref={text1Ref} style={spanStyle} />
-        <span ref={text2Ref} style={spanStyle} />
-      </div>
-    </div>
-  );
-}
-
-// Tela de seleção de perfil (estilo da referência: avatar grande com rotação ao escolher)
-function IdentifyScreen({ onChoose, onAdmin, onBack }) {
-  const [selected, setSelected] = useState(0);
-  const [rotation, setRotation] = useState(0);
-  const pick = (i) => { setRotation(r => r + 1080); setSelected(i); };
-  const profile = PROFILES[selected];
-  const design = AVATAR_DESIGNS[profile.avatar];
-  // Faixa do topo: degradê das 2 cores do avatar selecionado, repetido para o wave fluir em loop
-  const band = `linear-gradient(90deg, ${design.base}, ${design.blob}, ${design.base})`;
-
-  return (
-    <div style={{ minHeight: '100vh', background: '#f5f5f3', fontFamily: 'Geist, -apple-system, BlinkMacSystemFont, system-ui, sans-serif', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
-      <style>{`@keyframes avUp{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}@keyframes avBand{from{opacity:0;height:0}to{opacity:1;height:128px}}@keyframes avWave{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}`}</style>
-      <div style={{ width: '100%', maxWidth: '430px', background: 'linear-gradient(180deg,#ffffff,#f7f7f5)', border: '1px solid rgba(0,0,0,0.07)', borderRadius: '24px', overflow: 'hidden', boxShadow: '0 20px 60px rgba(0,0,0,0.12)' }}>
-        <div style={{ height: '128px', backgroundImage: band, backgroundSize: '200% 100%', backgroundRepeat: 'no-repeat', animation: 'avBand 0.6s cubic-bezier(0.4,0,0.2,1) both, avWave 6s ease-in-out infinite' }} />
-
-        <div style={{ padding: '0 32px 34px', marginTop: '-64px', textAlign: 'center' }}>
-          {/* Avatar principal */}
-          <div style={{ width: '152px', height: '152px', margin: '0 auto', borderRadius: '50%', border: '4px solid #ffffff', background: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', boxShadow: '0 0 0 1px rgba(0,0,0,0.06), 0 10px 28px rgba(0,0,0,0.12)', animation: 'avUp 0.5s cubic-bezier(0.34,1.56,0.64,1) both' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', transform: `rotate(${rotation}deg)`, transition: 'transform 0.8s cubic-bezier(0.4,0,0.2,1)' }}>
-              <BoringAvatar index={profile.avatar} size={104} />
-            </div>
-          </div>
-
-          <p style={{ color: 'rgba(0,0,0,0.5)', fontSize: '14px', margin: '20px 0 0', fontWeight: 500 }}>Selecione seu perfil</p>
-
-          {/* Picker */}
-          <div style={{ display: 'flex', justifyContent: 'center', gap: '14px', marginTop: '26px' }}>
-            {PROFILES.map((p, i) => {
-              const on = selected === i;
-              return (
-                <div key={p.key} title={p.name} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', animation: `avUp 0.5s cubic-bezier(0.34,1.56,0.64,1) ${0.15 + i * 0.08}s both` }}>
-                  <button
-                    onClick={() => pick(i)}
-                    aria-label={p.name}
-                    onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-3px)'; }}
-                    onMouseLeave={e => { e.currentTarget.style.transform = 'none'; }}
-                    style={{ position: 'relative', width: '52px', height: '52px', borderRadius: '50%', overflow: 'hidden', cursor: 'pointer', padding: 0, background: '#ffffff', border: '2px solid ' + (on ? '#0a0a0a' : 'rgba(0,0,0,0.12)'), boxShadow: on ? '0 0 0 2px #ffffff, 0 0 0 4px #0a0a0a' : 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease' }}
-                  >
-                    <BoringAvatar index={p.avatar} size={48} />
-                  </button>
-                  <span style={{ fontSize: '10.5px', fontWeight: on ? 700 : 600, letterSpacing: '0.03em', color: on ? '#0a0a0a' : 'rgba(0,0,0,0.45)', transition: 'color 0.2s ease' }}>{p.name}</span>
-                </div>
-              );
-            })}
-          </div>
-
-          {/* Ações */}
-          <button
-            onClick={() => onChoose(profile.name)}
-            style={{ width: '100%', marginTop: '28px', padding: '14px', borderRadius: '14px', border: 'none', background: '#0a0a0a', color: '#ffffff', fontSize: '14.5px', fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
-          >
-            Entrar como {profile.name} <ArrowRight size={16} />
-          </button>
-          <button onClick={onAdmin} style={{ width: '100%', marginTop: '12px', background: 'rgba(0,0,0,0.05)', border: '1px solid rgba(0,0,0,0.1)', color: 'rgba(0,0,0,0.7)', borderRadius: '14px', padding: '12px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-            <Lock size={14} /> Acessar painel admin
-          </button>
-          <button onClick={onBack} style={{ marginTop: '14px', background: 'none', border: 'none', color: 'rgba(0,0,0,0.4)', fontSize: '12.5px', cursor: 'pointer' }}>Voltar</button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// Selo de status (pendente / aprovado / reprovado)
-function StatusBadge({ status }) {
-  const map = {
-    approved: { label: 'Aprovado', bg: '#dcfce7', color: '#166534' },
-    reproved: { label: 'Reprovado', bg: '#fee2e2', color: '#b91c1c' },
-    pending: { label: 'Pendente', bg: '#f1f5f9', color: '#64748b' }
-  };
-  const v = map[status] || map.pending;
-  return (
-    <span style={{ background: v.bg, color: v.color, padding: '3px 10px', borderRadius: '999px', fontSize: '11px', fontWeight: 700, whiteSpace: 'nowrap' }}>
-      {v.label}
+    <span className="prod-tag" style={{ borderColor: p.color, color: p.color }}>
+      {p.tag}
     </span>
   );
 }
 
-// Selo do status de postagem (em produção / agendado / postado)
-function PostingBadge({ status, small }) {
-  const map = {
-    producao: { label: 'Em produção', bg: '#f1f5f9', color: '#475569' },
-    agendado: { label: 'Agendado', bg: '#fef3c7', color: '#b45309' },
-    postado: { label: 'Postado', bg: '#dbeafe', color: '#1e40af' }
+function PrioDot({ k }) {
+  if (!k || k === "nenhuma") return null;
+  const p = PRIORITIES[k];
+  return <span className="prio-dot" style={{ background: p.chip }} title={p.label} />;
+}
+
+// ---------- kanban ----------
+function Kanban({ board, updateBoard, setOpenCard }) {
+  const [drag, setDrag] = useState(null);
+  const [overCol, setOverCol] = useState(null);
+  const [addingCol, setAddingCol] = useState(false);
+  const [newColName, setNewColName] = useState("");
+
+  const moveCard = (cardId, fromCol, toCol) => {
+    if (fromCol === toCol) return;
+    updateBoard((b) => {
+      const from = b.columns.find((c) => c.id === fromCol);
+      const to = b.columns.find((c) => c.id === toCol);
+      if (!from || !to) return b;
+      from.cardIds = from.cardIds.filter((id) => id !== cardId);
+      to.cardIds.push(cardId);
+      return b;
+    });
   };
-  const v = map[status] || map.producao;
-  return <span style={{ background: v.bg, color: v.color, padding: small ? '2px 8px' : '3px 10px', borderRadius: '999px', fontSize: small ? '10px' : '11px', fontWeight: 700, whiteSpace: 'nowrap' }}>{v.label}</span>;
-}
 
-// Barra de progresso de aprovação: verde = aprovado, vermelho = reprovado, resto = pendente
-function ProgressBar({ approved, reproved, total, height = 10 }) {
-  const pct = (n) => (total ? (n / total) * 100 : 0);
-  return (
-    <div style={{ display: 'flex', height: `${height}px`, borderRadius: '999px', overflow: 'hidden', background: 'rgba(0,0,0,0.07)' }}>
-      <div style={{ width: `${pct(approved)}%`, background: STATUS_COLOR.approved, transition: 'width 0.45s ease' }} />
-      <div style={{ width: `${pct(reproved)}%`, background: STATUS_COLOR.reproved, transition: 'width 0.45s ease' }} />
-    </div>
-  );
-}
+  const addColumn = () => {
+    const name = newColName.trim();
+    if (!name) return;
+    updateBoard((b) => {
+      b.columns.push({ id: uid(), title: name, cardIds: [] });
+      return b;
+    });
+    setNewColName("");
+    setAddingCol(false);
+  };
 
-// Aviso flutuante (substitui window.alert) — some sozinho
-function Toast({ message, onClose }) {
-  useEffect(() => {
-    const t = setTimeout(onClose, 3500);
-    return () => clearTimeout(t);
-  }, [message]); // eslint-disable-line react-hooks/exhaustive-deps
-  if (!message) return null;
   return (
-    <div style={{ position: 'fixed', bottom: '24px', left: '50%', transform: 'translateX(-50%)', background: '#0a0a0a', color: '#fafafa', padding: '13px 22px', borderRadius: '12px', fontSize: '13px', fontWeight: 500, boxShadow: '0 12px 36px rgba(0,0,0,0.32)', zIndex: 1000, maxWidth: '90vw', textAlign: 'center' }}>
-      {message}
-    </div>
-  );
-}
-
-// Diálogo de confirmação no estilo do painel (substitui window.confirm)
-function ConfirmDialog({ message, confirmLabel = 'Confirmar', onConfirm, onClose }) {
-  return (
-    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px', zIndex: 1001, fontFamily: 'Geist, -apple-system, BlinkMacSystemFont, system-ui, sans-serif' }}>
-      <div onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: '18px', maxWidth: '380px', width: '100%', padding: '26px', boxShadow: '0 24px 60px rgba(0,0,0,0.3)' }}>
-        <div style={{ width: '42px', height: '42px', borderRadius: '12px', background: '#fef2f2', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginBottom: '14px' }}>
-          <AlertTriangle size={20} color="#dc2626" />
-        </div>
-        <p style={{ fontSize: '14.5px', color: '#0a0a0a', lineHeight: 1.5, margin: '0 0 22px' }}>{message}</p>
-        <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
-          <button onClick={onClose} style={{ background: 'rgba(0,0,0,0.05)', border: '1px solid rgba(0,0,0,0.1)', color: 'rgba(0,0,0,0.7)', borderRadius: '10px', padding: '10px 16px', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>Cancelar</button>
-          <button onClick={() => { onConfirm(); onClose(); }} style={{ background: '#dc2626', border: 'none', color: '#fff', borderRadius: '10px', padding: '10px 16px', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>{confirmLabel}</button>
+    <div className="board-wrap">
+      <div className="board">
+        {board.columns.map((col) => (
+          <Column
+            key={col.id}
+            col={col}
+            board={board}
+            updateBoard={updateBoard}
+            setOpenCard={setOpenCard}
+            drag={drag}
+            setDrag={setDrag}
+            isOver={overCol === col.id}
+            setOverCol={setOverCol}
+            moveCard={moveCard}
+          />
+        ))}
+        <div style={{ minWidth: 240 }}>
+          {addingCol ? (
+            <div className="column" style={{ padding: 12 }}>
+              <input
+                autoFocus
+                className="input"
+                placeholder="Nome da coluna"
+                value={newColName}
+                onChange={(e) => setNewColName(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && addColumn()}
+              />
+              <div className="btn-row">
+                <button className="btn" onClick={addColumn}>Criar</button>
+                <button className="btn ghost" onClick={() => setAddingCol(false)}>Voltar</button>
+              </div>
+            </div>
+          ) : (
+            <button className="add-col px-label" onClick={() => setAddingCol(true)}>+ nova coluna</button>
+          )}
         </div>
       </div>
     </div>
   );
 }
 
-// Um conteúdo na lista do admin: miniatura, status, aprovar/reprovar inline, agenda e upload de criativos
-function AdminItem({ it, scheduledDate, urls = [], uploading, posting = 'producao', onReview, onUpload, onRemove, onEdit, onDelete, onRestore, onSetProd }) {
-  const [showReprove, setShowReprove] = useState(false);
-  const [draft, setDraft] = useState('');
-  const hasUpload = urls.length > 0;
-  const thumb = hasUpload ? urls[0] : null;            // miniatura só com criativo anexado pelo usuário
-  const count = hasUpload ? urls.length : 0;
+function Column({ col, board, updateBoard, setOpenCard, drag, setDrag, isOver, setOverCol, moveCard }) {
+  const [adding, setAdding] = useState(false);
+  const [newTitle, setNewTitle] = useState("");
+  const [editingTitle, setEditingTitle] = useState(false);
+  const [titleDraft, setTitleDraft] = useState(col.title);
 
-  const approve = () => onReview(it.id, { status: 'approved', suggestion: '' });
-  const undo = () => { onReview(it.id, { status: 'pending', suggestion: '' }); setShowReprove(false); setDraft(''); };
-  const sendReprove = () => { onReview(it.id, { status: 'reproved', suggestion: draft.trim() }); setShowReprove(false); setDraft(''); };
+  const addCard = () => {
+    const t = newTitle.trim();
+    if (!t) return;
+    updateBoard((b) => {
+      const id = uid();
+      b.cards[id] = { id, title: t, desc: "", product: "outro", checklist: [], due: "", link: "", priority: "nenhuma" };
+      b.columns.find((c) => c.id === col.id).cardIds.push(id);
+      return b;
+    });
+    setNewTitle("");
+  };
 
-  const actionBtn = (bg, color, border) => ({
-    display: 'inline-flex', alignItems: 'center', gap: '5px',
-    background: bg, color, border: border || 'none',
-    borderRadius: '999px', padding: '7px 13px', fontSize: '12px', fontWeight: 600, cursor: 'pointer'
-  });
+  const renameCol = () => {
+    const t = titleDraft.trim();
+    if (t)
+      updateBoard((b) => {
+        b.columns.find((c) => c.id === col.id).title = t;
+        return b;
+      });
+    setEditingTitle(false);
+  };
+
+  const deleteCol = () => {
+    updateBoard((b) => {
+      const c = b.columns.find((x) => x.id === col.id);
+      c.cardIds.forEach((id) => delete b.cards[id]);
+      b.columns = b.columns.filter((x) => x.id !== col.id);
+      return b;
+    });
+  };
 
   return (
     <div
-      style={{ background: '#fff', borderRadius: '16px', border: '1px solid rgba(0,0,0,0.06)', borderLeft: `3px solid ${STATUS_COLOR[it.status]}`, boxShadow: '0 1px 2px rgba(0,0,0,0.04)', padding: '16px 18px', transition: 'box-shadow 0.18s ease' }}
-      onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 6px 22px rgba(0,0,0,0.08)'; }}
-      onMouseLeave={e => { e.currentTarget.style.boxShadow = '0 1px 2px rgba(0,0,0,0.04)'; }}
+      className={`column ${isOver ? "over" : ""}`}
+      onDragOver={(e) => {
+        e.preventDefault();
+        setOverCol(col.id);
+      }}
+      onDragLeave={() => setOverCol(null)}
+      onDrop={(e) => {
+        e.preventDefault();
+        setOverCol(null);
+        if (drag) moveCard(drag.cardId, drag.fromCol, col.id);
+        setDrag(null);
+      }}
     >
-      <div style={{ display: 'flex', gap: '14px', alignItems: 'flex-start' }}>
-        {!it.comingSoon && (
-          <div style={{ position: 'relative', flexShrink: 0, width: '58px', height: '58px', borderRadius: '10px', overflow: 'hidden', background: thumb ? '#101010' : 'rgba(0,0,0,0.04)', border: '1px solid rgba(0,0,0,0.07)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            {thumb ? <MediaThumb src={thumb} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <Layers size={18} color="rgba(0,0,0,0.25)" />}
-            {count > 1 && (
-              <span style={{ position: 'absolute', bottom: '2px', right: '2px', background: 'rgba(0,0,0,0.7)', color: '#fff', fontSize: '9.5px', fontWeight: 700, borderRadius: '5px', padding: '1px 5px' }}>+{count - 1}</span>
-            )}
+      <div className="col-header">
+        {editingTitle ? (
+          <input
+            autoFocus
+            className="input"
+            value={titleDraft}
+            onChange={(e) => setTitleDraft(e.target.value)}
+            onBlur={renameCol}
+            onKeyDown={(e) => e.key === "Enter" && renameCol()}
+          />
+        ) : (
+          <div
+            className="col-title px-label"
+            onClick={() => {
+              setTitleDraft(col.title);
+              setEditingTitle(true);
+            }}
+            title="Clique para renomear"
+          >
+            {col.title} <span className="count">{col.cardIds.length}</span>
           </div>
         )}
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px' }}>
-            <div style={{ minWidth: 0 }}>
-              <div style={{ fontSize: '10.5px', color: 'rgba(0,0,0,0.45)', fontWeight: 600, marginBottom: '3px', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '7px', flexWrap: 'wrap' }}>
-                <span>{it.day} · {KIND_LABEL[it.kind] || it.kind}</span>
-                {it.custom && <span style={{ background: 'rgba(37,99,235,0.1)', color: '#2563eb', borderRadius: '999px', padding: '1px 8px', fontSize: '9.5px', fontWeight: 700, letterSpacing: '0.04em' }}>CRIADO</span>}
-                {!it.custom && it.edited && <span style={{ background: 'rgba(217,119,87,0.12)', color: '#b45309', borderRadius: '999px', padding: '1px 8px', fontSize: '9.5px', fontWeight: 700, letterSpacing: '0.04em' }}>EDITADO</span>}
+        <button className="icon-btn" title="Excluir coluna" onClick={deleteCol}>×</button>
+      </div>
+
+      <div className="card-list">
+        {col.cardIds.map((id) => {
+          const card = board.cards[id];
+          if (!card) return null;
+          const total = card.checklist.length;
+          const done = card.checklist.filter((i) => i.done).length;
+          const ds = dueState(card, board);
+          return (
+            <div
+              key={id}
+              draggable
+              onDragStart={() => setDrag({ cardId: id, fromCol: col.id })}
+              onDragEnd={() => setDrag(null)}
+              onClick={() => setOpenCard(id)}
+              className={`card ${card.priority && card.priority !== "nenhuma" ? `p-${card.priority}` : ""}`}
+            >
+              <div className="card-top">
+                <ProdTag k={card.product} />
+                <span className="card-prod">{(PRODUCTS[card.product] || PRODUCTS.outro).label}</span>
+                {card.priority && card.priority !== "nenhuma" && (
+                  <span className="prio-flag">{PRIORITIES[card.priority].label}</span>
+                )}
+                {ds === "atrasado" && <span className="due-flag danger">● atrasado</span>}
+                {ds === "hoje" && <span className="due-flag">hoje</span>}
               </div>
-              <div style={{ fontSize: '14.5px', fontWeight: 600, color: '#0a0a0a', lineHeight: 1.35 }}>{it.theme}</div>
-              <TagChips tags={it.tags} />
-            </div>
-            <StatusBadge status={it.status} />
-          </div>
-
-          {it.reviewer && it.status !== 'pending' && (
-            <div style={{ marginTop: '7px', display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '11.5px', fontWeight: 600, color: 'rgba(0,0,0,0.55)' }}>
-              {(() => { const p = profileByName(it.reviewer); return p ? <BoringAvatar index={p.avatar} size={18} /> : null; })()}
-              {it.status === 'approved' ? 'Aprovado' : 'Reprovado'} por {it.reviewer}
-            </div>
-          )}
-
-          {it.comingSoon ? (
-            <div style={{ marginTop: '10px', fontSize: '12px', color: 'rgba(0,0,0,0.4)', fontWeight: 600 }}>Em breve</div>
-          ) : (
-            <>
-              {/* Ações de aprovação */}
-              <div style={{ marginTop: '12px', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                {it.status !== 'approved' && (
-                  <button onClick={approve} style={actionBtn('rgba(22,163,74,0.1)', '#15803d', '1px solid rgba(22,163,74,0.25)')}><Check size={13} /> Aprovar</button>
-                )}
-                {it.status !== 'reproved' && (
-                  <button onClick={() => setShowReprove(v => !v)} style={actionBtn('rgba(220,38,38,0.08)', '#b91c1c', '1px solid rgba(220,38,38,0.22)')}><X size={13} /> Reprovar</button>
-                )}
-                {it.status !== 'pending' && (
-                  <button onClick={undo} style={{ background: 'none', border: 'none', color: 'rgba(0,0,0,0.5)', fontSize: '11.5px', cursor: 'pointer', textDecoration: 'underline' }}>desfazer</button>
-                )}
-                <button onClick={() => onEdit(it.id)} style={actionBtn('rgba(0,0,0,0.05)', 'rgba(0,0,0,0.65)', '1px solid rgba(0,0,0,0.1)')}><Pencil size={12} /> Editar</button>
-                {!it.custom && it.edited && (
-                  <button onClick={() => onRestore(it.id)} style={actionBtn('rgba(217,119,87,0.1)', '#b45309', '1px solid rgba(217,119,87,0.25)')}><ChevronLeft size={12} /> Restaurar</button>
-                )}
-                {it.custom && (
-                  <button onClick={() => onDelete(it.id)} style={actionBtn('rgba(220,38,38,0.06)', '#b91c1c', '1px solid rgba(220,38,38,0.18)')}><Trash2 size={12} /> Excluir</button>
-                )}
-                <span style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '11.5px', fontWeight: 600, color: scheduledDate ? '#0a0a0a' : 'rgba(0,0,0,0.4)' }}>
-                  <Calendar size={12} /> {scheduledDate ? `Agendado · ${ddmm(scheduledDate)}` : 'Não agendado'}
-                </span>
-              </div>
-
-              {/* Status de postagem */}
-              <div style={{ marginTop: '12px', display: 'flex', alignItems: 'center', gap: '9px', flexWrap: 'wrap' }}>
-                <span style={{ fontSize: '10.5px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'rgba(0,0,0,0.4)' }}>Postagem</span>
-                <div style={{ display: 'inline-flex', background: 'rgba(0,0,0,0.05)', borderRadius: '999px', padding: '2px' }}>
-                  {[['producao', 'Em produção'], ['agendado', 'Agendado']].map(([k, label]) => {
-                    const on = (posting === 'producao' ? 'producao' : 'agendado') === k;
-                    return (
-                      <button key={k} onClick={() => onSetProd(it.id, k)} style={{ border: 'none', cursor: 'pointer', borderRadius: '999px', padding: '5px 12px', fontSize: '11.5px', fontWeight: 600, background: on ? '#0a0a0a' : 'transparent', color: on ? '#fff' : 'rgba(0,0,0,0.6)', transition: 'all 0.15s ease' }}>{label}</button>
-                    );
-                  })}
-                </div>
-                {posting === 'postado' && (
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
-                    <PostingBadge status="postado" /> <span style={{ fontSize: '10.5px', color: 'rgba(0,0,0,0.4)' }}>automático</span>
-                  </span>
-                )}
-              </div>
-
-              {showReprove && (
-                <div style={{ marginTop: '12px' }}>
-                  <textarea
-                    value={draft}
-                    onChange={e => setDraft(e.target.value)}
-                    placeholder="O que precisa ser ajustado neste conteúdo?"
-                    rows={2}
-                    style={{ width: '100%', boxSizing: 'border-box', resize: 'vertical', borderRadius: '10px', border: '1px solid rgba(0,0,0,0.14)', padding: '10px 12px', fontSize: '13px', fontFamily: 'inherit', outline: 'none' }}
-                  />
-                  <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
-                    <button disabled={!draft.trim()} onClick={sendReprove} style={{ ...actionBtn('#dc2626', '#fff'), opacity: draft.trim() ? 1 : 0.4, cursor: draft.trim() ? 'pointer' : 'not-allowed' }}>Enviar reprovação</button>
-                    <button onClick={() => { setShowReprove(false); setDraft(''); }} style={actionBtn('rgba(0,0,0,0.05)', 'rgba(0,0,0,0.6)', '1px solid rgba(0,0,0,0.1)')}>Cancelar</button>
+              <div className="card-title">{card.title}</div>
+              {card.due && ds === "futuro" && (
+                <div className="card-due">→ {card.due.split("-").reverse().join("/")}</div>
+              )}
+              {total > 0 && (
+                <div className="progress">
+                  <div className="track">
+                    <div className="fill" style={{ width: `${(done / total) * 100}%` }} />
                   </div>
+                  <span className="progress-num">{done}/{total}</span>
                 </div>
               )}
+            </div>
+          );
+        })}
+      </div>
 
-              {it.status === 'reproved' && it.suggestion && !showReprove && (
-                <div style={{ marginTop: '12px', background: '#fef2f2', borderRadius: '8px', padding: '10px 12px', fontSize: '12.5px', color: 'rgba(0,0,0,0.7)', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>
-                  <strong style={{ color: '#b91c1c' }}>Comentário:</strong> {it.suggestion}
-                </div>
-              )}
-
-              <CreativeUploader id={it.id} urls={urls} uploading={uploading} onUpload={onUpload} onRemove={onRemove} />
-            </>
-          )}
+      {adding ? (
+        <div style={{ marginTop: 8 }}>
+          <input
+            autoFocus
+            className="input"
+            placeholder="Título do cartão"
+            value={newTitle}
+            onChange={(e) => setNewTitle(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && addCard()}
+          />
+          <div className="btn-row">
+            <button className="btn" onClick={addCard}>Adicionar</button>
+            <button className="btn ghost" onClick={() => setAdding(false)}>Fechar</button>
+          </div>
         </div>
+      ) : (
+        <button className="add-card px-label" onClick={() => setAdding(true)}>+ novo cartão</button>
+      )}
+    </div>
+  );
+}
+
+// ---------- modal do cartão ----------
+function CardModal({ card, board, updateBoard, updateCalendar, close }) {
+  const [checkText, setCheckText] = useState("");
+  const [tpl, setTpl] = useState("");
+  const [schedDate, setSchedDate] = useState(card.due || todayKey());
+  const [schedNet, setSchedNet] = useState("Instagram");
+  const [schedMsg, setSchedMsg] = useState("");
+  const colOf = board.columns.find((c) => c.cardIds.includes(card.id));
+
+  const patch = (fields) =>
+    updateBoard((b) => {
+      Object.assign(b.cards[card.id], fields);
+      return b;
+    });
+
+  const addCheck = () => {
+    const t = checkText.trim();
+    if (!t) return;
+    updateBoard((b) => {
+      b.cards[card.id].checklist.push({ id: uid(), text: t, done: false });
+      return b;
+    });
+    setCheckText("");
+  };
+
+  const applyTemplate = () => {
+    if (!tpl || !TEMPLATES[tpl]) return;
+    updateBoard((b) => {
+      TEMPLATES[tpl].items.forEach((text) =>
+        b.cards[card.id].checklist.push({ id: uid(), text, done: false })
+      );
+      return b;
+    });
+    setTpl("");
+  };
+
+  const moveTo = (colId) =>
+    updateBoard((b) => {
+      b.columns.forEach((c) => (c.cardIds = c.cardIds.filter((x) => x !== card.id)));
+      b.columns.find((c) => c.id === colId).cardIds.push(card.id);
+      return b;
+    });
+
+  const duplicateCard = () => {
+    updateBoard((b) => {
+      const nid = uid();
+      const copy = structuredClone(b.cards[card.id]);
+      copy.id = nid;
+      copy.title = copy.title + " (cópia)";
+      copy.checklist = copy.checklist.map((i) => ({ ...i, id: uid(), done: false }));
+      b.cards[nid] = copy;
+      const col = b.columns.find((c) => c.cardIds.includes(card.id)) || b.columns[0];
+      col.cardIds.push(nid);
+      return b;
+    });
+    close();
+  };
+
+  const deleteCard = () => {
+    updateBoard((b) => {
+      b.columns.forEach((c) => (c.cardIds = c.cardIds.filter((x) => x !== card.id)));
+      delete b.cards[card.id];
+      return b;
+    });
+    close();
+  };
+
+  const scheduleToCalendar = () => {
+    if (!schedDate) return;
+    updateCalendar((c) => {
+      if (!c.items[schedDate]) c.items[schedDate] = [];
+      c.items[schedDate].push({
+        id: uid(),
+        title: card.title,
+        product: card.product,
+        network: schedNet,
+        status: "producao",
+        cardId: card.id,
+      });
+      return c;
+    });
+    setSchedMsg(`Agendado: ${schedDate.split("-").reverse().join("/")} · ${schedNet}`);
+    setTimeout(() => setSchedMsg(""), 2500);
+  };
+
+  const total = card.checklist.length;
+  const done = card.checklist.filter((i) => i.done).length;
+
+  return (
+    <Overlay close={close}>
+      <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-head">
+          <input
+            className="input title-input"
+            value={card.title}
+            onChange={(e) => patch({ title: e.target.value })}
+          />
+          <button className="icon-btn" onClick={close}>×</button>
+        </div>
+
+        <Field label="produto">
+          <div className="chip-row">
+            {Object.entries(PRODUCTS).map(([k, p]) => (
+              <button
+                key={k}
+                onClick={() => patch({ product: k })}
+                className={`chip ${card.product === k ? "sel" : ""}`}
+                style={card.product === k ? { borderColor: p.color, color: p.color } : {}}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
+        </Field>
+
+        <Field label="prioridade">
+          <div className="chip-row">
+            {Object.entries(PRIORITIES).map(([k, p]) => (
+              <button
+                key={k}
+                onClick={() => patch({ priority: k })}
+                className={`chip ${card.priority === k ? "sel" : ""}`}
+                style={
+                  card.priority === k
+                    ? { borderColor: p.chip, color: k === "nenhuma" ? T.ink : p.chip }
+                    : {}
+                }
+              >
+                {k !== "nenhuma" && <span className="prio-dot" style={{ background: p.chip }} />}
+                {p.label}
+              </button>
+            ))}
+          </div>
+        </Field>
+
+        <div className="two-col">
+          <Field label="entrega">
+            <input type="date" className="input" value={card.due} onChange={(e) => patch({ due: e.target.value })} />
+          </Field>
+          <Field label="link (drive, figma…)">
+            <div style={{ display: "flex", gap: 6 }}>
+              <input
+                className="input"
+                placeholder="https://…"
+                value={card.link}
+                onChange={(e) => patch({ link: e.target.value })}
+              />
+              {card.link && (
+                <a className="btn" href={card.link} target="_blank" rel="noreferrer">abrir →</a>
+              )}
+            </div>
+          </Field>
+        </div>
+
+        <Field label="descrição">
+          <textarea
+            className="input"
+            style={{ minHeight: 64, resize: "vertical" }}
+            placeholder="Contexto, referências…"
+            value={card.desc}
+            onChange={(e) => patch({ desc: e.target.value })}
+          />
+        </Field>
+
+        <Field label={`checklist ${total > 0 ? `· ${done}/${total}` : ""}`}>
+          <div className="tpl-row">
+            <select className="input" value={tpl} onChange={(e) => setTpl(e.target.value)}>
+              <option value="">— template de checklist —</option>
+              {Object.entries(TEMPLATES).map(([k, t]) => (
+                <option key={k} value={k}>{t.label}</option>
+              ))}
+            </select>
+            <button className="btn" onClick={applyTemplate}>usar</button>
+          </div>
+          {total > 0 && (
+            <div className="track" style={{ margin: "8px 0" }}>
+              <div className="fill" style={{ width: `${(done / total) * 100}%` }} />
+            </div>
+          )}
+          {card.checklist.map((item) => (
+            <div key={item.id} className="check-row">
+              <button
+                className={`checkbox ${item.done ? "on" : ""}`}
+                onClick={() =>
+                  updateBoard((b) => {
+                    const it = b.cards[card.id].checklist.find((x) => x.id === item.id);
+                    it.done = !it.done;
+                    return b;
+                  })
+                }
+              >
+                {item.done ? "✕" : ""}
+              </button>
+              <span className={`check-text ${item.done ? "done" : ""}`}>{item.text}</span>
+              <button
+                className="icon-btn"
+                onClick={() =>
+                  updateBoard((b) => {
+                    b.cards[card.id].checklist = b.cards[card.id].checklist.filter((x) => x.id !== item.id);
+                    return b;
+                  })
+                }
+              >
+                ×
+              </button>
+            </div>
+          ))}
+          <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
+            <input
+              className="input"
+              placeholder="Novo item"
+              value={checkText}
+              onChange={(e) => setCheckText(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && addCheck()}
+            />
+            <button className="btn" onClick={addCheck}>+</button>
+          </div>
+        </Field>
+
+        <Field label="agendar no calendário">
+          <div className="tpl-row">
+            <input type="date" className="input" value={schedDate} onChange={(e) => setSchedDate(e.target.value)} />
+            <select className="input" value={schedNet} onChange={(e) => setSchedNet(e.target.value)}>
+              {NETWORKS.map((n) => (
+                <option key={n} value={n}>{n}</option>
+              ))}
+            </select>
+            <button className="btn" onClick={scheduleToCalendar}>agendar →</button>
+          </div>
+          {schedMsg && <div className="sched-ok">✓ {schedMsg}</div>}
+        </Field>
+
+        <Field label="mover para">
+          <div className="chip-row">
+            {board.columns.map((c) => (
+              <button
+                key={c.id}
+                onClick={() => moveTo(c.id)}
+                className={`chip ${colOf?.id === c.id ? "sel" : ""}`}
+              >
+                {c.title}
+              </button>
+            ))}
+          </div>
+        </Field>
+
+        <div className="modal-foot">
+          <button className="btn ghost" onClick={duplicateCard}>⧉ duplicar</button>
+          <button className="btn danger" onClick={deleteCard}>✕ excluir</button>
+        </div>
+      </div>
+    </Overlay>
+  );
+}
+
+// ---------- calendário ----------
+function Calendar({ calendar, board, month, setMonth, setOpenDay, filter, setFilter }) {
+  const { y, m } = month;
+  const first = new Date(y, m, 1).getDay();
+  const daysInMonth = new Date(y, m + 1, 0).getDate();
+  const tk = todayKey();
+  const week = weekRange();
+
+  const cells = [];
+  for (let i = 0; i < first; i++) cells.push(null);
+  for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+
+  const nav = (dir) => {
+    let nm = m + dir, ny = y;
+    if (nm < 0) { nm = 11; ny--; }
+    if (nm > 11) { nm = 0; ny++; }
+    setMonth({ y: ny, m: nm });
+  };
+
+  const netCount = useMemo(() => {
+    const c = {};
+    NETWORKS.forEach((n) => (c[n] = 0));
+    week.forEach((d) =>
+      (calendar.items[d] || []).forEach((it) => {
+        if (filter !== "todos" && it.product !== filter) return;
+        if (c[it.network] !== undefined) c[it.network]++;
+      })
+    );
+    return c;
+  }, [calendar, filter]);
+
+  return (
+    <div className="view">
+      <div className="cal-nav">
+        <button className="btn ghost" onClick={() => nav(-1)}>←</button>
+        <div className="cal-month px-label">{MONTHS[m]} {y}</div>
+        <button className="btn ghost" onClick={() => nav(1)}>→</button>
+      </div>
+
+      <div className="chip-row" style={{ justifyContent: "center", marginBottom: 10 }}>
+        <button className={`chip ${filter === "todos" ? "sel" : ""}`} onClick={() => setFilter("todos")}>
+          Todos
+        </button>
+        {Object.entries(PRODUCTS).filter(([k]) => k !== "outro").map(([k, p]) => (
+          <button
+            key={k}
+            className={`chip ${filter === k ? "sel" : ""}`}
+            style={filter === k ? { borderColor: p.color, color: p.color } : {}}
+            onClick={() => setFilter(k)}
+          >
+            {p.label}
+          </button>
+        ))}
+      </div>
+
+      <div className="week-bar">
+        <span className="px-label">esta semana</span>
+        {NETWORKS.map((n) => (
+          <span key={n} className={`week-net ${netCount[n] === 0 ? "zero" : ""}`}>
+            {n} <b>{netCount[n]}</b>
+          </span>
+        ))}
+      </div>
+
+      <div className="week-row">
+        {WEEKDAYS.map((w) => (
+          <div key={w} className="weekday px-label">{w}</div>
+        ))}
+      </div>
+
+      <div className="cal-grid">
+        {cells.map((d, i) => {
+          if (d === null) return <div key={`e${i}`} className="day blank" />;
+          const key = dk(y, m, d);
+          const all = calendar.items[key] || [];
+          const items = filter === "todos" ? all : all.filter((it) => it.product === filter);
+          const isToday = key === tk;
+          return (
+            <button key={key} className={`day ${isToday ? "today" : ""}`} onClick={() => setOpenDay(key)}>
+              <div className="day-num px-label">{d}</div>
+              <div className="day-items">
+                {items.slice(0, 3).map((it) => {
+                  const p = PRODUCTS[it.product] || PRODUCTS.outro;
+                  return (
+                    <div key={it.id} className={`cal-item ${it.status === "publicado" ? "pub" : ""}`}>
+                      <span className="ci-dot" style={{ background: p.color }} />
+                      <span className="ci-title">{it.title}</span>
+                    </div>
+                  );
+                })}
+                {items.length > 3 && <div className="more">+{items.length - 3}</div>}
+              </div>
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="cal-legend">
+        {Object.entries(PRODUCTS).filter(([k]) => k !== "outro").map(([k, p]) => (
+          <span key={k}><span className="lg" style={{ background: p.color }} />{p.label}</span>
+        ))}
       </div>
     </div>
   );
 }
 
-// Modal de criar/editar um post no admin
-function PostEditor({ initial, brands, lockBrand, onSave, onClose }) {
-  const [brand, setBrand] = useState(initial?.brand || brands[0]?.[0] || '');
-  const [headline, setHeadline] = useState(initial?.headline || '');
-  const [subtitle, setSubtitle] = useState(initial?.subtitle || '');
-  const [caption, setCaption] = useState(initial?.caption || '');
-  const [kind, setKind] = useState(initial?.kind || 'estatico');
-  const [tags, setTags] = useState(Array.isArray(initial?.tags) ? initial.tags : []);
-  const [tagInput, setTagInput] = useState('');
-  const [prodSt, setProdSt] = useState(initial?.prodStatus || 'producao');
+// ---------- modal do dia ----------
+function DayModal({ dateKey: key, calendar, board, updateCalendar, setOpenCard, close }) {
+  const items = calendar.items[key] || [];
+  const [form, setForm] = useState({ title: "", product: "octalab", network: "Instagram", status: "ideia" });
+  const [y, m, d] = key.split("-").map(Number);
 
-  const addTag = (t) => {
-    const v = (t || '').trim();
-    if (!v) return;
-    if (!tags.some(x => x.toLowerCase() === v.toLowerCase())) setTags([...tags, v]);
-    setTagInput('');
+  const addItem = () => {
+    const t = form.title.trim();
+    if (!t) return;
+    updateCalendar((c) => {
+      if (!c.items[key]) c.items[key] = [];
+      c.items[key].push({ id: uid(), ...form, title: t });
+      return c;
+    });
+    setForm((f) => ({ ...f, title: "" }));
   };
-  const removeTag = (t) => setTags(tags.filter(x => x !== t));
 
-  const canSave = brand && headline.trim();
-  const save = () => { if (canSave) onSave({ ...(initial || {}), brand, headline: headline.trim(), subtitle: subtitle.trim(), caption, kind, tags, prodStatus: prodSt }); };
+  const patchItem = (id, fields) =>
+    updateCalendar((c) => {
+      const it = c.items[key].find((x) => x.id === id);
+      Object.assign(it, fields);
+      return c;
+    });
 
-  const field = { width: '100%', boxSizing: 'border-box', borderRadius: '10px', border: '1px solid rgba(0,0,0,0.14)', padding: '11px 13px', fontSize: '14px', fontFamily: 'inherit', outline: 'none', background: '#fff' };
-  const label = { fontSize: '11.5px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'rgba(0,0,0,0.5)', marginBottom: '7px', display: 'block' };
+  const removeItem = (id) =>
+    updateCalendar((c) => {
+      c.items[key] = c.items[key].filter((x) => x.id !== id);
+      if (c.items[key].length === 0) delete c.items[key];
+      return c;
+    });
+
+  const duplicateItem = (id) =>
+    updateCalendar((c) => {
+      const it = c.items[key].find((x) => x.id === id);
+      c.items[key].push({ ...structuredClone(it), id: uid(), title: it.title + " (cópia)" });
+      return c;
+    });
 
   return (
-    <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 1001, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)', display: 'flex', justifyContent: 'center', alignItems: 'flex-start', padding: '24px', overflowY: 'auto', fontFamily: 'Geist, -apple-system, BlinkMacSystemFont, system-ui, sans-serif' }}>
-      <div onClick={e => e.stopPropagation()} style={{ background: '#f5f5f3', borderRadius: '20px', width: '100%', maxWidth: '600px', margin: 'auto', overflow: 'hidden', boxShadow: '0 24px 60px rgba(0,0,0,0.3)' }}>
-        <div style={{ background: '#0a0a0a', color: '#fafafa', padding: '20px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <h2 style={{ fontSize: '19px', fontWeight: 600, margin: 0, letterSpacing: '-0.02em' }}>{initial ? 'Editar conteúdo' : 'Novo conteúdo'}</h2>
-          <button onClick={onClose} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', cursor: 'pointer', color: '#fafafa', borderRadius: '999px', width: '32px', height: '32px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
-            <X size={16} />
-          </button>
+    <Overlay close={close}>
+      <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-head">
+          <div className="modal-title px-label">{String(d).padStart(2, "0")} de {MONTHS[m - 1]} · {y}</div>
+          <button className="icon-btn" onClick={close}>×</button>
         </div>
 
-        <div style={{ padding: '22px 24px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
-          <div>
-            <label style={label}>Marca</label>
-            {lockBrand ? (
-              <div style={{ ...field, background: 'rgba(0,0,0,0.04)', color: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Lock size={13} /> {brands.find(([k]) => k === brand)?.[1]?.name || clients[brand]?.name || brand}
+        {items.length === 0 && (
+          <div className="empty">Nenhum conteúdo neste dia ainda. Adicione o primeiro abaixo.</div>
+        )}
+
+        {items.map((it) => {
+          const p = PRODUCTS[it.product] || PRODUCTS.outro;
+          const linkedCard = it.cardId && board.cards[it.cardId];
+          return (
+            <div key={it.id} className="day-item" style={{ borderLeftColor: p.color }}>
+              <div className="di-head">
+                <div style={{ flex: 1 }}>
+                  <div className="di-meta">
+                    <ProdTag k={it.product} /> {p.label} ·{" "}
+                    <select
+                      className="input inline"
+                      value={it.network}
+                      onChange={(e) => patchItem(it.id, { network: e.target.value })}
+                    >
+                      {NETWORKS.map((n) => (
+                        <option key={n} value={n}>{n}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="di-title">{it.title}</div>
+                </div>
+                <button className="icon-btn" onClick={() => removeItem(it.id)}>×</button>
               </div>
-            ) : (
-              <select value={brand} onChange={e => setBrand(e.target.value)} style={{ ...field, cursor: 'pointer' }}>
-                {brands.map(([k, c]) => <option key={k} value={k}>{c.name}</option>)}
-              </select>
-            )}
-          </div>
-
-          <div>
-            <label style={label}>Tipo do conteúdo</label>
-            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-              {POST_TYPES.map(t => {
-                const on = kind === t.key;
-                return (
-                  <button key={t.key} onClick={() => setKind(t.key)} style={{
-                    display: 'inline-flex', alignItems: 'center', gap: '7px', flex: 1, minWidth: '120px', justifyContent: 'center',
-                    background: on ? '#0a0a0a' : '#fff', color: on ? '#fff' : 'rgba(0,0,0,0.7)',
-                    border: '1px solid ' + (on ? '#0a0a0a' : 'rgba(0,0,0,0.14)'),
-                    borderRadius: '10px', padding: '11px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s ease'
-                  }}>
-                    {t.icon} {t.label}
+              <div className="chip-row" style={{ marginTop: 8 }}>
+                {Object.entries(CAL_STATUS).map(([k, s]) => (
+                  <button
+                    key={k}
+                    onClick={() => patchItem(it.id, { status: k })}
+                    className={`chip small ${it.status === k ? "sel" : ""}`}
+                  >
+                    {s.label}
                   </button>
-                );
-              })}
-            </div>
-          </div>
-
-          <div>
-            <label style={label}>Status de postagem</label>
-            <div style={{ display: 'flex', gap: '8px' }}>
-              {[['producao', 'Em produção'], ['agendado', 'Agendado']].map(([k, lab]) => {
-                const on = prodSt === k;
-                return (
-                  <button key={k} onClick={() => setProdSt(k)} style={{
-                    flex: 1, background: on ? '#0a0a0a' : '#fff', color: on ? '#fff' : 'rgba(0,0,0,0.7)',
-                    border: '1px solid ' + (on ? '#0a0a0a' : 'rgba(0,0,0,0.14)'),
-                    borderRadius: '10px', padding: '11px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s ease'
-                  }}>{lab}</button>
-                );
-              })}
-            </div>
-            <p style={{ fontSize: '11.5px', color: 'rgba(0,0,0,0.45)', margin: '7px 0 0' }}>Agendados viram “Postado” automaticamente no dia marcado no calendário.</p>
-          </div>
-
-          <div>
-            <label style={label}>Headline do criativo</label>
-            <input value={headline} onChange={e => setHeadline(e.target.value)} placeholder="Título principal do criativo" style={field} autoFocus />
-          </div>
-
-          <div>
-            <label style={label}>Subtítulo</label>
-            <input value={subtitle} onChange={e => setSubtitle(e.target.value)} placeholder="Complemento da headline" style={field} />
-          </div>
-
-          <div>
-            <label style={label}>Legenda</label>
-            <textarea value={caption} onChange={e => setCaption(e.target.value)} placeholder="Texto da publicação…" rows={5} style={{ ...field, resize: 'vertical', lineHeight: 1.5 }} />
-          </div>
-
-          <div>
-            <label style={label}>Tags</label>
-            {tags.length > 0 && (
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '7px', marginBottom: '10px' }}>
-                {tags.map(t => (
-                  <span key={t} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: '#0a0a0a', color: '#fff', borderRadius: '999px', padding: '4px 6px 4px 11px', fontSize: '12px', fontWeight: 600 }}>
-                    {t}
-                    <button onClick={() => removeTag(t)} style={{ background: 'rgba(255,255,255,0.2)', border: 'none', color: '#fff', borderRadius: '50%', width: '16px', height: '16px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', lineHeight: 1 }}>×</button>
-                  </span>
                 ))}
               </div>
-            )}
-            <input
-              value={tagInput}
-              onChange={e => setTagInput(e.target.value)}
-              onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addTag(tagInput); } }}
-              placeholder="Digite uma tag e tecle Enter"
-              style={field}
-            />
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '10px' }}>
-              {TAG_SUGGESTIONS.filter(s => !tags.some(t => t.toLowerCase() === s.toLowerCase())).map(s => (
-                <button key={s} onClick={() => addTag(s)} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: 'rgba(0,0,0,0.04)', border: '1px solid rgba(0,0,0,0.1)', color: 'rgba(0,0,0,0.6)', borderRadius: '999px', padding: '4px 10px', fontSize: '11.5px', fontWeight: 600, cursor: 'pointer' }}>
-                  <Plus size={10} /> {s}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        <div style={{ padding: '16px 24px', borderTop: '1px solid rgba(0,0,0,0.08)', display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-          <button onClick={onClose} style={{ background: 'rgba(0,0,0,0.05)', border: '1px solid rgba(0,0,0,0.1)', color: 'rgba(0,0,0,0.7)', borderRadius: '10px', padding: '11px 18px', fontSize: '13.5px', fontWeight: 600, cursor: 'pointer' }}>Cancelar</button>
-          <button onClick={save} disabled={!canSave} style={{ background: '#0a0a0a', border: 'none', color: '#fff', borderRadius: '10px', padding: '11px 20px', fontSize: '13.5px', fontWeight: 600, cursor: canSave ? 'pointer' : 'not-allowed', opacity: canSave ? 1 : 0.4, display: 'inline-flex', alignItems: 'center', gap: '7px' }}>
-            <Check size={15} /> {initial ? 'Salvar alterações' : 'Criar conteúdo'}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// Ícone que remete a cada marca
-const BRAND_ICONS = {
-  juspilot: Scale,
-  juspilotTrafego: Target,
-  octalab: FlaskConical,
-  ecosys: Car,
-  octagym: Dumbbell
-};
-
-// Escolhe texto preto ou branco conforme o brilho da cor de fundo
-function readableText(hex = '') {
-  const h = hex.replace('#', '');
-  if (h.length < 6) return '#ffffff';
-  const r = parseInt(h.slice(0, 2), 16), g = parseInt(h.slice(2, 4), 16), b = parseInt(h.slice(4, 6), 16);
-  return (0.299 * r + 0.587 * g + 0.114 * b) / 255 > 0.62 ? '#0a0a0a' : '#ffffff';
-}
-
-// Ícone de peça de xadrez (cavalo)
-function KnightIcon({ size = 26 }) {
-  return <span aria-hidden="true" style={{ fontSize: size, lineHeight: 1, display: 'inline-block' }}>♞</span>;
-}
-
-// Card de estratégia de uma marca: anotações + materiais (links/arquivos). Admin edita; perfis leem.
-function BrandStrategyCard({ brand, c, data, canEdit, onSaveNotes, onAddLink, onUploadFile, onRemoveMaterial }) {
-  const [notes, setNotes] = useState(data.notes || '');
-  const [linkLabel, setLinkLabel] = useState('');
-  const [linkUrl, setLinkUrl] = useState('');
-  const [uploading, setUploading] = useState(false);
-  useEffect(() => { setNotes(data.notes || ''); }, [data.notes]);
-
-  const materials = data.materials || [];
-  const dirty = notes !== (data.notes || '');
-
-  const addLink = () => {
-    let url = linkUrl.trim();
-    if (!url) return;
-    if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
-    onAddLink(brand, { label: linkLabel.trim() || url, url, kind: 'link' });
-    setLinkLabel(''); setLinkUrl('');
-  };
-  const handleFile = async (e) => {
-    const f = e.target.files?.[0]; e.target.value = '';
-    if (!f) return;
-    setUploading(true);
-    await onUploadFile(brand, f);
-    setUploading(false);
-  };
-
-  const field = { width: '100%', boxSizing: 'border-box', borderRadius: '10px', border: '1px solid rgba(0,0,0,0.14)', padding: '9px 12px', fontSize: '13px', fontFamily: 'inherit', outline: 'none' };
-
-  return (
-    <div style={{ background: '#fff', borderRadius: '18px', border: '1px solid rgba(0,0,0,0.06)', boxShadow: '0 1px 3px rgba(0,0,0,0.04), 0 6px 20px rgba(0,0,0,0.05)', padding: '22px 24px', marginBottom: '20px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '14px' }}>
-        <span style={{ width: '11px', height: '11px', borderRadius: '50%', background: c.accent }} />
-        <h2 style={{ fontSize: '18px', fontWeight: 700, margin: 0, letterSpacing: '-0.01em' }}>{c.name}</h2>
-      </div>
-
-      {/* Anotações */}
-      <div style={{ fontSize: '10.5px', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'rgba(0,0,0,0.45)', marginBottom: '8px' }}>Estratégia</div>
-      {canEdit ? (
-        <>
-          <textarea
-            value={notes}
-            onChange={e => setNotes(e.target.value)}
-            onBlur={() => { if (dirty) onSaveNotes(brand, notes); }}
-            placeholder="Descreva a estratégia de postagem desta marca…"
-            rows={5}
-            style={{ ...field, resize: 'vertical', lineHeight: 1.55 }}
-          />
-          {dirty && <div style={{ fontSize: '11px', color: 'rgba(0,0,0,0.4)', marginTop: '5px' }}>Sai do campo para salvar.</div>}
-        </>
-      ) : (
-        notes.trim()
-          ? <p style={{ fontSize: '13px', color: 'rgba(0,0,0,0.78)', lineHeight: 1.6, whiteSpace: 'pre-wrap', margin: 0 }}>{notes}</p>
-          : <p style={{ fontSize: '13px', color: 'rgba(0,0,0,0.4)', margin: 0 }}>Nenhuma estratégia definida ainda.</p>
-      )}
-
-      {/* Materiais */}
-      <div style={{ fontSize: '10.5px', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'rgba(0,0,0,0.45)', margin: '18px 0 8px' }}>
-        Materiais{materials.length ? ` · ${materials.length}` : ''}
-      </div>
-      {materials.length > 0 && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '7px', marginBottom: canEdit ? '14px' : 0 }}>
-          {materials.map((m, i) => (
-            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '9px', background: 'rgba(0,0,0,0.03)', border: '1px solid rgba(0,0,0,0.07)', borderRadius: '10px', padding: '9px 12px' }}>
-              {m.kind === 'file' ? <Layers size={14} color="rgba(0,0,0,0.5)" /> : <ArrowRight size={14} color="rgba(0,0,0,0.5)" style={{ transform: 'rotate(-45deg)' }} />}
-              <a href={m.url} target="_blank" rel="noopener noreferrer" style={{ flex: 1, minWidth: 0, fontSize: '13px', fontWeight: 600, color: '#2563eb', textDecoration: 'none', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.label}</a>
-              {canEdit && (
-                <button onClick={() => onRemoveMaterial(brand, i)} title="Remover" style={{ flexShrink: 0, background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(0,0,0,0.4)', fontSize: '16px', lineHeight: 1 }}>×</button>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
-      {!materials.length && !canEdit && <p style={{ fontSize: '13px', color: 'rgba(0,0,0,0.4)', margin: 0 }}>Nenhum material ainda.</p>}
-
-      {canEdit && (
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center' }}>
-          <input value={linkLabel} onChange={e => setLinkLabel(e.target.value)} placeholder="Nome (opcional)" style={{ ...field, flex: '1 1 140px', maxWidth: '200px' }} />
-          <input value={linkUrl} onChange={e => setLinkUrl(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') addLink(); }} placeholder="Cole um link…" style={{ ...field, flex: '2 1 200px' }} />
-          <button onClick={addLink} style={{ background: '#0a0a0a', color: '#fff', border: 'none', borderRadius: '10px', padding: '9px 14px', fontSize: '12.5px', fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '6px' }}><Plus size={14} /> Link</button>
-          <label style={{ background: 'rgba(0,0,0,0.05)', color: 'rgba(0,0,0,0.75)', border: '1px solid rgba(0,0,0,0.12)', borderRadius: '10px', padding: '9px 14px', fontSize: '12.5px', fontWeight: 600, cursor: uploading ? 'not-allowed' : 'pointer', opacity: uploading ? 0.5 : 1, display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-            <input type="file" style={{ display: 'none' }} disabled={uploading} onChange={handleFile} />
-            <Plus size={14} /> {uploading ? 'Subindo…' : 'Arquivo'}
-          </label>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// Mostra quem fez a escolha (avatar do perfil + nome). dark=true para fundos escuros.
-function ChooserBadge({ reviewer, dark }) {
-  if (!reviewer) return null;
-  const p = profileByName(reviewer);
-  const color = dark ? 'rgba(255,255,255,0.9)' : 'rgba(0,0,0,0.55)';
-  return (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '11.5px', fontWeight: 600, color }}>
-      {p
-        ? <BoringAvatar index={p.avatar} size={18} />
-        : <span style={{ width: '18px', height: '18px', borderRadius: '50%', background: dark ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.55)', color: dark ? '#fff' : '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '9px', fontWeight: 700 }}>{reviewer[0]}</span>}
-      {reviewer}
-    </span>
-  );
-}
-
-// Carrossel do mapa de ideias: auto-scroll contínuo (dir → esq) + arrastável (dedo/mouse)
-function IdeaCarousel({ items, decisions, onDecide, accent }) {
-  const CARD_W = 218, GAP = 14;
-  const period = items.length * (CARD_W + GAP); // largura exata de um conjunto (card + gap) — ponto de reset
-  const ref = useRef(null);
-  const st = useRef({ hover: false, interacting: false, dragging: false, startX: 0, startScroll: 0 });
-
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    let raf;
-    const tick = () => {
-      raf = requestAnimationFrame(tick);
-      const s = st.current;
-      if (!s.hover && !s.interacting) el.scrollLeft += 0.5; // auto-scroll lento
-      // loop infinito sem emenda, usando o período exato dos cards
-      if (el.scrollLeft >= period) el.scrollLeft -= period;
-      else if (el.scrollLeft < 0) el.scrollLeft += period;
-    };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, [items, period]);
-
-  const onDown = (e) => {
-    const s = st.current;
-    s.interacting = true;
-    if (e.pointerType === 'mouse') { s.dragging = true; s.startX = e.clientX; s.startScroll = ref.current.scrollLeft; }
-  };
-  const onMove = (e) => {
-    const s = st.current;
-    if (s.dragging) ref.current.scrollLeft = s.startScroll - (e.clientX - s.startX);
-  };
-  const onUp = () => { st.current.interacting = false; st.current.dragging = false; };
-
-  return (
-    <div
-      ref={ref}
-      onMouseEnter={() => { st.current.hover = true; }}
-      onMouseLeave={() => { st.current.hover = false; st.current.interacting = false; st.current.dragging = false; }}
-      onPointerDown={onDown}
-      onPointerMove={onMove}
-      onPointerUp={onUp}
-      onPointerCancel={onUp}
-      className="idea-scroll"
-      style={{ display: 'flex', gap: `${GAP}px`, overflowX: 'auto', padding: '6px 8px 12px', cursor: 'grab', userSelect: 'none', WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none' }}
-    >
-      <style>{`.idea-scroll::-webkit-scrollbar{display:none}`}</style>
-      {[...items, ...items].map((idea, i) => {
-        const Icon = idea.Icon || Layers;
-        const decId = `octagym-idea-${idea.n}`;
-        const dec = decisions[decId];
-        const v = dec?.value;
-        return (
-          <div key={i} style={{ flex: '0 0 auto', width: `${CARD_W}px`, background: accent, color: '#fff', borderRadius: '14px', padding: '18px', boxShadow: '0 8px 24px rgba(239,10,54,0.28)', display: 'flex', flexDirection: 'column' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{ fontSize: '22px', fontWeight: 800, lineHeight: 1, color: '#fff' }}>{idea.n}</span>
-                <span style={{ fontSize: '9.5px', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.7)' }}>{idea.phase}</span>
-              </span>
-              <span style={{ width: '38px', height: '38px', borderRadius: '50%', background: 'rgba(255,255,255,0.18)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}><Icon size={19} color="#fff" /></span>
-            </div>
-            <h3 style={{ fontSize: '15px', fontWeight: 700, lineHeight: 1.3, minHeight: '58px', color: '#fff', margin: 0, letterSpacing: '-0.01em' }}>{idea.title}</h3>
-            <div style={{ display: 'flex', gap: '7px', marginTop: '14px' }}>
-              {['keep', 'swap'].map(k => {
-                const on = v === k;
-                return (
-                  <button key={k} onClick={() => onDecide(decId, k)} style={{
-                    flex: 1, fontSize: '11px', cursor: 'pointer', fontFamily: 'inherit', borderRadius: '7px', padding: '6px 0',
-                    border: `1px solid ${on ? '#fff' : 'rgba(255,255,255,0.45)'}`,
-                    background: on && k === 'keep' ? '#fff' : 'transparent',
-                    color: on && k === 'keep' ? accent : '#fff',
-                    fontWeight: on ? 700 : 500,
-                    textDecoration: on && k === 'swap' ? 'line-through' : 'none',
-                    transition: 'all 0.15s ease'
-                  }}>{k === 'keep' ? 'Manter' : 'Trocar'}</button>
-                );
-              })}
-            </div>
-            <div style={{ marginTop: '10px', minHeight: '18px' }}>{dec?.reviewer && <ChooserBadge reviewer={dec.reviewer} dark />}</div>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-// Estratégia completa da Octagym (Track Day) — tema claro, fonte do site, linha do tempo horizontal
-function OctagymStrategy({ accent = '#EF0A36', decisions = {}, onDecide = () => {} }) {
-  const ink = '#0a0a0a', ink2 = 'rgba(0,0,0,0.62)', ink3 = 'rgba(0,0,0,0.42)', line = 'rgba(0,0,0,0.1)', line2 = 'rgba(0,0,0,0.16)';
-  const [checks, setChecks] = useState({});
-
-  const ALT = [
-    { key: 'distrito', title: 'Collab: OctaGym com a Distrito Racing', desc: 'Carrossel "o que é o Track Day" aparecendo nos dois perfis', opts: ['Dá pra fazer', 'Não', 'A definir'] },
-    { key: 'ironberg', title: 'Collab: OctaGym com a Ironberg', desc: 'Publicação junto com eles, ou um repost no perfil deles', opts: ['Dá pra fazer', 'Não', 'A definir'] },
-    { key: 'alfredo', title: 'Voz: o Alfredo Neto grava o vídeo', desc: 'Rosto conhecido falando o que a OctaGym faz', opts: ['Sim', 'Outra voz', 'A definir'] }
-  ];
-  const IDEAS = [
-    { phase: 'Pré', n: '01', title: 'Reel: o que é o Track Day', Icon: Video },
-    { phase: 'Pré', n: '02', title: 'Reel: o papel da OctaGym', Icon: Video },
-    { phase: 'Pré', n: '03', title: 'Collab: carrossel do evento', Icon: Layers },
-    { phase: 'Pré', n: '04', title: 'Reel: gestão é performance', Icon: Video },
-    { phase: 'Pré', n: '05', title: 'Vídeo com o Alfredo (cara e voz)', Icon: Video },
-    { phase: 'Pré', n: '06', title: 'Estáticos do desconto no ingresso', Icon: ImageIcon },
-    { phase: 'Evento', n: '07', title: 'Cobertura e Stories ao vivo', Icon: Megaphone },
-    { phase: 'Pós', n: '08', title: 'Vídeo final do evento e cortes', Icon: Video }
-  ];
-  const TIMELINE = [
-    { date: '15 a 20 jun', phase: 'Esta semana', items: [{ tag: 'Reel', txt: 'Reel 1: o que é o Track Day' }, { tag: 'Reel', txt: 'Reel 2: o papel da OctaGym' }, { tag: 'Collab', txt: 'Carrossel do evento (Distrito e Ironberg)' }, { tag: 'Estático', txt: 'Chamada do desconto no ingresso' }] },
-    { date: '22 a 26 jun', phase: 'Reta final', items: [{ tag: 'Reel', txt: 'Reel 3: gestão também é performance' }, { tag: 'Voz', txt: 'Vídeo com o Alfredo (cara e voz)' }, { tag: 'Estático', txt: 'Contagem regressiva (3 artes)' }, { tag: 'Roteiro', txt: 'Roteiros e lista de gravação pro evento' }] },
-    { date: '27 e 28 jun', phase: 'No evento', items: [{ tag: 'Cobertura', txt: 'Stories ao vivo nos dois dias' }, { tag: 'Captação', txt: 'Vídeo e fotos cruas (seguindo a lista)' }, { tag: 'Reel', txt: '1 reel curto por dia' }] },
-    { date: '29 jun a 4 jul', phase: 'Depois', items: [{ tag: 'Edição', txt: 'Vídeo final do evento (peça principal)' }, { tag: 'Edição', txt: '4 a 6 cortes pra reels e posts' }, { tag: 'Carrossel', txt: '"Foi assim", com os números' }] }
-  ];
-  const REELS = [
-    { n: '01', title: 'O que é o Track Day', desc: 'Mostra o que é o evento, com a Distrito Racing e a Ironberg. Clima, energia e o que vai rolar.', fmt: '15s · vertical · texto na tela' },
-    { n: '02', title: 'O papel da OctaGym', desc: 'Quem é a OctaGym: o sistema operacional das academias, presente no evento.', fmt: '20s · vertical · cara e voz' },
-    { n: '03', title: 'Gestão também é performance', desc: 'Faz a ponte: o mesmo cuidado com performance da pista, a OctaGym leva pra dentro da academia.', fmt: '20s · vertical · conceitual' }
-  ];
-  const OWNERS = [
-    { task: 'Criação visual de tudo: reels, estáticos, carrossel e edição', who: 'Firmino' },
-    { task: 'Página e formulário do desconto', who: 'Alex · Head de Marketing' },
-    { task: 'Contato com os leads depois, e quem fica no QR do estande', who: 'A definir', tbd: true }
-  ];
-  const GRAVAR = ['A marca da OctaGym aparecendo no vídeo', 'Reações e clima do público', 'Imagens de apoio (carros, pista, ambiente)', 'O sistema funcionando ao vivo (na tela do estande)', 'Um depoimento de alguém falando (cara e voz)', 'Gente escaneando o QR (pra provar a captação)'];
-  const PAINEL = [
-    ['Conteúdo que rende por semanas', 'O evento dura dois dias, mas os reels, o carrossel e o vídeo final continuam postando muito tempo depois.', Calendar],
-    ['Marca vista por gente nova, quase de graça', 'Quando a Ironberg, a Distrito e o Alfredo repostam, a OctaGym aparece pra um monte de gente que nunca tinha ouvido falar dela.', Megaphone],
-    ['Uma mensagem que gruda', 'Todo conteúdo repete a mesma ideia, então o dono de academia lembra da OctaGym depois, não só na hora.', Target],
-    ['Lead de verdade, não só curtida', 'O desconto traz a pessoa pro formulário, e a pergunta sobre academia separa quem realmente interessa pra venda.', BadgeCheck],
-    ['Prova na frente da pessoa', 'Mostrar o sistema funcionando ao vivo convence muito mais do que qualquer promessa.', Video],
-    ['Sai do papel', 'Cada coisa tem um responsável e uma data, então o plano vira ação de verdade, não fica só na ideia.', Check]
-  ];
-
-  const Section = ({ label, hint, children }) => (
-    <section style={{ paddingBottom: '38px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', borderTop: `1px solid ${line}`, paddingTop: '18px', marginBottom: '22px' }}>
-        <span style={{ fontSize: '11.5px', letterSpacing: '0.16em', textTransform: 'uppercase', color: ink3, fontWeight: 700 }}>{label}</span>
-        {hint && <span style={{ fontSize: '11px', letterSpacing: '0.1em', textTransform: 'uppercase', color: ink3 }}>{hint}</span>}
-      </div>
-      {children}
-    </section>
-  );
-  // Passo a passo numerado vertical (claro no mobile e desktop)
-  const Chain = ({ steps }) => (
-    <div style={{ display: 'flex', flexDirection: 'column' }}>
-      {steps.map((s, i) => (
-        <React.Fragment key={i}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <span style={{ flexShrink: 0, width: '30px', height: '30px', borderRadius: '50%', background: accent, color: '#fff', fontWeight: 800, fontSize: '13px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', boxShadow: `0 4px 12px ${accent}44` }}>{i + 1}</span>
-            <span style={{ flex: 1, minWidth: 0, background: '#fff', color: ink, border: `1px solid ${line2}`, borderRadius: '10px', padding: '11px 14px', fontSize: '13.5px', fontWeight: 600, lineHeight: 1.35 }}>{s}</span>
-          </div>
-          {i < steps.length - 1 && (
-            <div style={{ width: '30px', display: 'flex', justifyContent: 'center' }}>
-              <div style={{ height: '12px', borderLeft: `2px dashed ${accent}66`, margin: '3px 0' }} />
-            </div>
-          )}
-        </React.Fragment>
-      ))}
-    </div>
-  );
-  const grid3 = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: '12px' };
-  const cellCard = { border: `1px solid ${line}`, borderRadius: '12px', padding: '18px 20px', background: '#fff' };
-  const formField = { fontSize: '13px', color: ink, border: `1px dashed ${line2}`, borderRadius: '7px', padding: '7px 13px' };
-
-  return (
-    <div style={{ background: '#fff', border: `1px solid ${line}`, borderRadius: '20px', padding: 'clamp(20px, 4vw, 40px)', boxShadow: '0 1px 3px rgba(0,0,0,0.04), 0 8px 28px rgba(0,0,0,0.06)' }}>
-      {/* HERO */}
-      <div style={{ paddingBottom: '32px' }}>
-        <div style={{ fontSize: '11.5px', letterSpacing: '0.2em', textTransform: 'uppercase', color: ink3, marginBottom: '18px' }}>Distrito Racing e Ironberg · presença de marca</div>
-        <div style={{ display: 'flex', gap: 'clamp(24px, 5vw, 64px)', alignItems: 'flex-end', flexWrap: 'wrap' }}>
-          <h1 style={{ flex: '1 1 420px', fontSize: 'clamp(32px, 5.5vw, 60px)', fontWeight: 700, lineHeight: 1.0, letterSpacing: '-0.03em', margin: 0, color: ink }}>A OctaGym<br />no Track Day.</h1>
-          <p style={{ flex: '1 1 300px', maxWidth: '460px', color: ink2, fontSize: '16px', lineHeight: 1.6, margin: 0, paddingBottom: '6px' }}>O sistema operacional das academias, presente onde a performance acontece. A ideia é simples: fazer a OctaGym ser conhecida pelo público certo, no perfil dela.</p>
-        </div>
-      </div>
-
-      {/* ALTERNATIVAS */}
-      <Section label="Alternativas em aberto" hint="decidir primeiro">
-        <p style={{ fontSize: '15px', color: ink2, marginBottom: '20px', maxWidth: '640px', lineHeight: 1.55 }}>Marca nova posta e quase ninguém vê. <b style={{ color: ink }}>O alcance vem de quem reposta.</b> Essas são as formas de pegar carona na audiência dos parceiros, então preciso saber quais dá pra fazer.</p>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '16px' }}>
-          {ALT.map((a, i) => {
-            const decId = `octagym-alt-${a.key}`;
-            const dec = decisions[decId];
-            return (
-              <div
-                key={a.key}
-                onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.boxShadow = '0 16px 40px rgba(0,0,0,0.12)'; }}
-                onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 8px 28px rgba(0,0,0,0.09)'; }}
-                style={{ border: `1px solid ${line}`, borderRadius: '18px', padding: '24px', background: '#fff', display: 'flex', flexDirection: 'column', boxShadow: '0 8px 28px rgba(0,0,0,0.09)', transition: 'transform 0.2s ease, box-shadow 0.2s ease' }}
-              >
-                <div style={{ fontSize: '12px', fontWeight: 800, color: accent, letterSpacing: '0.06em', marginBottom: '10px' }}>{`0${i + 1}`}</div>
-                <div style={{ fontSize: '16px', fontWeight: 700, color: ink, lineHeight: 1.3, letterSpacing: '-0.01em' }}>{a.title}</div>
-                <div style={{ fontSize: '13px', color: ink3, marginTop: '7px', flex: 1, lineHeight: 1.45 }}>{a.desc}</div>
-                <div style={{ display: 'flex', gap: '7px', flexWrap: 'wrap', marginTop: '18px' }}>
-                  {a.opts.map(o => {
-                    const on = dec?.value === o;
-                    const sent = ['Dá pra fazer', 'Sim'].includes(o) ? 'pos' : (o === 'Não' ? 'neg' : 'neutral');
-                    const bg = !on ? 'transparent' : (sent === 'pos' ? '#16a34a' : sent === 'neg' ? '#dc2626' : '#0a0a0a');
-                    return <button key={o} onClick={() => onDecide(decId, o)} style={{ fontSize: '12.5px', cursor: 'pointer', borderRadius: '999px', padding: '7px 14px', fontFamily: 'inherit', border: `1px solid ${on ? bg : line2}`, background: bg, color: on ? '#fff' : ink2, fontWeight: on ? 600 : 500, transition: 'all 0.15s ease' }}>{o}</button>;
-                  })}
-                </div>
-                <div style={{ marginTop: '12px', minHeight: '18px' }}>{dec?.reviewer && <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '11.5px', color: ink3 }}>Por <ChooserBadge reviewer={dec.reviewer} /></span>}</div>
-              </div>
-            );
-          })}
-        </div>
-      </Section>
-
-      {/* MAPA DE IDEIAS */}
-      <Section label="Mapa de ideias" hint="o que vamos produzir">
-        <p style={{ fontSize: '12.5px', color: ink3, marginBottom: '14px' }}>Arraste pro lado (dedo ou mouse) para navegar. Decida manter ou trocar cada ideia.</p>
-        <div style={{ margin: '0 -8px' }}>
-          <IdeaCarousel items={IDEAS} decisions={decisions} onDecide={onDecide} accent={accent} />
-        </div>
-      </Section>
-
-      {/* RESULTADO */}
-      <Section label="Resultado esperado" hint="sem cravar metas">
-        <div style={grid3}>
-          {['A OctaGym vista como o sistema das academias por um público novo.', 'O perfil da OctaGym cheio de conteúdo bem feito.', 'Os primeiros leads vindos do desconto, e o vídeo do evento rodando depois.'].map((t, i) => (
-            <div key={i} style={cellCard}><div style={{ fontWeight: 700, fontSize: '14px', color: accent, marginBottom: '10px' }}>{`0${i + 1}`}</div><p style={{ fontSize: '14px', color: ink2, margin: 0, lineHeight: 1.5 }}>{t}</p></div>
-          ))}
-        </div>
-        <p style={{ fontSize: '13.5px', color: ink2, marginTop: '14px', maxWidth: '640px', lineHeight: 1.55 }}>Como a marca é nova, o ganho aqui é <b style={{ color: ink }}>construir presença</b>, não viralizar. Sem prometer número, dá pra esperar mais alcance que um post normal e os primeiros contatos chegando. <b style={{ color: ink }}>O que a gente acompanha:</b> quanta gente viu, quantos salvaram, quantos clicaram no link e quantos viraram lead.</p>
-      </Section>
-
-      {/* GANCHO */}
-      <Section label="O gancho" hint="a pergunta que prende">
-        <div style={{ borderTop: `1px solid ${ink}`, borderBottom: `1px solid ${ink}`, padding: '28px 0' }}>
-          <div style={{ fontSize: 'clamp(21px, 4vw, 34px)', fontWeight: 700, lineHeight: 1.1, letterSpacing: '-0.02em', color: ink }}>Por que um sistema de gestão de academia está num Track Day?</div>
-          <p style={{ marginTop: '14px', color: ink2, fontSize: '15px', maxWidth: '560px', lineHeight: 1.55 }}>Esse estranhamento é a isca. Toda peça responde essa pergunta, e é isso que prende a atenção e faz a pessoa compartilhar. Em vez de falar de performance no geral, a gente desperta curiosidade.</p>
-        </div>
-      </Section>
-
-      {/* POSICIONAMENTO */}
-      <Section label="Posicionamento" hint="a mensagem que ancora tudo">
-        <p style={{ fontSize: '14.5px', color: ink2, maxWidth: '640px', marginBottom: '22px', lineHeight: 1.55 }}>A gente fala <b style={{ color: ink }}>com o dono de academia</b> usando o clima da pista. O <b style={{ color: ink }}>teste de cada peça</b> é: isso impressiona um dono de academia assistindo de casa?</p>
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '22px' }}>
-          {/* Abre — card claro com barra de cor */}
-          <div style={{ border: `1px solid ${line}`, borderLeft: `4px solid ${accent}`, borderRadius: '14px', padding: '22px 24px', background: '#fff', boxShadow: '0 4px 16px rgba(0,0,0,0.05)' }}>
-            <div style={{ fontSize: '10.5px', letterSpacing: '0.14em', textTransform: 'uppercase', color: accent, fontWeight: 700, marginBottom: '10px' }}>Abre, pra provocar</div>
-            <div style={{ fontSize: 'clamp(19px, 3vw, 27px)', fontWeight: 700, lineHeight: 1.15, letterSpacing: '-0.015em', color: ink }}>Toda máquina de alta performance roda num sistema. E a sua academia?</div>
-          </div>
-          {/* Assina — slogan em destaque (card colorido) */}
-          <div style={{ borderRadius: '14px', padding: '26px 24px', background: accent, color: '#fff', boxShadow: '0 10px 30px rgba(239,10,54,0.3)' }}>
-            <div style={{ fontSize: '10.5px', letterSpacing: '0.14em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.75)', fontWeight: 700, marginBottom: '10px' }}>Assina, pra gravar</div>
-            <div style={{ fontSize: 'clamp(22px, 3.4vw, 32px)', fontWeight: 800, lineHeight: 1.1, letterSpacing: '-0.02em' }}>Na pista ou na academia, performance é sistema.</div>
-          </div>
-        </div>
-
-        <div style={{ background: `${accent}0d`, border: `1px solid ${accent}33`, borderLeft: `4px solid ${accent}`, borderRadius: '12px', padding: '16px 18px', marginBottom: '24px' }}>
-          <span style={{ fontSize: '14.5px', color: ink, lineHeight: 1.5 }}><b>O que tem que ficar na cabeça:</b> a OctaGym é o sistema que faz a academia funcionar em alta performance.</span>
-        </div>
-
-        <div style={grid3}>
-          {[['Controle', 'Tudo num lugar só, nada no improviso.', SlidersHorizontal], ['Dados', 'Você decide olhando os números, não no achismo.', BarChart3], ['Prova', 'O Ironberg já usa a OctaGym, e dá pra ver funcionando ao vivo no estande.', BadgeCheck]].map(([n, p, Icon], i) => (
-            <div key={i} style={{ ...cellCard, borderTop: `3px solid ${accent}` }}>
-              <span style={{ width: '40px', height: '40px', borderRadius: '11px', background: `${accent}14`, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginBottom: '12px' }}><Icon size={20} color={accent} /></span>
-              <div style={{ fontWeight: 700, fontSize: '16px', color: ink, marginBottom: '6px' }}>{n}</div>
-              <p style={{ fontSize: '14px', color: ink2, margin: 0, lineHeight: 1.5 }}>{p}</p>
-            </div>
-          ))}
-        </div>
-        <p style={{ fontSize: '13.5px', color: ink3, marginTop: '18px', maxWidth: '640px' }}><b style={{ color: ink2 }}>Tom:</b> seguro e caprichado, de dono pra dono. Menos "revolucione sua academia", mais "pare de trabalhar no escuro".</p>
-      </Section>
-
-      {/* RESPONSÁVEIS */}
-      <Section label="Quem faz o quê" hint="donos da execução">
-        <div style={{ border: `1px solid ${line}`, borderRadius: '12px', overflow: 'hidden' }}>
-          {OWNERS.map((o, i) => (
-            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', gap: '14px', padding: '16px 22px', borderTop: i ? `1px solid ${line}` : 'none', fontSize: '14.5px' }}>
-              <span style={{ color: ink2 }}>{o.task}</span>
-              <span style={{ color: o.tbd ? ink3 : ink, textAlign: 'right', whiteSpace: 'nowrap', fontWeight: 600 }}>{o.who}</span>
-            </div>
-          ))}
-        </div>
-      </Section>
-
-      {/* LINHA DO TEMPO — HORIZONTAL */}
-      <Section label="Linha do tempo" hint="o que eu entrego, e quando">
-        <div style={{ overflowX: 'auto', margin: '0 -8px', padding: '0 8px 8px' }}>
-          <div style={{ display: 'flex', minWidth: 'max-content' }}>
-            {TIMELINE.map((s, i) => (
-              <div key={i} style={{ flex: '1 1 0', minWidth: '230px', maxWidth: '320px' }}>
-                <div style={{ textAlign: 'center', padding: '0 8px 12px' }}>
-                  <div style={{ fontSize: '16px', fontWeight: 700, color: ink, letterSpacing: '-0.01em' }}>{s.date}</div>
-                  <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.1em', color: ink3, marginTop: '3px' }}>{s.phase}</div>
-                </div>
-                <div style={{ position: 'relative', height: '26px' }}>
-                  <div style={{ position: 'absolute', top: '50%', height: '2px', background: line2, left: i === 0 ? '50%' : 0, right: i === TIMELINE.length - 1 ? '50%' : 0 }} />
-                  <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '16px', height: '16px', borderRadius: '50%', background: '#fff', border: `3px solid ${accent}`, boxSizing: 'border-box' }} />
-                </div>
-                <div style={{ margin: '12px 8px 0', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  {s.items.map((it, j) => (
-                    <div key={j} style={{ border: `1px solid ${line}`, borderRadius: '10px', padding: '10px 12px', background: '#fff' }}>
-                      <span style={{ display: 'inline-block', fontSize: '9.5px', letterSpacing: '0.06em', textTransform: 'uppercase', color: accent, fontWeight: 700, border: `1px solid ${accent}44`, borderRadius: '4px', padding: '2px 7px', marginBottom: '6px' }}>{it.tag}</span>
-                      <div style={{ fontSize: '13px', color: ink2, lineHeight: 1.4 }}>{it.txt}</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </Section>
-
-      {/* REELS */}
-      <Section label="Os reels" hint="roteiro definido">
-        <div style={grid3}>
-          {REELS.map(r => (
-            <div key={r.n} style={cellCard}>
-              <div style={{ fontWeight: 800, fontSize: '28px', color: ink3, lineHeight: 1 }}>{r.n}</div>
-              <h3 style={{ fontWeight: 700, fontSize: '17px', margin: '12px 0 6px', letterSpacing: '-0.01em', color: ink }}>{r.title}</h3>
-              <p style={{ fontSize: '13.5px', color: ink2, margin: 0, lineHeight: 1.5 }}>{r.desc}</p>
-              <div style={{ marginTop: '14px', fontSize: '10.5px', letterSpacing: '0.1em', textTransform: 'uppercase', color: ink3 }}>{r.fmt}</div>
-            </div>
-          ))}
-        </div>
-      </Section>
-
-      {/* CAPTAÇÃO DE LEADS */}
-      <Section label="Captação de leads" hint="o desconto é a isca">
-        <div style={{ fontSize: 'clamp(18px, 3vw, 24px)', fontWeight: 700, letterSpacing: '-0.01em', marginBottom: '8px', color: ink }}>A OctaGym dá desconto no ingresso. Isso vira a porta de entrada.</div>
-        <p style={{ fontSize: '14.5px', color: ink2, maxWidth: '620px', marginBottom: '20px', lineHeight: 1.55 }}>A chamada é simples: <b style={{ color: ink }}>"ingresso do Track Day com desconto pela OctaGym".</b> Pra pegar o desconto, a pessoa preenche um formulário, e aí vira um contato só nosso.</p>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '12px', marginBottom: '22px' }}>
-          {[['Captura 1 · antes, pela internet', 'Um reel ou estático com a chamada do desconto leva pro formulário do evento, e o cupom chega no WhatsApp ou e-mail.'], ['Captura 2 · no evento', 'O QR do estande abre o mesmo formulário, e a pessoa entra pra lista, ganha o desconto ou um brinde na hora.']].map(([t, p], i) => (
-            <div key={i} style={{ ...cellCard, borderTop: `3px solid ${accent}` }}><div style={{ fontSize: '11px', letterSpacing: '0.08em', textTransform: 'uppercase', color: accent, fontWeight: 700, marginBottom: '8px' }}>{t}</div><p style={{ fontSize: '14px', color: ink2, margin: 0, lineHeight: 1.5 }}>{p}</p></div>
-          ))}
-        </div>
-        <div style={{ border: `1px solid ${line}`, borderRadius: '12px', padding: '18px 20px', marginBottom: '20px', background: '#fafafa' }}>
-          <div style={{ fontSize: '11px', letterSpacing: '0.1em', textTransform: 'uppercase', color: ink3, fontWeight: 700, marginBottom: '14px' }}>O passo a passo</div>
-          <Chain steps={['Chamada do desconto', 'Formulário do evento', 'Cupom no WhatsApp ou e-mail', 'Lista de contatos', 'Contato depois']} />
-        </div>
-        <div style={{ border: `1px solid ${line}`, borderRadius: '10px', padding: '16px 18px', marginBottom: '14px' }}>
-          <div style={{ fontSize: '11px', letterSpacing: '0.1em', textTransform: 'uppercase', color: ink3, marginBottom: '10px' }}>Formulário com só 3 campos</div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-            {['Nome', 'WhatsApp ou e-mail', 'Tem ou trabalha em academia?'].map(f => <span key={f} style={formField}>{f}</span>)}
-          </div>
-        </div>
-        <p style={{ fontSize: '13px', color: ink2 }}><b style={{ color: ink }}>O que precisa:</b> uma página com formulário só do Track Day. A que existe hoje não é desse evento. Essa é simples: a chamada do desconto, os 3 campos e a entrega do cupom.</p>
-      </Section>
-
-      {/* O QUE GRAVAR */}
-      <Section label="O que gravar" hint="no dia do evento">
-        <div style={{ maxWidth: '580px' }}>
-          {GRAVAR.map((g, i) => {
-            const on = !!checks[i];
-            return (
-              <label key={i} onClick={() => setChecks(p => ({ ...p, [i]: !p[i] }))} style={{ display: 'flex', gap: '11px', alignItems: 'center', fontSize: '14px', padding: '9px 0', cursor: 'pointer', borderTop: i ? `1px solid ${line}` : 'none', color: ink }}>
-                <span style={{ width: '17px', height: '17px', borderRadius: '5px', flexShrink: 0, border: `1.5px solid ${on ? accent : line2}`, background: on ? accent : 'transparent', color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 700 }}>{on ? '✓' : ''}</span>
-                {g}
-              </label>
-            );
-          })}
-        </div>
-      </Section>
-
-      {/* ATIVAÇÃO NO EVENTO */}
-      <Section label="Ativação no evento" hint="como funciona">
-        {/* O estande */}
-        <div style={{ background: '#fff', border: `1px solid ${line}`, borderLeft: `4px solid ${accent}`, borderRadius: '16px', padding: '24px', marginBottom: '30px', boxShadow: '0 4px 16px rgba(0,0,0,0.05)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '11px', marginBottom: '16px' }}>
-            <span style={{ width: '40px', height: '40px', borderRadius: '11px', background: `${accent}14`, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}><QrCode size={20} color={accent} /></span>
-            <span style={{ fontSize: '12px', letterSpacing: '0.1em', textTransform: 'uppercase', color: ink, fontWeight: 700 }}>O estande</span>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '11px' }}>
-            {['Estande com ativação por QR-code', 'Na tela, mostrando como é a experiência do cliente dentro do sistema', 'O sistema funcionando ao vivo'].map((li, i) => (
-              <div key={i} style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
-                <Check size={17} color={accent} style={{ flexShrink: 0, marginTop: '2px' }} />
-                <span style={{ fontSize: '14.5px', color: ink2, lineHeight: 1.45 }}>{li}</span>
-              </div>
-            ))}
-          </div>
-          <div style={{ marginTop: '14px', fontSize: '12px', color: ink3, fontStyle: 'italic' }}>Essa parte já está prevista.</div>
-        </div>
-
-        {/* A recompensa */}
-        <div style={{ fontSize: 'clamp(20px, 3.2vw, 27px)', fontWeight: 800, letterSpacing: '-0.02em', marginBottom: '8px', color: ink }}>A recompensa: o que a pessoa ganha ao preencher</div>
-        <p style={{ fontSize: '14.5px', color: ink2, maxWidth: '620px', marginBottom: '20px', lineHeight: 1.55 }}>São duas camadas: uma atrai bastante gente e gera conteúdo, a outra pega o contato que de fato interessa.</p>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '14px', marginBottom: '22px' }}>
-          {[['1', 'Todo mundo', 'Um brinde da marca na hora, no estande, ou o desconto no ingresso pra quem vem pela internet. Atrai gente, rende foto e espalha a marca.'], ['2', 'Quem tem academia', 'Libera uma condição especial de fundador na OctaGym, com desconto ou acesso antecipado, e o time de vendas faz contato depois.']].map(([num, t, p]) => (
-            <div key={num} style={{ ...cellCard, borderTop: `3px solid ${accent}`, boxShadow: '0 4px 16px rgba(0,0,0,0.05)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '11px', marginBottom: '12px' }}>
-                <span style={{ width: '32px', height: '32px', borderRadius: '50%', background: accent, color: '#fff', fontWeight: 800, fontSize: '15px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>{num}</span>
-                <span style={{ fontSize: '11px', letterSpacing: '0.1em', textTransform: 'uppercase', color: ink3, fontWeight: 700 }}>Camada {num} · {t}</span>
-              </div>
-              <p style={{ fontSize: '14px', color: ink2, margin: 0, lineHeight: 1.5 }}>{p}</p>
-            </div>
-          ))}
-        </div>
-
-        {/* Fluxo */}
-        <div style={{ border: `1px solid ${line}`, borderRadius: '12px', padding: '18px 20px', marginBottom: '20px', background: '#fafafa' }}>
-          <div style={{ fontSize: '11px', letterSpacing: '0.1em', textTransform: 'uppercase', color: ink3, fontWeight: 700, marginBottom: '14px' }}>O fluxo</div>
-          <Chain steps={['QR ou link', 'Formulário (3 campos)', 'Recompensa na hora', 'Tem academia? Oferta e contato depois']} />
-        </div>
-
-        {/* Brindes */}
-        <div style={{ border: `1px solid ${line}`, borderRadius: '12px', padding: '18px 20px', marginBottom: '20px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '9px', marginBottom: '12px' }}>
-            <Gift size={16} color={accent} />
-            <span style={{ fontSize: '11px', letterSpacing: '0.1em', textTransform: 'uppercase', color: ink3, fontWeight: 700 }}>Ideias de brinde (útil, com a marca e que rende foto)</span>
-          </div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-            {['Garrafa ou squeeze', 'Toalha de treino', 'Ecobag', 'Adesivo ou chaveiro'].map(f => <span key={f} style={formField}>{f}</span>)}
-          </div>
-        </div>
-
-        {/* A única decisão — callout */}
-        <div style={{ background: `${accent}0d`, border: `1px solid ${accent}33`, borderLeft: `4px solid ${accent}`, borderRadius: '12px', padding: '16px 18px', marginBottom: '14px' }}>
-          <span style={{ fontSize: '14px', color: ink, lineHeight: 1.5 }}><b>A única decisão de vocês:</b> ter brinde físico (custa orçamento, mas puxa mais gente) ou ficar só no digital (cupom, custo zero, já funciona sozinho).</span>
-        </div>
-
-        {/* Uma coisa é certa — callout forte */}
-        <div style={{ background: '#0a0a0a', color: '#fff', borderRadius: '12px', padding: '16px 18px', display: 'flex', alignItems: 'flex-start', gap: '11px' }}>
-          <AlertTriangle size={18} color={accent} style={{ flexShrink: 0, marginTop: '1px' }} />
-          <span style={{ fontSize: '14px', lineHeight: 1.5 }}><b>Uma coisa é certa:</b> precisa de cobertura nos dois dias do evento. Falta só definir quem grava.</span>
-        </div>
-      </Section>
-
-      {/* PAINEL FINAL — mapa vertical do resultado esperado */}
-      <Section label="O que esperar disso" hint="o resultado desta estratégia">
-        <div style={{ border: `1px solid ${line2}`, borderRadius: '18px', padding: 'clamp(22px, 3vw, 36px)', background: '#fff', boxShadow: '0 10px 34px rgba(0,0,0,0.08)' }}>
-          <h2 style={{ fontWeight: 800, fontSize: 'clamp(22px, 3.6vw, 32px)', letterSpacing: '-0.02em', margin: 0, color: ink }}>Por que essa estratégia funciona</h2>
-          <p style={{ color: ink2, fontSize: '14.5px', margin: '6px 0 26px', maxWidth: '560px' }}>Não é nada mirabolante, é focada. Veja o que dá pra esperar dela:</p>
-
-          <div>
-            {PAINEL.map(([t, p, Icon], i) => {
-              const last = i === PAINEL.length - 1;
-              return (
-                <div key={i} style={{ display: 'flex', gap: '18px' }}>
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                    <span style={{ flexShrink: 0, width: '46px', height: '46px', borderRadius: '50%', background: accent, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', boxShadow: `0 6px 18px ${accent}55` }}><Icon size={21} color="#fff" /></span>
-                    {!last && <span style={{ flex: 1, width: 0, borderLeft: `2px dashed ${accent}66`, margin: '6px 0' }} />}
-                  </div>
-                  <div style={{ flex: 1, paddingBottom: last ? 0 : '26px', minWidth: 0 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px', marginTop: '11px' }}>
-                      <Check size={16} color={accent} style={{ flexShrink: 0 }} />
-                      <span style={{ fontSize: '16.5px', fontWeight: 700, color: ink, letterSpacing: '-0.01em' }}>{t}</span>
-                    </div>
-                    <p style={{ fontSize: '14px', color: ink2, margin: 0, lineHeight: 1.55, paddingLeft: '24px' }}>{p}</p>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
-          <p style={{ marginTop: '24px', paddingTop: '20px', borderTop: `1px solid ${line}`, fontSize: '15px', color: ink, lineHeight: 1.6, maxWidth: '720px' }}><b>Resumindo:</b> é um plano barato, com a mira certa e honesto nas expectativas. Usa o evento pra fazer a marca ser conhecida pelo público que importa e já deixa o caminho pronto pra venda, sem prometer número que a gente não controla.</p>
-        </div>
-      </Section>
-    </div>
-  );
-}
-
-// ============================================================
-// APP PRINCIPAL
-// ============================================================
-
-export default function App() {
-  const [view, setView] = useState('landing');
-  const [activeBrand, setActiveBrand] = useState('octalab');
-  const [activeDay, setActiveDay] = useState('all');
-  const [activeKind, setActiveKind] = useState('all');
-  const [reviews, setReviews] = useState({}); // { 'juspilot-0': { status, suggestion } }
-  const [schedule, setSchedule] = useState({}); // { 'juspilot-0': '2026-06-05' } — dia agendado
-  const [creatives, setCreatives] = useState({}); // { 'juspilot-0': ['url1', 'url2'] } — criativos subidos pelo admin
-  const [uploadingId, setUploadingId] = useState(null); // id do conteúdo cujo upload está em andamento
-  const [customPosts, setCustomPosts] = useState({}); // { 'custom-xxx': { id, brand, headline, ... } } — posts criados no admin
-  const [editorPost, setEditorPost] = useState(null); // null = fechado; 'new' = criar; objeto = editar
-  const [strategy, setStrategy] = useState({}); // { brandKey: { notes, materials:[{label,url,kind}] } }
-  const [decisions, setDecisions] = useState({}); // { id: { value, reviewer } } — escolhas da estratégia
-  const [prodStatus, setProdStatus] = useState({}); // { id: 'producao' | 'agendado' } — status de postagem definido no admin
-  const [boardTab, setBoardTab] = useState('agendado'); // aba do quadro de status de postagem
-  const [boardItem, setBoardItem] = useState(null); // item aberto no resumo curto
-  const [strategyBrand, setStrategyBrand] = useState(null); // marca aberta na estratégia (null = grade de marcas)
-  const [calBrand, setCalBrand] = useState('all'); // filtro de marca no calendário
-  const [selectedDay, setSelectedDay] = useState(null); // dia aberto no calendário público (ver/aprovar)
-  const [adminDay, setAdminDay] = useState(null); // dia aberto no admin (montar/atribuir conteúdos)
-  const [adminFilter, setAdminFilter] = useState('all'); // filtro de status no admin
-  const [adminSearch, setAdminSearch] = useState(''); // busca por tema/marca no admin
-  const [adminMonth, setAdminMonth] = useState('all'); // aba de mês no admin ('YYYY-MM' | 'unscheduled' | 'all')
-  const [expandedBrands, setExpandedBrands] = useState({}); // marcas expandidas na lista do admin
-  const [toast, setToast] = useState(null); // aviso flutuante
-  const [confirmBox, setConfirmBox] = useState(null); // { message, confirmLabel, onConfirm }
-  const [currentUser, setCurrentUser] = useState(() => {
-    try { return localStorage.getItem('painel-user') || null; } catch { return null; }
-  }); // quem está revisando (nome do perfil) — registra autoria das aprovações
-
-  const notify = (message) => setToast(message);
-  const askConfirm = (message, onConfirm, confirmLabel) => setConfirmBox({ message, onConfirm, confirmLabel });
-
-  // Escolhe um perfil e segue para o menu de conteúdos
-  const chooseUser = (name) => {
-    setCurrentUser(name);
-    try { localStorage.setItem('painel-user', name); } catch { /* ignore */ }
-    setView('select');
-  };
-
-  // Carrega as avaliações do Supabase e escuta mudanças em tempo real
-  useEffect(() => {
-    if (!supabaseReady) return;
-    let mounted = true;
-
-    supabase.from('reviews').select('*').then(({ data, error }) => {
-      if (!mounted || error || !data) return;
-      const map = {};
-      data.forEach(r => { map[r.id] = { status: r.status, suggestion: r.suggestion || '', reviewer: r.reviewer || '' }; });
-      setReviews(map);
-    });
-
-    const channel = supabase
-      .channel('reviews-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'reviews' }, payload => {
-        setReviews(prev => {
-          const next = { ...prev };
-          if (payload.eventType === 'DELETE') {
-            delete next[payload.old.id];
-          } else {
-            const r = payload.new;
-            next[r.id] = { status: r.status, suggestion: r.suggestion || '', reviewer: r.reviewer || '' };
-          }
-          return next;
-        });
-      })
-      .subscribe();
-
-    return () => { mounted = false; supabase.removeChannel(channel); };
-  }, []);
-
-  const setReview = async (id, data) => {
-    // Registra quem revisou (vazio quando volta para pendente)
-    const reviewer = data.status === 'pending' ? '' : (currentUser || 'Anônimo');
-    const prevReview = reviews[id]; // para reverter se a gravação falhar
-    // Atualização otimista na tela
-    setReviews(prev => ({ ...prev, [id]: { ...prev[id], ...data, reviewer } }));
-    if (!supabaseReady) return;
-    const { error } = await supabase.from('reviews').upsert({
-      id,
-      status: data.status,
-      suggestion: data.suggestion ?? '',
-      reviewer,
-      updated_at: new Date().toISOString()
-    });
-    if (error) {
-      console.error('[reviews] falha ao salvar:', error);
-      // desfaz a atualização otimista para não mostrar aprovado sem ter salvo
-      setReviews(prev => {
-        const next = { ...prev };
-        if (prevReview) next[id] = prevReview; else delete next[id];
-        return next;
-      });
-      notify('Não foi possível salvar a avaliação. Recarregue a página e tente de novo.');
-    }
-  };
-
-  const resetReviews = () => {
-    askConfirm('Tem certeza? Isso vai apagar TODAS as aprovações e reprovações.', async () => {
-      setReviews({});
-      if (!supabaseReady) return;
-      await supabase.from('reviews').delete().neq('id', '');
-    }, 'Resetar tudo');
-  };
-
-  // Carrega os agendamentos do Supabase e escuta mudanças em tempo real
-  useEffect(() => {
-    if (!supabaseReady) return;
-    let mounted = true;
-
-    supabase.from('schedule').select('*').then(({ data, error }) => {
-      if (!mounted || error || !data) return;
-      const map = {};
-      data.forEach(s => { if (s.date) map[s.id] = s.date; });
-      setSchedule(map);
-    });
-
-    const channel = supabase
-      .channel('schedule-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'schedule' }, payload => {
-        setSchedule(prev => {
-          const next = { ...prev };
-          if (payload.eventType === 'DELETE') {
-            delete next[payload.old.id];
-          } else {
-            const s = payload.new;
-            if (s.date) next[s.id] = s.date; else delete next[s.id];
-          }
-          return next;
-        });
-      })
-      .subscribe();
-
-    return () => { mounted = false; supabase.removeChannel(channel); };
-  }, []);
-
-  // Agenda (ou remove, se date === null) um conteúdo num dia do calendário
-  const setSchedulePost = async (id, date) => {
-    setSchedule(prev => {
-      const next = { ...prev };
-      if (date) next[id] = date; else delete next[id];
-      return next;
-    });
-    if (!supabaseReady) return;
-    if (date) {
-      await supabase.from('schedule').upsert({ id, date, updated_at: new Date().toISOString() });
-    } else {
-      await supabase.from('schedule').delete().eq('id', id);
-    }
-  };
-
-  // Carrega os criativos subidos do Supabase e escuta mudanças em tempo real
-  useEffect(() => {
-    if (!supabaseReady) return;
-    let mounted = true;
-
-    supabase.from('creatives').select('*').then(({ data, error }) => {
-      if (!mounted || error || !data) return;
-      const map = {};
-      data.forEach(r => { if (r.urls?.length) map[r.id] = r.urls; });
-      setCreatives(map);
-    });
-
-    const channel = supabase
-      .channel('creatives-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'creatives' }, payload => {
-        setCreatives(prev => {
-          const next = { ...prev };
-          if (payload.eventType === 'DELETE') {
-            delete next[payload.old.id];
-          } else {
-            const r = payload.new;
-            if (r.urls?.length) next[r.id] = r.urls; else delete next[r.id];
-          }
-          return next;
-        });
-      })
-      .subscribe();
-
-    return () => { mounted = false; supabase.removeChannel(channel); };
-  }, []);
-
-  // Salva (ou remove, se urls vazio) a lista de criativos de um conteúdo
-  const setCreativeUrls = async (id, urls) => {
-    setCreatives(prev => {
-      const next = { ...prev };
-      if (urls && urls.length) next[id] = urls; else delete next[id];
-      return next;
-    });
-    if (!supabaseReady) return;
-    if (urls && urls.length) {
-      await supabase.from('creatives').upsert({ id, urls, updated_at: new Date().toISOString() });
-    } else {
-      await supabase.from('creatives').delete().eq('id', id);
-    }
-  };
-
-  // Sobe arquivos para o Storage e atualiza a lista do conteúdo.
-  // append=false (criativo único) substitui tudo; append=true (carrossel) acrescenta.
-  const uploadCreatives = async (id, files, { append } = {}) => {
-    const list = Array.from(files || []).filter(f => f && (f.type.startsWith('image/') || f.type.startsWith('video/')));
-    if (!list.length) return;
-    if (!supabaseReady) {
-      notify('Supabase não configurado — não foi possível subir o criativo.');
-      return;
-    }
-    setUploadingId(id);
-    try {
-      const uploaded = [];
-      for (const file of list) {
-        const ext = (file.name.split('.').pop() || 'png').toLowerCase();
-        const path = `${id}/${crypto.randomUUID()}.${ext}`;
-        const { error: upErr } = await supabase.storage
-          .from('creatives')
-          .upload(path, file, { upsert: true, contentType: file.type });
-        if (upErr) { console.error('[upload]', upErr); continue; }
-        const { data } = supabase.storage.from('creatives').getPublicUrl(path);
-        if (data?.publicUrl) uploaded.push(data.publicUrl);
-      }
-      if (!uploaded.length) {
-        notify('Falha ao subir os criativos. Verifique se o bucket "creatives" existe e é público.');
-        return;
-      }
-      const current = creatives[id] || [];
-      await setCreativeUrls(id, append ? [...current, ...uploaded] : uploaded);
-      notify(uploaded.length > 1 ? `${uploaded.length} criativos enviados.` : 'Criativo enviado.');
-    } finally {
-      setUploadingId(null);
-    }
-  };
-
-  // Remove um criativo específico da lista (não apaga o arquivo do Storage)
-  const removeCreativeAt = (id, idx) => {
-    const current = creatives[id] || [];
-    setCreativeUrls(id, current.filter((_, i) => i !== idx));
-  };
-
-  // Carrega os posts criados no admin e escuta mudanças em tempo real
-  useEffect(() => {
-    if (!supabaseReady) return;
-    let mounted = true;
-
-    supabase.from('posts').select('*').then(({ data, error }) => {
-      if (!mounted || error || !data) return;
-      const map = {};
-      data.forEach(p => { map[p.id] = p; });
-      setCustomPosts(map);
-    });
-
-    const channel = supabase
-      .channel('posts-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'posts' }, payload => {
-        setCustomPosts(prev => {
-          const next = { ...prev };
-          if (payload.eventType === 'DELETE') delete next[payload.old.id];
-          else next[payload.new.id] = payload.new;
-          return next;
-        });
-      })
-      .subscribe();
-
-    return () => { mounted = false; supabase.removeChannel(channel); };
-  }, []);
-
-  // Cria ou atualiza um post customizado
-  const savePost = async (record) => {
-    const id = record.id || `custom-${(crypto.randomUUID?.() || String(Date.now()))}`;
-    const row = {
-      id,
-      brand: record.brand,
-      headline: record.headline || '',
-      subtitle: record.subtitle || '',
-      caption: record.caption || '',
-      kind: record.kind || 'estatico',
-      tags: record.tags || [],
-      updated_at: new Date().toISOString()
-    };
-    setCustomPosts(prev => ({ ...prev, [id]: { ...prev[id], ...row } }));
-    if (record.prodStatus) setProd(id, record.prodStatus); // status de postagem (tabela separada)
-    setEditorPost(null);
-    if (!supabaseReady) { notify('Supabase não configurado — post salvo só localmente.'); return; }
-    const { error } = await supabase.from('posts').upsert(row);
-    if (error) { console.error('[posts]', error); notify('Erro ao salvar. A tabela "posts" existe no Supabase?'); }
-    else notify(record.id ? 'Conteúdo atualizado.' : 'Conteúdo criado.');
-  };
-
-  // Remove um post customizado (e suas avaliações/agenda/criativos)
-  const deletePost = (id) => {
-    askConfirm('Excluir este conteúdo criado? Isso remove também a avaliação, o agendamento e os criativos dele.', async () => {
-      setCustomPosts(prev => { const n = { ...prev }; delete n[id]; return n; });
-      setReviews(prev => { const n = { ...prev }; delete n[id]; return n; });
-      setSchedule(prev => { const n = { ...prev }; delete n[id]; return n; });
-      setCreatives(prev => { const n = { ...prev }; delete n[id]; return n; });
-      if (!supabaseReady) return;
-      await supabase.from('posts').delete().eq('id', id);
-      await supabase.from('reviews').delete().eq('id', id);
-      await supabase.from('schedule').delete().eq('id', id);
-      await supabase.from('creatives').delete().eq('id', id);
-    }, 'Excluir');
-  };
-
-  // Restaura um post fixo editado para a versão original (remove o override)
-  const restorePost = (id) => {
-    askConfirm('Restaurar este conteúdo para a versão original? Suas edições de texto e tags serão descartadas.', async () => {
-      setCustomPosts(prev => { const n = { ...prev }; delete n[id]; return n; });
-      if (!supabaseReady) return;
-      await supabase.from('posts').delete().eq('id', id);
-      notify('Conteúdo restaurado para o original.');
-    }, 'Restaurar');
-  };
-
-  // Carrega a estratégia de conteúdo do Supabase e escuta mudanças em tempo real
-  useEffect(() => {
-    if (!supabaseReady) return;
-    let mounted = true;
-
-    supabase.from('strategy').select('*').then(({ data, error }) => {
-      if (!mounted || error || !data) return;
-      const map = {};
-      data.forEach(r => { map[r.brand] = { notes: r.notes || '', materials: Array.isArray(r.materials) ? r.materials : [] }; });
-      setStrategy(map);
-    });
-
-    const channel = supabase
-      .channel('strategy-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'strategy' }, payload => {
-        setStrategy(prev => {
-          const next = { ...prev };
-          if (payload.eventType === 'DELETE') delete next[payload.old.brand];
-          else { const r = payload.new; next[r.brand] = { notes: r.notes || '', materials: Array.isArray(r.materials) ? r.materials : [] }; }
-          return next;
-        });
-      })
-      .subscribe();
-
-    return () => { mounted = false; supabase.removeChannel(channel); };
-  }, []);
-
-  // Salva (mescla) a estratégia de uma marca
-  const saveStrategy = async (brand, patch) => {
-    const current = strategy[brand] || { notes: '', materials: [] };
-    const merged = { notes: current.notes, materials: current.materials, ...patch };
-    setStrategy(prev => ({ ...prev, [brand]: merged }));
-    if (!supabaseReady) return;
-    const { error } = await supabase.from('strategy').upsert({ brand, notes: merged.notes, materials: merged.materials, updated_at: new Date().toISOString() });
-    if (error) { console.error('[strategy]', error); notify('Não foi possível salvar a estratégia.'); }
-  };
-  // Decisões da estratégia (com autoria) — sincronizadas em tempo real
-  useEffect(() => {
-    if (!supabaseReady) return;
-    let mounted = true;
-    supabase.from('decisions').select('*').then(({ data, error }) => {
-      if (!mounted || error || !data) return;
-      const map = {};
-      data.forEach(r => { map[r.id] = { value: r.value, reviewer: r.reviewer || '' }; });
-      setDecisions(map);
-    });
-    const channel = supabase
-      .channel('decisions-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'decisions' }, payload => {
-        setDecisions(prev => {
-          const next = { ...prev };
-          if (payload.eventType === 'DELETE') delete next[payload.old.id];
-          else { const r = payload.new; next[r.id] = { value: r.value, reviewer: r.reviewer || '' }; }
-          return next;
-        });
-      })
-      .subscribe();
-    return () => { mounted = false; supabase.removeChannel(channel); };
-  }, []);
-
-  const setDecision = async (id, value) => {
-    const reviewer = currentUser || 'Anônimo';
-    const prev = decisions[id];
-    setDecisions(p => ({ ...p, [id]: { value, reviewer } }));
-    if (!supabaseReady) return;
-    const { error } = await supabase.from('decisions').upsert({ id, value, reviewer, updated_at: new Date().toISOString() });
-    if (error) {
-      console.error('[decisions]', error);
-      setDecisions(p => { const n = { ...p }; if (prev) n[id] = prev; else delete n[id]; return n; });
-      notify('Não foi possível salvar a escolha. Recarregue e tente de novo.');
-    }
-  };
-
-  const addStrategyMaterial = (brand, material) => saveStrategy(brand, { materials: [...(strategy[brand]?.materials || []), material] });
-  const removeStrategyMaterial = (brand, idx) => saveStrategy(brand, { materials: (strategy[brand]?.materials || []).filter((_, i) => i !== idx) });
-  const uploadStrategyFile = async (brand, file) => {
-    if (!file) return;
-    if (!supabaseReady) { notify('Supabase não configurado — não foi possível subir o arquivo.'); return; }
-    const ext = (file.name.split('.').pop() || 'bin').toLowerCase();
-    const path = `strategy/${brand}/${crypto.randomUUID()}.${ext}`;
-    const { error } = await supabase.storage.from('creatives').upload(path, file, { upsert: true, contentType: file.type });
-    if (error) { console.error('[strategy upload]', error); notify('Falha ao subir o arquivo.'); return; }
-    const { data } = supabase.storage.from('creatives').getPublicUrl(path);
-    if (data?.publicUrl) addStrategyMaterial(brand, { label: file.name, url: data.publicUrl, kind: 'file' });
-  };
-
-  // Carrega o status de postagem do Supabase e escuta mudanças em tempo real
-  useEffect(() => {
-    if (!supabaseReady) return;
-    let mounted = true;
-
-    supabase.from('prodstatus').select('*').then(({ data, error }) => {
-      if (!mounted || error || !data) return;
-      const map = {};
-      data.forEach(r => { map[r.id] = r.status; });
-      setProdStatus(map);
-    });
-
-    const channel = supabase
-      .channel('prodstatus-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'prodstatus' }, payload => {
-        setProdStatus(prev => {
-          const next = { ...prev };
-          if (payload.eventType === 'DELETE') delete next[payload.old.id];
-          else next[payload.new.id] = payload.new.status;
-          return next;
-        });
-      })
-      .subscribe();
-
-    return () => { mounted = false; supabase.removeChannel(channel); };
-  }, []);
-
-  // Define o status de postagem (producao | agendado) de um conteúdo
-  const setProd = async (id, status) => {
-    setProdStatus(prev => ({ ...prev, [id]: status }));
-    if (!supabaseReady) return;
-    await supabase.from('prodstatus').upsert({ id, status, updated_at: new Date().toISOString() });
-  };
-
-  // Status de postagem efetivo: 'producao' | 'agendado' | 'postado' (postado é automático no dia agendado)
-  const today = new Date();
-  const todayStr = iso(today.getFullYear(), today.getMonth(), today.getDate());
-  const postingStatusOf = (id) => {
-    if ((prodStatus[id] || 'producao') !== 'agendado') return 'producao';
-    const d = schedule[id];
-    return (d && d <= todayStr) ? 'postado' : 'agendado';
-  };
-
-  // Resolve o post (fixo/override/custom) para mostrar resumo curto
-  const resolvePost = (id) => {
-    const rec = customPosts[id];
-    if (rec && String(id).startsWith('custom-')) return customToPost(rec);
-    const lastDash = id.lastIndexOf('-');
-    const bk = id.slice(0, lastDash);
-    const idx = parseInt(id.slice(lastDash + 1), 10);
-    const base = clients[bk]?.posts?.[idx];
-    if (!base) return null;
-    return rec ? applyOverride(base, rec) : base;
-  };
-
-  // Abre o editor para um post — fixo (monta a partir do código) ou customizado/editado
-  const openEditor = (id) => {
-    const prodStatusVal = prodStatus[id] || 'producao';
-    if (customPosts[id]) { setEditorPost({ ...customPosts[id], prodStatus: prodStatusVal }); return; }
-    const lastDash = id.lastIndexOf('-');
-    const brandKey = id.slice(0, lastDash);
-    const idx = parseInt(id.slice(lastDash + 1), 10);
-    const post = clients[brandKey]?.posts?.[idx];
-    if (!post) return;
-    setEditorPost({
-      id, brand: brandKey,
-      headline: post.theme || '',
-      subtitle: post.subtitle || '',
-      caption: post.caption || '',
-      kind: post.kind || 'estatico',
-      tags: post.tags || [],
-      prodStatus: prodStatusVal
-    });
-  };
-
-  // Lista de posts customizados (array) para passar aos componentes
-  const customList = Object.values(customPosts);
-
-  // Data agendada de um post (só o que o admin colocou no calendário via Supabase)
-  const postDate = (id) => schedule[id] ?? null;
-
-  // Pílula de filtro liquid glass (sobre o fundo escuro da marca)
-  const filterPill = (active) => ({
-    background: active ? 'rgba(255,255,255,0.18)' : 'rgba(255,255,255,0.05)',
-    backdropFilter: active ? 'blur(10px) saturate(180%)' : 'none',
-    WebkitBackdropFilter: active ? 'blur(10px) saturate(180%)' : 'none',
-    color: brand.text,
-    opacity: active ? 1 : 0.65,
-    border: `1px solid ${active ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.12)'}`,
-    boxShadow: active ? 'inset 0 1px 1px rgba(255,255,255,0.25)' : 'none',
-    borderRadius: '999px', padding: '6px 14px',
-    fontSize: '11px', fontWeight: 600, cursor: 'pointer',
-    transition: 'all 0.2s ease'
-  });
-
-  const brand = clients[activeBrand];
-  let posts = brand.posts.map((post, i) => ({ post, originalIndex: i }));
-  if (activeDay !== 'all') posts = posts.filter(({ originalIndex }) => originalIndex === parseInt(activeDay));
-  if (activeKind !== 'all') posts = posts.filter(({ post }) => post.kind === activeKind);
-
-  // ─── TELA INICIAL ───
-  // ─── IDENTIFIQUE-SE: seleção de perfil (avatar com rotação ao escolher) ───
-  if (view === 'identify') {
-    return (
-      <IdentifyScreen
-        onChoose={chooseUser}
-        onAdmin={() => setView('gate')}
-        onBack={() => setView('landing')}
-      />
-    );
-  }
-
-  if (view === 'landing') {
-    return (
-      <div style={{
-        minHeight: '100vh',
-        background: '#ffffff',
-        color: '#0a0a0a',
-        fontFamily: 'Geist, -apple-system, BlinkMacSystemFont, system-ui, sans-serif',
-        position: 'relative',
-        overflow: 'hidden',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        textAlign: 'center',
-        padding: '24px'
-      }}>
-        <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', width: '100%', maxWidth: '560px' }}>
-          <GooeyText texts={TITLE_PARTS} morphTime={0.6} cooldownTime={0.5} />
-          <button
-            onClick={() => setView('identify')}
-            style={{
-              marginTop: '20px',
-              background: '#0a0a0a',
-              color: '#ffffff',
-              border: 'none',
-              borderRadius: '999px',
-              padding: '15px 30px',
-              fontSize: '15px',
-              fontWeight: 600,
-              cursor: 'pointer',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '9px',
-              boxShadow: '0 4px 14px rgba(0,0,0,0.15)',
-              transition: 'transform 0.15s ease, box-shadow 0.2s ease'
-            }}
-            onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.04)'; e.currentTarget.style.boxShadow = '0 8px 22px rgba(0,0,0,0.22)'; }}
-            onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.boxShadow = '0 4px 14px rgba(0,0,0,0.15)'; }}
-          >
-            Ver conteúdos <ArrowRight size={17} />
-          </button>
-          <button
-            onClick={() => setView('gate')}
-            style={{
-              marginTop: '10px', background: 'none', border: 'none',
-              color: '#0a0a0a', opacity: 0.45, fontSize: '12px',
-              cursor: 'pointer', textDecoration: 'underline'
-            }}
-          >
-            Painel admin
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  // ─── MENU PRINCIPAL: calendário ou copies ───
-  if (view === 'select') {
-    const MenuButton = ({ icon, title, subtitle, onClick, locked }) => (
-      <button
-        onClick={locked ? undefined : onClick}
-        disabled={locked}
-        onMouseEnter={e => { if (locked) return; e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.boxShadow = '0 6px 16px rgba(0,0,0,0.08), 0 18px 40px rgba(0,0,0,0.12)'; }}
-        onMouseLeave={e => { if (locked) return; e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.05), 0 8px 24px rgba(0,0,0,0.06)'; }}
-        style={{
-          flex: 1, minWidth: '240px', maxWidth: '360px', position: 'relative',
-          background: locked ? '#e9e9e6' : '#0a0a0a', color: locked ? 'rgba(0,0,0,0.4)' : '#fafafa',
-          borderRadius: '24px', border: 'none', padding: '36px 30px',
-          display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '18px',
-          textAlign: 'left', cursor: locked ? 'not-allowed' : 'pointer', font: 'inherit',
-          boxShadow: locked ? 'none' : '0 1px 3px rgba(0,0,0,0.05), 0 8px 24px rgba(0,0,0,0.06)',
-          transition: 'transform 0.2s cubic-bezier(0.4,0,0.2,1), box-shadow 0.2s ease'
-        }}
-      >
-        {locked && (
-          <span style={{ position: 'absolute', top: '18px', right: '18px', display: 'inline-flex', alignItems: 'center', gap: '5px', background: 'rgba(0,0,0,0.06)', borderRadius: '999px', padding: '4px 10px', fontSize: '11px', fontWeight: 700, color: 'rgba(0,0,0,0.5)' }}>
-            <Lock size={11} /> Em breve
-          </span>
-        )}
-        <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '56px', height: '56px', borderRadius: '16px', background: locked ? 'rgba(0,0,0,0.05)' : 'rgba(255,255,255,0.10)', border: '1px solid ' + (locked ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.16)') }}>
-          {icon}
-        </span>
-        <div>
-          <h3 style={{ fontSize: '21px', fontWeight: 600, margin: '0 0 6px 0', letterSpacing: '-0.02em' }}>{title}</h3>
-          <p style={{ fontSize: '13px', opacity: locked ? 0.8 : 0.6, margin: 0, lineHeight: 1.45 }}>{subtitle}</p>
-        </div>
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '13px', fontWeight: 600, opacity: 0.85, marginTop: '2px' }}>
-          {locked ? <>Bloqueado <Lock size={14} /></> : <>Acessar <ArrowRight size={14} /></>}
-        </span>
-      </button>
-    );
-
-    return (
-      <div style={{
-        minHeight: '100vh', background: '#ffffff', color: '#0a0a0a',
-        fontFamily: 'Geist, -apple-system, BlinkMacSystemFont, system-ui, sans-serif',
-        padding: 'clamp(28px, 6vh, 64px) 24px',
-        display: 'flex', flexDirection: 'column', alignItems: 'center'
-      }}>
-        <div style={{ width: '100%', maxWidth: '780px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'clamp(28px, 5vh, 56px)' }}>
-          <button onClick={() => setView('landing')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#0a0a0a', opacity: 0.55, display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '12px', fontWeight: 500, padding: 0 }}>
-            <ChevronLeft size={14} /> Voltar
-          </button>
-          <button onClick={() => setView('gate')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#0a0a0a', opacity: 0.45, fontSize: '12px', textDecoration: 'underline' }}>
-            Painel admin
-          </button>
-        </div>
-
-        <div style={{ textAlign: 'center', marginBottom: 'clamp(28px, 4vh, 44px)' }}>
-          {currentUser && (
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '9px', marginBottom: '18px', background: 'rgba(0,0,0,0.04)', border: '1px solid rgba(0,0,0,0.08)', borderRadius: '999px', padding: '5px 8px 5px 5px' }}>
-              {(() => { const p = profileByName(currentUser); return p ? <BoringAvatar index={p.avatar} size={28} /> : null; })()}
-              <span style={{ fontSize: '13px', fontWeight: 600 }}>{currentUser}</span>
-              <button onClick={() => setView('identify')} style={{ background: 'none', border: 'none', color: 'rgba(0,0,0,0.5)', fontSize: '12px', cursor: 'pointer', textDecoration: 'underline', padding: '0 6px 0 0' }}>trocar</button>
-            </div>
-          )}
-          <h1 style={{ fontSize: 'clamp(32px, 5vw, 52px)', fontWeight: 600, margin: 0, letterSpacing: '-0.03em', lineHeight: 1.05 }}>
-            O que você quer ver?
-          </h1>
-          <p style={{ fontSize: '14px', opacity: 0.55, margin: '12px 0 0 0' }}>
-            Acesse o calendário editorial ou as copies de cada marca.
-          </p>
-        </div>
-
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '20px', width: '100%', maxWidth: '1140px', justifyContent: 'center' }}>
-          <MenuButton
-            icon={<KnightIcon size={30} />}
-            title="Estratégia de Conteúdo"
-            subtitle="Estratégia de postagem e materiais de cada marca."
-            onClick={() => setView('strategy')}
-          />
-          <MenuButton
-            icon={<Calendar size={26} />}
-            title="Calendário editorial"
-            subtitle="Veja a linha editorial de junho organizada por dia."
-            onClick={() => setView('calendar')}
-          />
-          <MenuButton
-            icon={<Layers size={26} />}
-            title="Copies das marcas"
-            subtitle="Visualize e aprove as copies de cada marca."
-            onClick={() => setView('brands')}
-            locked
-          />
-        </div>
-      </div>
-    );
-  }
-
-  // ─── ESTRATÉGIA DE CONTEÚDO ───
-  if (view === 'strategy') {
-    const isAdmin = currentUser === 'Admin';
-    const activeBrands = Object.entries(clients).filter(([, c]) => !c.comingSoon);
-    const sel = strategyBrand && clients[strategyBrand] ? strategyBrand : null;
-    return (
-      <div style={{ minHeight: '100vh', background: '#f5f5f3', fontFamily: 'Geist, -apple-system, BlinkMacSystemFont, system-ui, sans-serif', paddingBottom: '60px' }}>
-        <div style={{ background: '#0a0a0a', color: '#fafafa', padding: '44px 28px 32px 28px' }}>
-          <div style={{ maxWidth: '1140px', margin: '0 auto' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '18px', gap: '12px', flexWrap: 'wrap' }}>
-              <button onClick={() => (sel ? setStrategyBrand(null) : setView('select'))} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#fafafa', opacity: 0.55, display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '12px', fontWeight: 500, padding: 0 }}>
-                <ChevronLeft size={14} /> {sel ? 'Todas as marcas' : 'Voltar'}
-              </button>
-              <span style={{ ...glassDark, color: '#fafafa', borderRadius: '999px', padding: '6px 14px', fontSize: '11.5px', fontWeight: 600 }}>
-                {isAdmin ? 'Modo edição' : 'Somente leitura'}
-              </span>
-            </div>
-            <h1 style={{ fontSize: '34px', fontWeight: 600, margin: 0, letterSpacing: '-0.03em', display: 'inline-flex', alignItems: 'center', gap: '12px' }}>
-              <KnightIcon size={32} /> Estratégia de Conteúdo
-            </h1>
-            <p style={{ fontSize: '13.5px', opacity: 0.65, marginTop: '8px' }}>
-              {sel ? clients[sel].name : 'Escolha uma marca para ver a estratégia e os materiais.'}
-            </p>
-          </div>
-        </div>
-
-        <div style={{ maxWidth: '1140px', margin: '0 auto', padding: '28px' }}>
-          {!sel ? (
-            <div style={{ maxWidth: '440px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              {[...activeBrands.filter(([k]) => k === 'octagym'), ...activeBrands.filter(([k]) => k !== 'octagym')].map(([brandKey, c]) => {
-                const Icon = BRAND_ICONS[brandKey] || Layers;
-                const live = brandKey === 'octagym';
-                if (!live) {
-                  return (
-                    <div key={brandKey} style={{
-                      background: '#fff', border: '1px solid rgba(0,0,0,0.07)', borderRadius: '16px',
-                      padding: '14px 18px', display: 'flex', alignItems: 'center', gap: '14px', opacity: 0.6
-                    }}>
-                      <span style={{ flexShrink: 0, width: '46px', height: '46px', borderRadius: '50%', background: 'rgba(0,0,0,0.06)', color: 'rgba(0,0,0,0.3)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <Icon size={22} />
-                      </span>
-                      <span style={{ flex: 1, fontSize: '16px', fontWeight: 600, color: 'rgba(0,0,0,0.5)', letterSpacing: '-0.01em' }}>{c.name}</span>
-                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', background: 'rgba(0,0,0,0.05)', color: 'rgba(0,0,0,0.45)', borderRadius: '999px', padding: '4px 10px', fontSize: '11px', fontWeight: 700 }}>
-                        <Lock size={11} /> Em breve
-                      </span>
-                    </div>
-                  );
-                }
-                return (
+              <div className="btn-row">
+                <button className="btn ghost small" onClick={() => duplicateItem(it.id)}>⧉ duplicar</button>
+                {linkedCard && (
                   <button
-                    key={brandKey}
-                    onClick={() => setStrategyBrand(brandKey)}
-                    onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 8px 22px rgba(0,0,0,0.10)'; }}
-                    onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = `0 2px 10px ${c.accent}22`; }}
-                    style={{
-                      background: `${c.accent}0d`, border: `2px solid ${c.accent}`, borderRadius: '16px',
-                      padding: '16px 18px', cursor: 'pointer', textAlign: 'left',
-                      display: 'flex', alignItems: 'center', gap: '14px',
-                      boxShadow: `0 2px 10px ${c.accent}22`, transition: 'transform 0.18s ease, box-shadow 0.18s ease'
+                    className="btn small"
+                    onClick={() => {
+                      close();
+                      setOpenCard(it.cardId);
                     }}
                   >
-                    <span style={{ flexShrink: 0, width: '50px', height: '50px', borderRadius: '50%', background: c.accent, color: readableText(c.accent), display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <Icon size={24} />
-                    </span>
-                    <span style={{ flex: 1, minWidth: 0 }}>
-                      <span style={{ display: 'block', fontSize: '17px', fontWeight: 700, color: '#0a0a0a', letterSpacing: '-0.01em' }}>{c.name}</span>
-                      <span style={{ display: 'block', fontSize: '12px', color: c.accent, fontWeight: 600, marginTop: '1px' }}>Disponível agora</span>
-                    </span>
-                    <ChevronRight size={18} style={{ color: c.accent }} />
+                    abrir cartão →
                   </button>
-                );
-              })}
-            </div>
-          ) : sel === 'octagym' ? (
-            <OctagymStrategy accent={clients.octagym.accent} decisions={decisions} onDecide={setDecision} />
-          ) : (
-            <BrandStrategyCard
-              brand={sel}
-              c={clients[sel]}
-              data={strategy[sel] || { notes: '', materials: [] }}
-              canEdit={isAdmin}
-              onSaveNotes={(b, n) => saveStrategy(b, { notes: n })}
-              onAddLink={addStrategyMaterial}
-              onUploadFile={uploadStrategyFile}
-              onRemoveMaterial={removeStrategyMaterial}
-            />
-          )}
-        </div>
-        {toast && <Toast message={toast} onClose={() => setToast(null)} />}
-      </div>
-    );
-  }
-
-  // ─── CALENDÁRIO EDITORIAL (público) ───
-  if (view === 'calendar') {
-    return (
-      <div style={{ minHeight: '100vh', background: '#f5f5f3', fontFamily: 'Geist, -apple-system, BlinkMacSystemFont, system-ui, sans-serif', paddingBottom: '60px' }}>
-        <div style={{ background: '#0a0a0a', color: '#fafafa', padding: '44px 28px 32px 28px' }}>
-          <div style={{ maxWidth: '1280px', margin: '0 auto' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '18px' }}>
-              <button onClick={() => setView('select')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#fafafa', opacity: 0.55, display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '12px', fontWeight: 500, padding: 0 }}>
-                <ChevronLeft size={14} /> Voltar
-              </button>
-              <button onClick={() => setView('gate')} style={{ ...glassDark, cursor: 'pointer', color: '#fafafa', borderRadius: '999px', padding: '8px 16px', fontSize: '12px', fontWeight: 600 }}>
-                Painel admin
-              </button>
-            </div>
-            <h1 style={{ fontSize: '34px', fontWeight: 600, margin: 0, letterSpacing: '-0.03em', textTransform: 'capitalize' }}>Calendário editorial</h1>
-            <p style={{ fontSize: '13.5px', opacity: 0.65, marginTop: '8px' }}>Use as setas para navegar entre os meses · clique num dia para ver e aprovar os conteúdos.</p>
-          </div>
-        </div>
-
-        <div style={{ maxWidth: '1280px', margin: '0 auto', padding: '28px' }}>
-          <MonthCalendar
-            schedule={schedule}
-            reviews={reviews}
-            calBrand={calBrand}
-            setCalBrand={setCalBrand}
-            onDayClick={setSelectedDay}
-            customPosts={customList}
-          />
-        </div>
-
-        {selectedDay && (
-          <DayDetail
-            day={selectedDay}
-            schedule={schedule}
-            reviews={reviews}
-            setReview={setReview}
-            onClose={() => setSelectedDay(null)}
-            creatives={creatives}
-            customPosts={customList}
-            getPosting={postingStatusOf}
-          />
-        )}
-        {toast && <Toast message={toast} onClose={() => setToast(null)} />}
-      </div>
-    );
-  }
-
-  // ─── COPIES DAS MARCAS (grade de marcas) ───
-  if (view === 'brands') {
-    return (
-      <div style={{
-        minHeight: '100vh',
-        background: '#ffffff',
-        color: '#0a0a0a',
-        fontFamily: 'Geist, -apple-system, BlinkMacSystemFont, system-ui, sans-serif',
-        padding: 'clamp(28px, 6vh, 64px) 24px',
-        display: 'flex', flexDirection: 'column', alignItems: 'center'
-      }}>
-        {/* Cabeçalho */}
-        <div style={{
-          width: '100%', maxWidth: '960px',
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          marginBottom: 'clamp(28px, 5vh, 56px)'
-        }}>
-          <button
-            onClick={() => setView('select')}
-            style={{
-              background: 'none', border: 'none', cursor: 'pointer',
-              color: '#0a0a0a', opacity: 0.55,
-              display: 'inline-flex', alignItems: 'center', gap: '5px',
-              fontSize: '12px', fontWeight: 500, padding: 0
-            }}
-          >
-            <ChevronLeft size={14} /> Voltar
-          </button>
-          <button
-            onClick={() => setView('gate')}
-            style={{
-              background: 'none', border: 'none', cursor: 'pointer',
-              color: '#0a0a0a', opacity: 0.45, fontSize: '12px',
-              textDecoration: 'underline'
-            }}
-          >
-            Painel admin
-          </button>
-        </div>
-
-        {/* Título */}
-        <div style={{ textAlign: 'center', marginBottom: 'clamp(28px, 4vh, 44px)' }}>
-          <h1 style={{
-            fontSize: 'clamp(32px, 5vw, 52px)',
-            fontWeight: 600, margin: 0,
-            letterSpacing: '-0.03em', lineHeight: 1.05
-          }}>
-            Escolha uma marca
-          </h1>
-          <p style={{ fontSize: '14px', opacity: 0.55, margin: '12px 0 0 0' }}>
-            Selecione a marca para ver seus conteúdos.
-          </p>
-        </div>
-
-        {/* Grid de cards */}
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))',
-          gap: '20px',
-          width: '100%',
-          maxWidth: '880px'
-        }}>
-          {Object.entries(clients).map(([key, c]) => {
-            const disabled = c.comingSoon;
-            return (
-              <button
-                key={key}
-                onClick={() => {
-                  if (disabled) return;
-                  setActiveBrand(key);
-                  setActiveDay('all');
-                  setActiveKind('all');
-                  setView('content');
-                }}
-                disabled={disabled}
-                title={disabled ? 'Conteúdo em breve' : undefined}
-                onMouseEnter={e => {
-                  if (disabled) return;
-                  e.currentTarget.style.transform = 'translateY(-4px)';
-                  e.currentTarget.style.boxShadow = '0 6px 16px rgba(0,0,0,0.08), 0 18px 36px rgba(0,0,0,0.10)';
-                }}
-                onMouseLeave={e => {
-                  if (disabled) return;
-                  e.currentTarget.style.transform = 'none';
-                  e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.05), 0 8px 24px rgba(0,0,0,0.06)';
-                }}
-                style={{
-                  aspectRatio: '1 / 1',
-                  background: c.bg,
-                  color: c.text,
-                  borderRadius: '24px',
-                  border: 'none',
-                  padding: '26px',
-                  display: 'flex', flexDirection: 'column',
-                  justifyContent: 'space-between',
-                  textAlign: 'left',
-                  cursor: disabled ? 'not-allowed' : 'pointer',
-                  opacity: disabled ? 0.45 : 1,
-                  boxShadow: '0 1px 3px rgba(0,0,0,0.05), 0 8px 24px rgba(0,0,0,0.06)',
-                  transition: 'transform 0.2s cubic-bezier(0.4,0,0.2,1), box-shadow 0.2s ease',
-                  position: 'relative', overflow: 'hidden',
-                  font: 'inherit'
-                }}
-              >
-                {/* Topo: pontinho da marca + posts/em-breve */}
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <span style={{
-                    width: '14px', height: '14px', borderRadius: '50%',
-                    background: c.accent,
-                    boxShadow: `0 0 14px ${c.accent}aa`
-                  }} />
-                  {disabled ? (
-                    <span style={{
-                      fontSize: '9.5px', fontWeight: 700, letterSpacing: '0.12em',
-                      textTransform: 'uppercase',
-                      background: 'rgba(255,255,255,0.10)',
-                      border: '1px solid rgba(255,255,255,0.18)',
-                      padding: '4px 10px', borderRadius: '999px'
-                    }}>em breve</span>
-                  ) : (
-                    <span style={{ fontSize: '11px', opacity: 0.6 }}>
-                      {c.posts.length} {c.posts.length === 1 ? 'post' : 'posts'}
-                    </span>
-                  )}
-                </div>
-
-                {/* Base: nome + tagline + seta */}
-                <div>
-                  <h3 style={{
-                    fontSize: 'clamp(22px, 2.6vw, 28px)',
-                    fontWeight: 600, margin: '0 0 8px 0',
-                    letterSpacing: '-0.02em', lineHeight: 1.1
-                  }}>
-                    {c.name}
-                  </h3>
-                  <p style={{ fontSize: '12.5px', opacity: 0.65, margin: '0 0 16px 0', lineHeight: 1.4 }}>
-                    {c.tagline}
-                  </p>
-                  {!disabled && (
-                    <div style={{
-                      display: 'inline-flex', alignItems: 'center', gap: '6px',
-                      fontSize: '12px', fontWeight: 600, opacity: 0.85
-                    }}>
-                      Acessar <ArrowRight size={13} />
-                    </div>
-                  )}
-                </div>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-    );
-  }
-
-  // ─── TELA DE SENHA DO ADMIN ───
-  if (view === 'gate') {
-    return (
-      <AdminGate
-        expected={ADMIN_PASSWORD}
-        onSuccess={() => { setCurrentUser('Admin'); setView('admin'); }}
-        onCancel={() => setView('select')}
-      />
-    );
-  }
-
-  // ─── PAINEL ADMIN ───
-  if (view === 'admin') {
-    const allItems = Object.entries(clients).flatMap(([brandKey, c]) =>
-      postsOf(brandKey, customList).map(({ id, post, custom, edited }) => {
-        const r = reviews[id] || {};
-        return {
-          id, brandKey, brandName: c.name, accent: c.accent,
-          theme: post.theme, kind: post.kind, day: post.day,
-          comingSoon: !!c.comingSoon,
-          custom, edited, tags: post.tags || [],
-          status: r.status || 'pending',
-          suggestion: r.suggestion || '',
-          reviewer: r.reviewer || '',
-          // criativo padrão da marca (imagem em /public), usado como miniatura quando não há upload
-          image: post.slide?.image || post.slides?.[0]?.image || null,
-          defaultCount: post.slides?.length || 1
-        };
-      })
-    );
-    const total = allItems.length;
-    const approved = allItems.filter(it => it.status === 'approved').length;
-    const reproved = allItems.filter(it => it.status === 'reproved').length;
-    const pending = allItems.filter(it => it.status === 'pending').length;
-    const donePct = total ? Math.round(((approved + reproved) / total) * 100) : 0;
-
-    // Mês de um conteúdo (pela data agendada)
-    const itemMonth = (it) => (schedule[it.id] ? schedule[it.id].slice(0, 7) : null);
-
-    // Abas de mês (a partir das datas agendadas) + Não agendados + Todos
-    const monthSet = new Set(Object.values(schedule).map(d => (d ? d.slice(0, 7) : null)).filter(Boolean));
-    const monthCount = (key) => allItems.filter(it => {
-      const m = itemMonth(it);
-      if (key === 'all') return true;
-      if (key === 'unscheduled') return !m;
-      return m === key;
-    }).length;
-    const monthTabs = [
-      ...[...monthSet].sort().map(m => ({ key: m, label: monthLabel(m) })),
-      { key: 'unscheduled', label: 'Não agendados' },
-      { key: 'all', label: 'Todos' }
-    ];
-
-    // Filtro de status + busca + mês
-    const q = adminSearch.trim().toLowerCase();
-    const filtered = allItems.filter(it => {
-      if (adminFilter !== 'all' && it.status !== adminFilter) return false;
-      const m = itemMonth(it);
-      if (adminMonth === 'unscheduled' && m) return false;
-      if (adminMonth !== 'all' && adminMonth !== 'unscheduled' && m !== adminMonth) return false;
-      if (q && !`${it.theme} ${it.brandName} ${KIND_LABEL[it.kind] || it.kind}`.toLowerCase().includes(q)) return false;
-      return true;
-    });
-
-    // Só a busca abre todas as marcas (pra mostrar o resultado); filtros de status respeitam o recolher
-    const forceExpand = q !== '';
-    const isBrandOpen = (bk) => forceExpand || !!expandedBrands[bk];
-    const toggleBrand = (bk) => setExpandedBrands(prev => ({ ...prev, [bk]: !prev[bk] }));
-
-    const filterPills = [
-      ['all', 'Todos', total],
-      ['pending', 'Pendentes', pending],
-      ['approved', 'Aprovados', approved],
-      ['reproved', 'Reprovados', reproved]
-    ];
-
-    // Quadro de status de postagem (em produção / agendados / postados)
-    const boardGroups = { producao: [], agendado: [], postado: [] };
-    allItems.forEach(it => { if (!it.comingSoon) boardGroups[postingStatusOf(it.id)].push(it); });
-    const boardTabs = [['producao', 'Em produção'], ['agendado', 'Agendados'], ['postado', 'Postados']];
-    const boardList = boardGroups[boardTab] || [];
-
-    const Stat = ({ label, value, color }) => (
-      <div style={{
-        ...glassLight, borderRadius: '16px', padding: '20px 24px',
-        flex: 1, minWidth: '140px'
-      }}>
-        <div style={{ fontSize: '34px', fontWeight: 700, color, letterSpacing: '-0.02em', lineHeight: 1 }}>{value}</div>
-        <div style={{ fontSize: '12px', color: 'rgba(0,0,0,0.5)', marginTop: '6px', fontWeight: 600 }}>{label}</div>
-      </div>
-    );
-
-    return (
-      <div style={{
-        minHeight: '100vh',
-        background: '#f5f5f3',
-        fontFamily: 'Geist, -apple-system, BlinkMacSystemFont, system-ui, sans-serif',
-        paddingBottom: '60px'
-      }}>
-        {/* HEADER ADMIN */}
-        <div style={{ background: '#0a0a0a', color: '#fafafa', padding: '44px 28px 32px 28px' }}>
-          <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
-            <button
-              onClick={() => setView('select')}
-              style={{
-                background: 'none', border: 'none', cursor: 'pointer',
-                color: '#fafafa', opacity: 0.55,
-                display: 'inline-flex', alignItems: 'center', gap: '5px',
-                fontSize: '12px', fontWeight: 500, padding: 0, marginBottom: '18px'
-              }}
-            >
-              <ChevronLeft size={14} /> Voltar ao início
-            </button>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap' }}>
-              <h1 style={{ fontSize: '34px', fontWeight: 600, margin: 0, letterSpacing: '-0.03em' }}>
-                Painel Admin
-              </h1>
-              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-                <button
-                  onClick={resetReviews}
-                  style={{
-                    background: 'rgba(252,165,165,0.10)',
-                    backdropFilter: 'blur(12px) saturate(180%)',
-                    WebkitBackdropFilter: 'blur(12px) saturate(180%)',
-                    color: '#fca5a5',
-                    border: '1px solid rgba(252,165,165,0.28)', cursor: 'pointer',
-                    borderRadius: '999px', padding: '9px 16px',
-                    fontSize: '12.5px', fontWeight: 600,
-                    display: 'inline-flex', alignItems: 'center', gap: '7px'
-                  }}
-                >
-                  <X size={14} /> Resetar avaliações
-                </button>
-                <button
-                  onClick={() => setView('select')}
-                  style={{
-                    ...glassDark, cursor: 'pointer', color: '#fafafa',
-                    borderRadius: '999px', padding: '9px 16px',
-                    fontSize: '12.5px', fontWeight: 600,
-                    display: 'inline-flex', alignItems: 'center', gap: '7px'
-                  }}
-                >
-                  <Lock size={13} /> Travar
-                </button>
-              </div>
-            </div>
-            <p style={{ fontSize: '13.5px', opacity: 0.6, marginTop: '8px' }}>
-              Status de aprovação e comentários de cada conteúdo.
-            </p>
-          </div>
-        </div>
-
-        <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '28px' }}>
-          {/* CALENDÁRIO EDITORIAL — montar os dias */}
-          <div style={{ background: '#fff', borderRadius: '18px', border: '1px solid rgba(0,0,0,0.06)', boxShadow: '0 1px 3px rgba(0,0,0,0.04), 0 6px 20px rgba(0,0,0,0.05)', padding: '24px', marginBottom: '32px' }}>
-            <h2 style={{ fontSize: '18px', fontWeight: 700, margin: '0 0 4px 0', letterSpacing: '-0.01em' }}>Calendário editorial</h2>
-            <p style={{ fontSize: '12.5px', color: 'rgba(0,0,0,0.55)', margin: '0 0 18px 0' }}>
-              Clique num dia para escolher quais conteúdos aparecem nele (pode selecionar mais de um).
-            </p>
-            <MonthCalendar
-              schedule={schedule}
-              reviews={reviews}
-              calBrand={calBrand}
-              setCalBrand={setCalBrand}
-              onDayClick={setAdminDay}
-              customPosts={customList}
-            />
-          </div>
-
-          {/* QUADRO DE STATUS DE POSTAGEM */}
-          <div style={{ background: '#fff', borderRadius: '18px', border: '1px solid rgba(0,0,0,0.06)', boxShadow: '0 1px 3px rgba(0,0,0,0.04), 0 6px 20px rgba(0,0,0,0.05)', padding: '24px', marginBottom: '32px' }}>
-            <h2 style={{ fontSize: '18px', fontWeight: 700, margin: '0 0 4px 0', letterSpacing: '-0.01em' }}>Status de postagem</h2>
-            <p style={{ fontSize: '12.5px', color: 'rgba(0,0,0,0.55)', margin: '0 0 16px 0' }}>
-              Defina em cada conteúdo se está em produção ou agendado. Os agendados viram “Postado” automaticamente no dia marcado no calendário. Clique num item para ver o resumo.
-            </p>
-            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '16px' }}>
-              {boardTabs.map(([k, label]) => {
-                const on = boardTab === k;
-                return (
-                  <button key={k} onClick={() => setBoardTab(k)} style={{
-                    display: 'inline-flex', alignItems: 'center', gap: '7px',
-                    background: on ? '#0a0a0a' : 'rgba(0,0,0,0.04)', color: on ? '#fff' : 'rgba(0,0,0,0.65)',
-                    border: '1px solid ' + (on ? '#0a0a0a' : 'rgba(0,0,0,0.08)'),
-                    borderRadius: '10px', padding: '8px 14px', fontSize: '12.5px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.18s ease'
-                  }}>
-                    {label}
-                    <span style={{ background: on ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.07)', borderRadius: '999px', padding: '0 7px', fontSize: '11px', fontWeight: 700 }}>{boardGroups[k].length}</span>
-                  </button>
-                );
-              })}
-            </div>
-            {boardList.length === 0 ? (
-              <div style={{ textAlign: 'center', color: 'rgba(0,0,0,0.4)', fontSize: '13px', padding: '28px 0' }}>Nenhum conteúdo neste status.</div>
-            ) : (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: '10px' }}>
-                {boardList.map(it => {
-                  const thumb = creatives[it.id]?.[0];
-                  return (
-                    <button key={it.id} onClick={() => setBoardItem(it)} style={{ display: 'flex', alignItems: 'center', gap: '10px', textAlign: 'left', width: '100%', background: '#fff', border: '1px solid rgba(0,0,0,0.08)', borderRadius: '12px', padding: '9px 11px', cursor: 'pointer', transition: 'box-shadow 0.15s ease' }}
-                      onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 4px 14px rgba(0,0,0,0.08)'; }}
-                      onMouseLeave={e => { e.currentTarget.style.boxShadow = 'none'; }}
-                    >
-                      <div style={{ flexShrink: 0, width: '44px', height: '44px', borderRadius: '9px', overflow: 'hidden', background: thumb ? '#101010' : 'rgba(0,0,0,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        {thumb ? <MediaThumb src={thumb} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <ImageIcon size={16} color="rgba(0,0,0,0.25)" />}
-                      </div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '10.5px', color: 'rgba(0,0,0,0.45)', fontWeight: 600, marginBottom: '2px' }}>
-                          <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: it.accent }} /> {it.brandName}
-                        </div>
-                        <div style={{ fontSize: '13px', fontWeight: 600, color: '#0a0a0a', lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{it.theme}</div>
-                      </div>
-                      <span style={{ flexShrink: 0, fontSize: '11px', fontWeight: 700, color: schedule[it.id] ? '#0a0a0a' : 'rgba(0,0,0,0.35)' }}>{schedule[it.id] ? ddmm(schedule[it.id]) : '—'}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
-          {/* DASHBOARD: progresso geral + números */}
-          <div style={{ background: '#fff', borderRadius: '18px', border: '1px solid rgba(0,0,0,0.06)', boxShadow: '0 1px 3px rgba(0,0,0,0.04), 0 6px 20px rgba(0,0,0,0.05)', padding: '24px', marginBottom: '24px' }}>
-            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '12px', marginBottom: '14px', flexWrap: 'wrap' }}>
-              <h2 style={{ fontSize: '18px', fontWeight: 700, margin: 0, letterSpacing: '-0.01em' }}>Andamento da revisão</h2>
-              <div style={{ fontSize: '13px', color: 'rgba(0,0,0,0.55)', fontWeight: 600 }}>
-                {approved + reproved}/{total} revisados · <span style={{ color: '#0a0a0a' }}>{donePct}%</span>
-              </div>
-            </div>
-            <ProgressBar approved={approved} reproved={reproved} total={total} height={12} />
-            <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap', marginTop: '20px' }}>
-              <Stat label="Total" value={total} color="#0a0a0a" />
-              <Stat label="Aprovados" value={approved} color="#16a34a" />
-              <Stat label="Reprovados" value={reproved} color="#dc2626" />
-              <Stat label="Pendentes" value={pending} color="#64748b" />
-            </div>
-          </div>
-
-          {/* ABAS DE MÊS + CRIAR CONTEÚDO */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', marginBottom: '16px' }}>
-            <div style={{ display: 'flex', gap: '7px', flexWrap: 'wrap' }}>
-              {monthTabs.map(t => {
-                const on = adminMonth === t.key;
-                return (
-                  <button key={t.key} onClick={() => setAdminMonth(t.key)} style={{
-                    display: 'inline-flex', alignItems: 'center', gap: '6px',
-                    background: on ? '#0a0a0a' : '#fff', color: on ? '#fff' : 'rgba(0,0,0,0.7)',
-                    border: '1px solid ' + (on ? '#0a0a0a' : 'rgba(0,0,0,0.1)'),
-                    borderRadius: '10px', padding: '8px 14px', fontSize: '12.5px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.18s ease'
-                  }}>
-                    {t.label}
-                    <span style={{ background: on ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.07)', borderRadius: '999px', padding: '0 7px', fontSize: '11px', fontWeight: 700 }}>{monthCount(t.key)}</span>
-                  </button>
-                );
-              })}
-            </div>
-            <button
-              onClick={() => setEditorPost('new')}
-              style={{ background: '#0a0a0a', color: '#fff', border: 'none', borderRadius: '999px', padding: '11px 20px', fontSize: '13.5px', fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '8px', boxShadow: '0 4px 14px rgba(0,0,0,0.12)' }}
-            >
-              <Plus size={16} /> Criar conteúdo
-            </button>
-          </div>
-
-          {/* FILTROS + BUSCA */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', marginBottom: '22px' }}>
-            <div style={{ display: 'flex', gap: '7px', flexWrap: 'wrap' }}>
-              {filterPills.map(([k, label, count]) => {
-                const on = adminFilter === k;
-                return (
-                  <button key={k} onClick={() => setAdminFilter(k)} style={{
-                    display: 'inline-flex', alignItems: 'center', gap: '6px',
-                    background: on ? '#0a0a0a' : 'rgba(0,0,0,0.04)', color: on ? '#fff' : 'rgba(0,0,0,0.65)',
-                    border: '1px solid ' + (on ? '#0a0a0a' : 'rgba(0,0,0,0.08)'),
-                    borderRadius: '999px', padding: '7px 14px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.18s ease'
-                  }}>
-                    {label}
-                    <span style={{ background: on ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.07)', borderRadius: '999px', padding: '0 7px', fontSize: '11px', fontWeight: 700 }}>{count}</span>
-                  </button>
-                );
-              })}
-            </div>
-            <div style={{ position: 'relative', flex: '1 1 220px', maxWidth: '300px' }}>
-              <input
-                value={adminSearch}
-                onChange={e => setAdminSearch(e.target.value)}
-                placeholder="Buscar por tema ou marca…"
-                style={{ width: '100%', boxSizing: 'border-box', padding: '9px 14px 9px 14px', borderRadius: '999px', border: '1px solid rgba(0,0,0,0.12)', background: '#fff', fontSize: '12.5px', outline: 'none', fontFamily: 'inherit' }}
-              />
-            </div>
-          </div>
-
-          {/* LISTA POR MARCA — recolhível (com filtro/busca/mês aplicados) */}
-          {filtered.length === 0 ? (
-            <div style={{ textAlign: 'center', color: 'rgba(0,0,0,0.45)', fontSize: '14px', padding: '48px 0' }}>
-              Nenhum conteúdo encontrado com esse filtro.
-            </div>
-          ) : Object.entries(clients).map(([brandKey, c]) => {
-            const items = filtered.filter(it => it.brandKey === brandKey);
-            if (items.length === 0) return null;
-            const bAppr = items.filter(it => it.status === 'approved').length;
-            const bRepr = items.filter(it => it.status === 'reproved').length;
-            const open = isBrandOpen(brandKey);
-            return (
-              <div key={brandKey} style={{ marginBottom: '14px' }}>
-                <button
-                  onClick={() => toggleBrand(brandKey)}
-                  style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '11px', background: '#fff', border: '1px solid rgba(0,0,0,0.06)', borderRadius: open ? '14px 14px 0 0' : '14px', boxShadow: '0 1px 2px rgba(0,0,0,0.04)', padding: '15px 18px', cursor: 'pointer', textAlign: 'left' }}
-                >
-                  <ChevronRight size={16} style={{ flexShrink: 0, opacity: 0.45, transform: open ? 'rotate(90deg)' : 'none', transition: 'transform 0.2s ease' }} />
-                  <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: c.accent, flexShrink: 0 }} />
-                  <span style={{ fontSize: '16px', fontWeight: 700, letterSpacing: '-0.01em' }}>{c.name}</span>
-                  <span style={{ fontSize: '12px', color: 'rgba(0,0,0,0.4)', fontWeight: 600 }}>{items.length} {items.length === 1 ? 'conteúdo' : 'conteúdos'}</span>
-                  <div style={{ flex: 1, maxWidth: '160px', marginLeft: 'auto' }}>
-                    <ProgressBar approved={bAppr} reproved={bRepr} total={items.length} height={6} />
-                  </div>
-                </button>
-                {open && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', padding: '12px', background: 'rgba(0,0,0,0.015)', border: '1px solid rgba(0,0,0,0.06)', borderTop: 'none', borderRadius: '0 0 14px 14px' }}>
-                    {items.map(it => (
-                      <AdminItem
-                        key={it.id}
-                        it={it}
-                        scheduledDate={schedule[it.id]}
-                        urls={creatives[it.id]}
-                        uploading={uploadingId === it.id}
-                        onReview={setReview}
-                        onUpload={uploadCreatives}
-                        onRemove={removeCreativeAt}
-                        onEdit={openEditor}
-                        onDelete={deletePost}
-                        onRestore={restorePost}
-                        posting={postingStatusOf(it.id)}
-                        onSetProd={setProd}
-                      />
-                    ))}
-                  </div>
                 )}
-              </div>
-            );
-          })}
-        </div>
-
-        {adminDay && (
-          <DayAssign
-            day={adminDay}
-            schedule={schedule}
-            reviews={reviews}
-            setSchedulePost={setSchedulePost}
-            onClose={() => setAdminDay(null)}
-            customPosts={customList}
-          />
-        )}
-
-        {editorPost && (
-          <PostEditor
-            initial={editorPost === 'new' ? null : editorPost}
-            brands={Object.entries(clients).filter(([, c]) => !c.comingSoon)}
-            lockBrand={editorPost !== 'new' && !!editorPost && !String(editorPost.id).startsWith('custom-')}
-            onSave={savePost}
-            onClose={() => setEditorPost(null)}
-          />
-        )}
-
-        {boardItem && (() => {
-          const it = boardItem;
-          const post = resolvePost(it.id);
-          const thumb = creatives[it.id]?.[0];
-          const caption = (post?.caption || '').trim();
-          const excerpt = caption.length > 220 ? caption.slice(0, 220) + '…' : caption;
-          return (
-            <div onClick={() => setBoardItem(null)} style={{ position: 'fixed', inset: 0, zIndex: 1001, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)', display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '24px', fontFamily: 'Geist, -apple-system, BlinkMacSystemFont, system-ui, sans-serif' }}>
-              <div onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: '18px', width: '100%', maxWidth: '440px', overflow: 'hidden', boxShadow: '0 24px 60px rgba(0,0,0,0.3)' }}>
-                <div style={{ background: '#0a0a0a', color: '#fafafa', padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <div style={{ fontSize: '11px', opacity: 0.55, letterSpacing: '0.05em', textTransform: 'uppercase' }}>Resumo do conteúdo</div>
-                  <button onClick={() => setBoardItem(null)} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', cursor: 'pointer', color: '#fafafa', borderRadius: '999px', width: '30px', height: '30px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}><X size={15} /></button>
-                </div>
-                <div style={{ padding: '20px', display: 'flex', gap: '16px' }}>
-                  <div style={{ flexShrink: 0, width: '110px', height: '138px', borderRadius: '12px', overflow: 'hidden', background: thumb ? '#101010' : 'linear-gradient(150deg, #1a1a1a, #0a0a0a)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: thumb ? 0 : '12px', gap: '6px' }}>
-                    {thumb ? <MediaThumb src={thumb} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <><ImageIcon size={18} color="rgba(255,255,255,0.35)" /><span style={{ color: '#fff', fontSize: '11px', fontWeight: 600, lineHeight: 1.25 }}>{post?.headline || it.theme}</span></>}
-                  </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: 'rgba(0,0,0,0.5)', fontWeight: 600, marginBottom: '6px' }}>
-                      <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: it.accent }} /> {it.brandName}
-                    </div>
-                    <h3 style={{ fontSize: '16px', fontWeight: 600, margin: '0 0 4px', color: '#0a0a0a', lineHeight: 1.3 }}>{post?.headline || it.theme}</h3>
-                    {post?.subtitle && <p style={{ fontSize: '12.5px', color: 'rgba(0,0,0,0.6)', margin: '0 0 8px', lineHeight: 1.4 }}>{post.subtitle}</p>}
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '10px' }}>
-                      <KindBadge kind={it.kind} />
-                      <StatusBadge status={it.status} />
-                      <PostingBadge status={postingStatusOf(it.id)} />
-                    </div>
-                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: 600, color: schedule[it.id] ? '#0a0a0a' : 'rgba(0,0,0,0.4)' }}>
-                      <Calendar size={13} /> {schedule[it.id] ? dayLabel(schedule[it.id]) : 'Não agendado'}
-                    </div>
-                  </div>
-                </div>
-                {excerpt && (
-                  <div style={{ padding: '0 20px 16px' }}>
-                    <div style={{ fontSize: '10.5px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(0,0,0,0.4)', marginBottom: '6px' }}>Legenda</div>
-                    <p style={{ fontSize: '12.5px', color: 'rgba(0,0,0,0.7)', lineHeight: 1.55, margin: 0, whiteSpace: 'pre-wrap' }}>{excerpt}</p>
-                  </div>
-                )}
-                <div style={{ padding: '14px 20px', borderTop: '1px solid rgba(0,0,0,0.08)', display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-                  <button onClick={() => { setBoardItem(null); openEditor(it.id); }} style={{ background: 'rgba(0,0,0,0.05)', border: '1px solid rgba(0,0,0,0.1)', color: 'rgba(0,0,0,0.7)', borderRadius: '10px', padding: '9px 16px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '6px' }}><Pencil size={13} /> Editar</button>
-                  <button onClick={() => setBoardItem(null)} style={{ background: '#0a0a0a', border: 'none', color: '#fff', borderRadius: '10px', padding: '9px 18px', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>Fechar</button>
-                </div>
               </div>
             </div>
           );
-        })()}
-        {confirmBox && (
-          <ConfirmDialog
-            message={confirmBox.message}
-            confirmLabel={confirmBox.confirmLabel}
-            onConfirm={confirmBox.onConfirm}
-            onClose={() => setConfirmBox(null)}
+        })}
+
+        <Field label="novo conteúdo">
+          <input
+            className="input"
+            placeholder="Título (ex: Reel bastidores)"
+            value={form.title}
+            onChange={(e) => setForm({ ...form, title: e.target.value })}
+            onKeyDown={(e) => e.key === "Enter" && addItem()}
           />
-        )}
-        {toast && <Toast message={toast} onClose={() => setToast(null)} />}
+          <div className="tpl-row" style={{ marginTop: 8 }}>
+            <select className="input" value={form.product} onChange={(e) => setForm({ ...form, product: e.target.value })}>
+              {Object.entries(PRODUCTS).map(([k, p]) => (
+                <option key={k} value={k}>{p.label}</option>
+              ))}
+            </select>
+            <select className="input" value={form.network} onChange={(e) => setForm({ ...form, network: e.target.value })}>
+              {NETWORKS.map((n) => (
+                <option key={n} value={n}>{n}</option>
+              ))}
+            </select>
+            <select className="input" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
+              {Object.entries(CAL_STATUS).map(([k, s]) => (
+                <option key={k} value={k}>{s.label}</option>
+              ))}
+            </select>
+            <button className="btn" onClick={addItem}>adicionar</button>
+          </div>
+        </Field>
       </div>
-    );
-  }
+    </Overlay>
+  );
+}
+
+// ---------- tela de entrada: arco orbital (meio círculo) ----------
+// Cada tile é posicionado por cálculo de ângulo. Não existe nenhuma
+// caixa girando, então nenhum contorno de contêiner pode aparecer.
+function Landing({ onEnter, onProduct }) {
+  const n = SLOTS.length;
+  const [offset, setOffset] = useState(0);
+  const paused = useRef(false);
+
+  useEffect(() => {
+    if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    let raf;
+    let last = performance.now();
+    const loop = (t) => {
+      const dt = Math.min((t - last) / 1000, 0.1);
+      last = t;
+      if (!paused.current) setOffset((o) => (o + dt * 9) % 360); // volta completa em 40s
+      raf = requestAnimationFrame(loop);
+    };
+    raf = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(raf);
+  }, []);
 
   return (
-    <div style={{
-      minHeight: '100vh',
-      background: '#f5f5f3',
-      fontFamily: 'Geist, -apple-system, BlinkMacSystemFont, system-ui, sans-serif',
-      paddingBottom: '60px'
-    }}>
-      {/* HEADER */}
-      <div style={{
-        background: '#0a0a0a', color: '#fafafa',
-        padding: '44px 28px 32px 28px'
-      }}>
-        <div style={{ maxWidth: '1280px', margin: '0 auto' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '18px' }}>
-            <button
-              onClick={() => setView('brands')}
-              style={{
-                background: 'none', border: 'none', cursor: 'pointer',
-                color: '#fafafa', opacity: 0.55,
-                display: 'inline-flex', alignItems: 'center', gap: '5px',
-                fontSize: '12px', fontWeight: 500, padding: 0
-              }}
-            >
-              <ChevronLeft size={14} /> Voltar
-            </button>
-            <button
-              onClick={() => setView('gate')}
-              style={{
-                ...glassDark, cursor: 'pointer', color: '#fafafa',
-                borderRadius: '999px', padding: '8px 16px',
-                fontSize: '12px', fontWeight: 600
-              }}
-            >
-              Painel admin
-            </button>
-          </div>
-          <p style={{ fontSize: '13.5px', opacity: 0.65, marginTop: '12px', maxWidth: '600px', lineHeight: 1.55 }}>
-            Para cada marca: 2 posts de notícia (descoberta), 1 post comercial (anúncio do produto), 1 carrossel desdobrando uma notícia. As notícias são reais e verificáveis — link da fonte em cada post.
-          </p>
-        </div>
-      </div>
-
-      {/* TABS DE MARCA — liquid glass */}
-      <div style={{
-        background: 'rgba(255,255,255,0.6)',
-        backdropFilter: 'blur(20px) saturate(180%)',
-        WebkitBackdropFilter: 'blur(20px) saturate(180%)',
-        borderBottom: '1px solid rgba(0,0,0,0.06)',
-        position: 'sticky', top: 0, zIndex: 10
-      }}>
-        <div style={{ maxWidth: '1280px', margin: '0 auto', padding: '12px 28px' }}>
-          <div style={{
-            display: 'inline-flex', gap: '4px', padding: '5px',
-            background: 'rgba(120,120,128,0.10)',
-            borderRadius: '999px', maxWidth: '100%', overflowX: 'auto',
-            border: '1px solid rgba(255,255,255,0.5)',
-            boxShadow: 'inset 0 1px 1px rgba(255,255,255,0.6)'
-          }}>
-            {Object.entries(clients).map(([key, c]) => {
-              const active = activeBrand === key;
-              const disabled = c.comingSoon;
-              return (
-                <button
-                  key={key}
-                  onClick={() => { if (disabled) return; setActiveBrand(key); setActiveDay('all'); setActiveKind('all'); }}
-                  disabled={disabled}
-                  title={disabled ? 'Conteúdo em breve' : undefined}
-                  onMouseEnter={e => { if (!active && !disabled) e.currentTarget.style.background = 'rgba(255,255,255,0.45)'; }}
-                  onMouseLeave={e => { if (!active && !disabled) e.currentTarget.style.background = 'transparent'; }}
-                  style={{
-                    background: active ? 'rgba(255,255,255,0.85)' : 'transparent',
-                    backdropFilter: active ? 'blur(10px) saturate(180%)' : 'none',
-                    WebkitBackdropFilter: active ? 'blur(10px) saturate(180%)' : 'none',
-                    color: active ? '#0a0a0a' : 'rgba(0,0,0,0.55)',
-                    border: active ? '1px solid rgba(255,255,255,0.9)' : '1px solid transparent',
-                    cursor: disabled ? 'not-allowed' : 'pointer',
-                    opacity: disabled ? 0.4 : 1,
-                    padding: '10px 22px',
-                    fontSize: '13.5px', fontWeight: 600,
-                    letterSpacing: '-0.01em',
-                    borderRadius: '999px',
-                    boxShadow: active
-                      ? `0 1px 3px rgba(0,0,0,0.12), 0 6px 18px ${c.accent}40, inset 0 1px 1px rgba(255,255,255,0.95)`
-                      : 'none',
-                    display: 'flex', alignItems: 'center', gap: '8px',
-                    whiteSpace: 'nowrap',
-                    transition: 'all 0.28s cubic-bezier(0.4,0,0.2,1)'
-                  }}
-                >
-                  <span style={{
-                    width: '8px', height: '8px', borderRadius: '50%',
-                    background: c.accent,
-                    boxShadow: active ? `0 0 8px ${c.accent}` : 'none',
-                    transition: 'box-shadow 0.28s'
-                  }}/>
-                  {c.name}
-                  {disabled && (
-                    <span style={{
-                      fontSize: '8.5px', fontWeight: 700, letterSpacing: '0.08em',
-                      textTransform: 'uppercase', opacity: 0.8,
-                      background: 'rgba(0,0,0,0.08)', borderRadius: '999px',
-                      padding: '2px 7px', marginLeft: '2px'
-                    }}>em breve</span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-
-      {/* CABEÇALHO DA MARCA + FILTROS */}
-      <div style={{
-        background: brand.bg, color: brand.text,
-        padding: '32px 28px'
-      }}>
-        <div style={{ maxWidth: '1280px', margin: '0 auto' }}>
-          <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px', marginBottom: '20px' }}>
-            <div>
-              <h2 style={{ fontSize: '30px', fontWeight: 600, margin: 0, letterSpacing: '-0.03em' }}>
-                {brand.name}
-              </h2>
-              <p style={{ fontSize: '13px', opacity: 0.7, margin: '4px 0 0 0' }}>
-                {brand.tagline}
-              </p>
-            </div>
-            <div style={{ fontSize: '11px', opacity: 0.6 }}>
-              {(() => {
-                const labels = { noticia: 'notícia', comercial: 'comercial', carrossel: 'carrossel', campanha: 'campanha' };
-                const parts = ['noticia', 'comercial', 'carrossel', 'campanha']
-                  .map(k => { const c = brand.posts.filter(p => p.kind === k).length; return c ? `${c} ${labels[k]}` : null; })
-                  .filter(Boolean);
-                return <><strong>{brand.posts.length} posts</strong>{parts.length ? ` · ${parts.join(' · ')}` : ''}</>;
-              })()}
-            </div>
-          </div>
-
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '6px' }}>
-            <span style={{ fontSize: '10px', opacity: 0.55, letterSpacing: '0.1em', alignSelf: 'center', marginRight: '6px' }}>DIA:</span>
-            <button
-              onClick={() => setActiveDay('all')}
-              style={filterPill(activeDay === 'all')}
-            >Todos</button>
-            {brand.posts.map((post, i) => (
-              <button
-                key={i}
-                onClick={() => setActiveDay(i.toString())}
-                style={filterPill(activeDay === i.toString())}
+    <div className="poster landing-poster">
+      <div className="arc-stage">
+        <div className="arc-clip">
+          {SLOTS.map((s, i) => {
+            const deg = (360 / n) * i + offset;
+            const rad = (deg * Math.PI) / 180;
+            const sin = Math.sin(rad).toFixed(4);
+            const cos = Math.cos(rad).toFixed(4);
+            return (
+              <div
+                key={s.key}
+                className="arc-slot"
+                style={{
+                  left: `calc(50% + var(--R) * ${sin})`,
+                  top: `calc(var(--cy) - var(--R) * ${cos})`,
+                }}
               >
-                {post.day}{i === 3 ? ' (S2)' : ''}
-              </button>
-            ))}
-          </div>
-
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-            <span style={{ fontSize: '10px', opacity: 0.55, letterSpacing: '0.1em', alignSelf: 'center', marginRight: '6px' }}>TIPO:</span>
-            {[
-              { k: 'all', label: 'Todos' },
-              { k: 'noticia', label: 'Notícia' },
-              { k: 'comercial', label: 'Comercial' },
-              { k: 'carrossel', label: 'Carrossel' },
-              { k: 'campanha', label: 'Campanha' }
-            ].map(({ k, label }) => (
-              <button
-                key={k}
-                onClick={() => setActiveKind(k)}
-                style={filterPill(activeKind === k)}
-              >{label}</button>
-            ))}
-          </div>
+                <button
+                  className="tile"
+                  style={{ background: s.img ? undefined : s.grad }}
+                  onClick={() => onProduct(s.key)}
+                  onMouseEnter={() => (paused.current = true)}
+                  onMouseLeave={() => (paused.current = false)}
+                  aria-label={s.label}
+                >
+                  {s.img ? (
+                    <img src={s.img} alt={s.label} className="tile-img" />
+                  ) : (
+                    <span className="tile-tag px-label">{s.tag}</span>
+                  )}
+                  <span className="tile-name px-label">{s.label}</span>
+                </button>
+              </div>
+            );
+          })}
         </div>
-      </div>
 
-      {/* GRID DE POSTS */}
-      <div style={{ maxWidth: '1280px', margin: '0 auto', padding: '32px 28px' }}>
-        {posts.length === 0 ? (
-          <div style={{
-            background: '#FFFFFF', borderRadius: '14px', padding: '36px',
-            textAlign: 'center', color: 'rgba(0,0,0,0.5)', fontSize: '14px'
-          }}>
-            Nenhum post para os filtros selecionados.
-          </div>
-        ) : (
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: posts.length === 1 ? '1fr' : 'repeat(auto-fit, minmax(min(100%, 420px), 1fr))',
-            gap: '22px'
-          }}>
-            {posts.map(({ post, originalIndex }) => {
-              const id = `${activeBrand}-${originalIndex}`;
-              return (
-                <PostCard
-                  key={id}
-                  post={post}
-                  brand={activeBrand}
-                  brandData={brand}
-                  review={reviews[id]}
-                  onReview={data => setReview(id, data)}
-                  customSlides={creatives[id]}
-                />
-              );
-            })}
-          </div>
-        )}
-      </div>
-
-      {/* RODAPÉ */}
-      <div style={{
-        maxWidth: '1280px', margin: '32px auto 0 auto', padding: '20px 28px',
-        borderTop: '1px solid rgba(0,0,0,0.06)',
-        fontSize: '10.5px', color: 'rgba(0,0,0,0.5)', letterSpacing: '0.03em', lineHeight: 1.6
-      }}>
-        Todas as notícias citadas são reais e verificáveis. Fontes: Conjur, Migalhas, Canaltech, IT Forum, Seu Dinheiro, Webmotors, Fenauto, O Tempo, Trakcar (2026). Placeholders [inserir link] devem ser substituídos antes da publicação.
+        <div className="arc-center">
+          <div className="eyebrow">octalab · casa de produtos</div>
+          <h1 className="hero arc-hero">ESTÚDIO</h1>
+          <p className="orbit-sub">
+            Passe o mouse pelos produtos para explorar.<br />
+            Clique para ver o manifesto e os arquivos da marca.
+          </p>
+          <button className="btn" style={{ fontSize: 16, padding: "10px 26px" }} onClick={onEnter}>
+            entrar no painel →
+          </button>
+        </div>
       </div>
     </div>
+  );
+}
+
+// ---------- página de produto (manifesto + arquivos) ----------
+function ProductPage({ slot, onBack, onEnter }) {
+  return (
+    <div className="poster product-page">
+      <div className="pp-nav">
+        <button className="back-link px-label" onClick={onBack}>← voltar</button>
+        <button className="btn ghost small" onClick={onEnter}>ir para o painel →</button>
+      </div>
+
+      <div className="pp-hero">
+        <div className="pp-tile" style={{ background: slot.img ? undefined : slot.grad }}>
+          {slot.img ? (
+            <img src={slot.img} alt={slot.label} className="tile-img" />
+          ) : (
+            <span className="tile-tag px-label">{slot.tag}</span>
+          )}
+        </div>
+        <div className="eyebrow">manifesto</div>
+        <h1 className="hero" style={{ fontSize: "clamp(36px, 6vw, 64px)" }}>{slot.label}</h1>
+      </div>
+
+      <p className="pp-manifesto">{slot.manifesto}</p>
+
+      <div className="px-label sec" style={{ marginTop: 30 }}>Arquivos da marca</div>
+      {slot.files.length === 0 ? (
+        <div className="empty">Este slot ainda não tem arquivos. Em breve.</div>
+      ) : (
+        <div className="pp-files">
+          {slot.files.map((f) => (
+            <div key={f} className="pp-file">
+              <div className="pp-file-icon px-label">⬇</div>
+              <div className="pp-file-name">{f}</div>
+              <button className="btn small" disabled title="Os arquivos serão conectados em breve">
+                baixar
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+      <p className="pp-note">
+        Estrutura inicial: os botões de download serão conectados aos arquivos reais
+        (logos, MIV, tipografia) quando definirmos o layout final desta página.
+      </p>
+    </div>
+  );
+}
+
+// ---------- compartilhados ----------
+function Overlay({ children, close }) {
+  return (
+    <div className="overlay" onClick={close}>
+      {children}
+    </div>
+  );
+}
+
+function Field({ label, children }) {
+  return (
+    <div className="field">
+      <label className="field-label px-label">{label}</label>
+      {children}
+    </div>
+  );
+}
+
+// ---------- estilos ----------
+function GlobalStyle() {
+  return (
+    <style>{`
+      @import url('https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;600;700&family=Inter:wght@400;500;600&display=swap');
+
+      * { box-sizing: border-box; }
+      body { margin: 0; background: ${T.bg}; }
+
+      .page {
+        min-height: 100vh;
+        background: ${T.bg};
+        display: flex;
+        justify-content: center;
+        padding: 28px 12px 60px;
+        font-family: 'Inter', sans-serif;
+        color: ${T.ink};
+      }
+      .page.center { align-items: center; }
+
+      .poster {
+        width: 100%;
+        max-width: 1080px;
+        background: ${T.paper};
+        border-radius: 18px;
+        box-shadow: 0 3px 0 ${T.ink}22, 0 18px 44px rgba(59,46,40,.14);
+        padding: 36px 28px 28px;
+        position: relative;
+        overflow: hidden;
+      }
+
+      /* faixa holográfica no topo do poster */
+      .poster::before {
+        content: "";
+        position: absolute; top: 0; left: 0; right: 0; height: 8px;
+        background: ${T.holo};
+      }
+
+      .eyebrow {
+        text-align: center;
+        font-size: 12px;
+        letter-spacing: 3px;
+        text-transform: uppercase;
+        font-weight: 600;
+        color: ${T.muted};
+      }
+      .hero {
+        margin: 8px 0 2px;
+        text-align: center;
+        font-family: 'Pixelify Sans', sans-serif;
+        font-weight: 700;
+        font-size: clamp(52px, 10vw, 96px);
+        line-height: .95;
+        letter-spacing: 2px;
+        color: ${T.ink};
+      }
+      .hero-sub {
+        text-align: center;
+        color: ${T.muted};
+        font-size: 15px;
+        margin-bottom: 18px;
+        text-transform: capitalize;
+      }
+
+      .px-label {
+        font-family: 'Pixelify Sans', sans-serif;
+        font-weight: 600;
+        letter-spacing: .5px;
+      }
+
+      /* ---------- tabs ---------- */
+      .tabs { display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; }
+      .tab {
+        font-family: 'Pixelify Sans', sans-serif;
+        font-weight: 600;
+        font-size: 16px;
+        padding: 9px 22px;
+        border-radius: 999px;
+        border: 2px solid ${T.ink};
+        background: ${T.paper};
+        color: ${T.ink};
+        cursor: pointer;
+        transition: transform .12s ease;
+      }
+      .tab:hover { transform: translateY(-1px); }
+      .tab.active {
+        background: ${T.ink};
+        color: ${T.paper};
+        position: relative;
+      }
+
+      /* ---------- letreiro ---------- */
+      .marquee {
+        margin: 18px -28px 22px;
+        border-top: 2px solid ${T.ink};
+        border-bottom: 2px solid ${T.ink};
+        overflow: hidden;
+        background: ${T.holoSoft};
+      }
+      .marquee-track {
+        display: flex;
+        white-space: nowrap;
+        animation: scroll 22s linear infinite;
+      }
+      .marquee-seg {
+        font-family: 'Pixelify Sans', sans-serif;
+        font-weight: 600;
+        font-size: 14px;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+        padding: 7px 0;
+        color: ${T.ink};
+      }
+      @keyframes scroll { to { transform: translateX(-50%); } }
+
+      /* ---------- geral ---------- */
+      .view { position: relative; }
+      .sec {
+        font-size: 17px;
+        margin: 20px 0 10px;
+        display: flex; align-items: center; gap: 8px;
+      }
+      .sec::after { content: ""; flex: 1; border-top: 2px dotted ${T.line}; }
+      .sec.danger { color: ${T.danger}; }
+
+      .empty {
+        text-align: center;
+        color: ${T.muted};
+        border: 2px dashed ${T.line};
+        border-radius: 12px;
+        padding: 18px;
+        font-size: 14px;
+        margin: 6px 0;
+      }
+
+      .row {
+        display: flex; align-items: center; gap: 10px;
+        width: 100%; text-align: left;
+        background: ${T.paper};
+        border: 2px solid ${T.ink};
+        border-radius: 12px;
+        box-shadow: 3px 3px 0 ${T.ink};
+        padding: 9px 12px;
+        margin-bottom: 8px;
+        font-family: 'Inter', sans-serif;
+        font-size: 14px;
+        color: ${T.ink};
+        cursor: pointer;
+        transition: transform .1s ease, box-shadow .1s ease;
+      }
+      .row:hover { transform: translate(1px,1px); box-shadow: 2px 2px 0 ${T.ink}; }
+      .row.danger { border-color: ${T.danger}; box-shadow: 3px 3px 0 ${T.danger}; }
+      .row.danger:hover { box-shadow: 2px 2px 0 ${T.danger}; }
+      .row-title { flex: 1; font-weight: 500; }
+      .row-end { color: ${T.muted}; font-size: 12.5px; white-space: nowrap; }
+      .row.danger .row-end { color: ${T.danger}; font-weight: 600; }
+
+      .prod-tag {
+        font-family: 'Pixelify Sans', sans-serif;
+        font-weight: 700;
+        font-size: 11px;
+        border: 2px solid;
+        border-radius: 6px;
+        padding: 1px 5px;
+        flex-shrink: 0;
+      }
+
+      .net-grid { display: flex; gap: 10px; flex-wrap: wrap; }
+      .net-box {
+        flex: 1; min-width: 100px;
+        background: ${T.paper};
+        border: 2px solid ${T.ink};
+        border-radius: 14px;
+        box-shadow: 3px 3px 0 ${T.ink};
+        padding: 12px 8px;
+        text-align: center;
+        position: relative;
+        overflow: hidden;
+      }
+      .net-box::before {
+        content: "";
+        position: absolute; inset: 0;
+        background: ${T.holoSoft};
+        opacity: 0;
+      }
+      .net-box:not(.zero)::before { opacity: .45; }
+      .net-num {
+        position: relative;
+        font-family: 'Pixelify Sans', sans-serif;
+        font-weight: 700; font-size: 30px; line-height: 1;
+      }
+      .net-name { position: relative; font-size: 12.5px; color: ${T.muted}; margin-top: 4px; font-weight: 500; }
+      .net-warn {
+        position: relative;
+        font-family: 'Pixelify Sans', sans-serif;
+        font-size: 12px; color: ${T.danger}; margin-top: 2px; font-weight: 700;
+      }
+
+      /* ---------- kanban ---------- */
+      .board-wrap { overflow-x: auto; padding: 4px 2px 10px; }
+      .board { display: flex; gap: 14px; align-items: flex-start; min-height: 360px; }
+      .column {
+        background: ${T.bg};
+        border: 2px solid ${T.ink};
+        border-radius: 16px;
+        box-shadow: 4px 4px 0 ${T.ink};
+        padding: 12px;
+        min-width: 265px; max-width: 285px; flex-shrink: 0;
+      }
+      .column.over { background: #fff; border-style: dashed; }
+      .col-header { display: flex; justify-content: space-between; align-items: center; gap: 6px; margin-bottom: 10px; }
+      .col-title { font-size: 17px; cursor: text; display: flex; align-items: center; gap: 8px; }
+      .count {
+        font-family: 'Inter', sans-serif;
+        font-size: 11.5px; font-weight: 600;
+        background: ${T.ink}; color: ${T.paper};
+        border-radius: 999px; padding: 1px 8px;
+      }
+      .card-list { display: flex; flex-direction: column; gap: 9px; min-height: 4px; }
+      .card {
+        background: ${T.paper};
+        border: 2px solid ${T.ink};
+        border-radius: 12px;
+        box-shadow: 3px 3px 0 ${T.ink};
+        padding: 10px 11px;
+        cursor: grab;
+        transition: transform .1s ease, box-shadow .1s ease;
+      }
+      .card:hover { transform: translate(1px,1px); box-shadow: 2px 2px 0 ${T.ink}; }
+      .card-top { display: flex; align-items: center; gap: 6px; margin-bottom: 5px; flex-wrap: wrap; }
+      .card-prod { font-size: 11.5px; color: ${T.muted}; font-weight: 500; }
+      .due-flag {
+        margin-left: auto;
+        font-family: 'Pixelify Sans', sans-serif;
+        font-size: 12px; font-weight: 700;
+      }
+      .due-flag.danger { color: ${T.danger}; }
+      .card-title { font-size: 14.5px; font-weight: 600; line-height: 1.3; }
+      .card-due { font-size: 12px; color: ${T.muted}; margin-top: 3px; }
+      .progress { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+      .track {
+        flex: 1; height: 10px;
+        border: 2px solid ${T.ink};
+        border-radius: 999px;
+        background: ${T.paper};
+        overflow: hidden;
+      }
+      .fill { height: 100%; background: ${T.holo}; }
+      .progress-num { font-size: 12px; color: ${T.muted}; font-weight: 500; }
+
+      /* ---------- prioridades: o cartão assume a cor da tag ---------- */
+      /* Urgente: fundo vermelho escuro -> texto claro */
+      .card.p-urgente {
+        background: #C2453A;
+        border-color: #7E2B24;
+        box-shadow: 3px 3px 0 #7E2B24;
+        color: #FFF3EE;
+      }
+      .card.p-urgente:hover { box-shadow: 2px 2px 0 #7E2B24; }
+
+      /* Alta: fundo laranja -> texto marrom bem escuro */
+      .card.p-alta {
+        background: #E58A3A;
+        border-color: #8C4A16;
+        box-shadow: 3px 3px 0 #8C4A16;
+        color: #2E1A08;
+      }
+      .card.p-alta:hover { box-shadow: 2px 2px 0 #8C4A16; }
+
+      /* Média: fundo amarelo -> texto marrom escuro */
+      .card.p-media {
+        background: #F2C94C;
+        border-color: #8A6A14;
+        box-shadow: 3px 3px 0 #8A6A14;
+        color: #3B2A06;
+      }
+      .card.p-media:hover { box-shadow: 2px 2px 0 #8A6A14; }
+
+      /* Baixa: fundo verde suave -> texto verde bem escuro */
+      .card.p-baixa {
+        background: #A9CFAF;
+        border-color: #3F6B4F;
+        box-shadow: 3px 3px 0 #3F6B4F;
+        color: #142B1C;
+      }
+      .card.p-baixa:hover { box-shadow: 2px 2px 0 #3F6B4F; }
+
+      /* elementos internos herdam a cor de contraste do fundo */
+      .card[class*="p-"] .card-prod,
+      .card[class*="p-"] .card-due,
+      .card[class*="p-"] .progress-num { color: inherit; opacity: .82; }
+      .card[class*="p-"] .prod-tag {
+        border-color: currentColor !important;
+        color: currentColor !important;
+      }
+      .card[class*="p-"] .due-flag,
+      .card[class*="p-"] .due-flag.danger { color: inherit; }
+      .card.p-urgente .due-flag.danger { text-decoration: underline; }
+      .card[class*="p-"] .track {
+        border-color: currentColor;
+        background: rgba(255,255,255,.4);
+      }
+      .card.p-urgente .track { background: rgba(0,0,0,.22); }
+
+      .prio-flag {
+        margin-left: auto;
+        font-family: 'Pixelify Sans', sans-serif;
+        font-weight: 700;
+        font-size: 11.5px;
+        letter-spacing: .5px;
+        text-transform: uppercase;
+        border: 2px solid currentColor;
+        border-radius: 6px;
+        padding: 1px 6px;
+      }
+      .prio-flag + .due-flag { margin-left: 6px; }
+
+      .prio-dot {
+        width: 10px; height: 10px;
+        border-radius: 3px;
+        display: inline-block;
+        flex-shrink: 0;
+      }
+
+      .add-card, .add-col {
+        width: 100%;
+        margin-top: 9px;
+        font-size: 14px;
+        padding: 10px;
+        background: transparent;
+        color: ${T.muted};
+        border: 2px dashed ${T.muted};
+        border-radius: 12px;
+        cursor: pointer;
+      }
+      .add-col { margin-top: 0; padding: 18px; background: ${T.bg}; }
+      .add-card:hover, .add-col:hover { color: ${T.ink}; border-color: ${T.ink}; }
+
+      /* ---------- inputs / botões ---------- */
+      .input {
+        width: 100%;
+        font-family: 'Inter', sans-serif;
+        font-size: 14px;
+        background: #fff;
+        color: ${T.ink};
+        border: 2px solid ${T.ink};
+        border-radius: 10px;
+        padding: 7px 10px;
+      }
+      .input::placeholder { color: ${T.muted}; }
+      .input:focus { outline: 2px solid ${T.ink}; outline-offset: 1px; }
+      button:focus { outline: none; }
+      button:focus-visible { outline: 3px solid ${T.ink}; outline-offset: 2px; }
+      a:focus-visible { outline: 3px solid ${T.ink}; outline-offset: 2px; }
+      select.input { cursor: pointer; }
+      .input.inline { width: auto; font-size: 12.5px; padding: 1px 6px; border-radius: 7px; border-width: 1.5px; }
+
+      .btn {
+        font-family: 'Pixelify Sans', sans-serif;
+        font-weight: 600;
+        font-size: 14.5px;
+        padding: 8px 16px;
+        border-radius: 999px;
+        background: ${T.ink};
+        color: ${T.paper};
+        border: 2px solid ${T.ink};
+        cursor: pointer;
+        text-decoration: none;
+        display: inline-flex; align-items: center;
+        white-space: nowrap;
+        transition: transform .1s ease;
+      }
+      .btn:hover { transform: translateY(-1px); }
+      .btn:active { transform: translateY(1px); }
+      .btn.ghost { background: transparent; color: ${T.ink}; }
+      .btn.danger { background: ${T.danger}; border-color: ${T.danger}; }
+      .btn.small { font-size: 13px; padding: 5px 12px; }
+      .btn-row { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+
+      .icon-btn {
+        background: transparent; border: none;
+        color: ${T.muted}; font-size: 24px; line-height: 1;
+        padding: 0 6px; cursor: pointer;
+      }
+      .icon-btn:hover { color: ${T.ink}; }
+
+      .chip {
+        font-family: 'Inter', sans-serif;
+        font-size: 12.5px; font-weight: 500;
+        display: inline-flex; align-items: center; gap: 5px;
+        background: transparent;
+        color: ${T.muted};
+        border: 2px solid ${T.line};
+        border-radius: 999px;
+        padding: 4px 12px;
+        cursor: pointer;
+      }
+      .chip.sel { border-color: ${T.ink}; color: ${T.ink}; font-weight: 600; background: #fff; }
+      .chip.small { font-size: 12px; padding: 3px 10px; }
+      .chip-row { display: flex; gap: 6px; flex-wrap: wrap; }
+
+      /* ---------- modal ---------- */
+      .overlay {
+        position: fixed; inset: 0;
+        background: rgba(59,46,40,.45);
+        backdrop-filter: blur(2px);
+        display: flex; align-items: center; justify-content: center;
+        padding: 14px; z-index: 60;
+      }
+      .modal {
+        background: ${T.paper};
+        border: 2px solid ${T.ink};
+        border-radius: 18px;
+        box-shadow: 6px 6px 0 ${T.ink};
+        padding: 20px;
+        width: 100%; max-width: 620px;
+        max-height: 88vh; overflow-y: auto;
+        position: relative;
+      }
+      .modal::before {
+        content: "";
+        position: absolute; top: 0; left: 0; right: 0; height: 6px;
+        background: ${T.holo};
+        border-radius: 16px 16px 0 0;
+      }
+      .modal-head { display: flex; justify-content: space-between; gap: 10px; align-items: center; margin-top: 4px; }
+      .modal-title { font-size: 19px; }
+      .title-input { font-size: 17px; font-weight: 600; }
+      .field { margin-top: 16px; }
+      .field-label {
+        display: block;
+        font-size: 14px;
+        color: ${T.ink};
+        margin-bottom: 7px;
+      }
+      .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+      @media (max-width: 540px) { .two-col { grid-template-columns: 1fr; } }
+      .tpl-row { display: flex; gap: 6px; flex-wrap: wrap; }
+      .tpl-row .input { flex: 1; min-width: 130px; width: auto; }
+
+      .check-row { display: flex; align-items: center; gap: 10px; padding: 4px 0; }
+      .checkbox {
+        width: 22px; height: 22px; flex-shrink: 0;
+        background: #fff;
+        border: 2px solid ${T.ink};
+        border-radius: 7px;
+        color: ${T.ink};
+        font-size: 13px; font-weight: 700;
+        display: flex; align-items: center; justify-content: center;
+        padding: 0; cursor: pointer;
+      }
+      .checkbox.on { background: ${T.holo}; }
+      .check-text { flex: 1; font-size: 14px; }
+      .check-text.done { text-decoration: line-through; color: ${T.muted}; }
+      .sched-ok { margin-top: 8px; font-size: 13.5px; color: #3FA37A; font-weight: 600; }
+      .modal-foot { display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px; }
+
+      /* ---------- calendário ---------- */
+      .cal-nav { display: flex; align-items: center; justify-content: center; gap: 16px; margin-bottom: 12px; }
+      .cal-month { font-size: 22px; min-width: 210px; text-align: center; }
+      .week-bar {
+        display: flex; gap: 14px; flex-wrap: wrap; align-items: center; justify-content: center;
+        border: 2px solid ${T.ink};
+        border-radius: 999px;
+        background: ${T.holoSoft};
+        padding: 7px 18px;
+        margin-bottom: 14px;
+        font-size: 13px;
+      }
+      .week-bar .px-label { font-size: 14px; }
+      .week-net b { font-weight: 700; }
+      .week-net.zero { color: ${T.danger}; font-weight: 600; }
+
+      .week-row { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; margin-bottom: 6px; }
+      .weekday { font-size: 13px; text-align: center; color: ${T.muted}; }
+      .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+      .day {
+        text-align: left;
+        background: ${T.paper};
+        border: 2px solid ${T.line};
+        border-radius: 12px;
+        min-height: 88px;
+        padding: 6px;
+        cursor: pointer;
+        font-family: 'Inter', sans-serif;
+        color: ${T.ink};
+        overflow: hidden;
+        transition: border-color .12s ease;
+      }
+      .day:hover { border-color: ${T.ink}; }
+      .day.blank { background: transparent; border-style: dotted; cursor: default; }
+      .day.today {
+        border-color: ${T.ink};
+        box-shadow: 3px 3px 0 ${T.ink};
+        background:
+          linear-gradient(${T.paper}, ${T.paper}) padding-box;
+        position: relative;
+      }
+      .day.today::after {
+        content: "";
+        position: absolute; inset: -2px;
+        border-radius: 12px;
+        padding: 2px;
+        background: ${T.holo};
+        -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+        -webkit-mask-composite: xor;
+        mask-composite: exclude;
+        pointer-events: none;
+      }
+      .day-num { font-size: 14px; margin-bottom: 4px; }
+      .day.today .day-num { font-weight: 700; }
+      .day-items { display: flex; flex-direction: column; gap: 3px; }
+      .cal-item { display: flex; align-items: center; gap: 4px; font-size: 11.5px; line-height: 1.2; }
+      .cal-item.pub { opacity: .55; text-decoration: line-through; }
+      .ci-dot { width: 7px; height: 7px; border-radius: 2px; flex-shrink: 0; }
+      .ci-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .more { font-size: 11px; color: ${T.muted}; }
+      .cal-legend {
+        display: flex; gap: 16px; flex-wrap: wrap; justify-content: center;
+        margin-top: 14px; font-size: 12.5px; color: ${T.muted};
+      }
+      .cal-legend .lg {
+        display: inline-block; width: 10px; height: 10px; border-radius: 3px;
+        margin-right: 5px; vertical-align: middle;
+      }
+
+      .day-item {
+        border: 2px solid ${T.ink};
+        border-left-width: 8px;
+        border-radius: 12px;
+        background: #fff;
+        box-shadow: 3px 3px 0 ${T.ink};
+        padding: 10px 12px;
+        margin-top: 10px;
+      }
+      .di-head { display: flex; justify-content: space-between; gap: 8px; }
+      .di-meta { font-size: 12.5px; color: ${T.muted}; display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
+      .di-title { font-size: 15px; font-weight: 600; margin-top: 3px; }
+
+      .footer {
+        text-align: center;
+        margin-top: 28px;
+        font-size: 13px;
+        color: ${T.muted};
+      }
+
+      /* ---------- tela de entrada: arco (meio círculo) ---------- */
+      .landing-poster {
+        align-self: center;
+        padding: 30px 20px 34px;
+      }
+      .arc-stage {
+        --R: clamp(220px, 33vw, 380px);
+        --tile: clamp(72px, 11vw, 112px);
+        /* centro do círculo: na base do palco */
+        --cy: calc(var(--R) + var(--tile) / 2 + 24px);
+        position: relative;
+        width: 100%;
+        height: calc(var(--R) + var(--tile) + 44px);
+        margin: 0 auto;
+      }
+      /* camada recortada: só o arco de cima aparece, dissolvendo na base */
+      .arc-clip {
+        position: absolute;
+        inset: 0;
+        overflow: hidden;
+        outline: none;
+        border: 0;
+        -webkit-mask-image: linear-gradient(to top, transparent 0, #000 130px);
+        mask-image: linear-gradient(to top, transparent 0, #000 130px);
+      }
+      .landing-poster { user-select: none; -webkit-user-select: none; }
+
+      /* cada slot é um ponto posicionado por cálculo; nada gira */
+      .arc-slot {
+        position: absolute;
+        transform: translate(-50%, -50%);
+        outline: none;
+        border: 0;
+      }
+
+      .tile {
+        position: relative;
+        width: var(--tile);
+        height: var(--tile);
+        border: 2px solid ${T.ink}22;
+        border-radius: 28%;
+        box-shadow: 0 10px 22px ${T.ink}2E;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: visible;
+        scale: 1;
+        transition: scale .28s cubic-bezier(.34,1.4,.5,1), box-shadow .28s ease, border-color .28s ease;
+        padding: 0;
+      }
+      /* hover: o tile cresce, os irmãos encolhem */
+      .arc-clip:has(.tile:hover) .tile { scale: .84; }
+      .arc-clip .tile:hover {
+        scale: 1.26;
+        border-color: ${T.ink};
+        box-shadow: 0 16px 30px ${T.ink}44;
+        z-index: 10;
+      }
+      .tile-img {
+        width: 100%; height: 100%;
+        object-fit: cover;
+        border-radius: 22%;
+      }
+      .tile-tag {
+        font-size: calc(var(--tile) * .3);
+        font-weight: 700;
+        color: ${T.ink};
+        text-shadow: 2px 2px 0 rgba(255,255,255,.5);
+      }
+      /* nome do produto: sobreposto no centro do tile, sem risco de corte */
+      .tile-name {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%) scale(.9);
+        background: ${T.ink}E6;
+        color: ${T.paper};
+        font-size: 13px;
+        padding: 4px 12px;
+        border-radius: 999px;
+        white-space: nowrap;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity .2s ease, transform .2s ease;
+      }
+      .tile:hover .tile-name { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+
+      /* texto central sob o arco */
+      .arc-center {
+        position: absolute;
+        left: 50%;
+        bottom: 0;
+        transform: translateX(-50%);
+        z-index: 2;
+        text-align: center;
+        width: min(70%, 430px);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 7px;
+      }
+      .arc-hero { font-size: clamp(36px, 5.5vw, 60px); margin: 0; }
+      .orbit-sub {
+        color: ${T.muted};
+        font-size: 14px;
+        line-height: 1.55;
+        margin: 0 0 8px;
+      }
+
+      @media (max-width: 560px) {
+        .arc-stage { --R: clamp(140px, 42vw, 190px); --tile: 56px; }
+        .arc-clip {
+          -webkit-mask-image: linear-gradient(to top, transparent 0, #000 90px);
+          mask-image: linear-gradient(to top, transparent 0, #000 90px);
+        }
+        .arc-center { width: 88%; }
+        .arc-hero { font-size: 30px; }
+        .orbit-sub { font-size: 12.5px; }
+      }
+
+      /* ---------- página de produto ---------- */
+      .back-link {
+        background: transparent;
+        border: none;
+        color: ${T.muted};
+        font-size: 15px;
+        cursor: pointer;
+        padding: 0;
+      }
+      .back-link:hover { color: ${T.ink}; }
+      .poster > .back-link { position: absolute; top: 20px; left: 24px; z-index: 3; }
+
+      .product-page { padding-top: 24px; }
+      .pp-nav {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+      }
+      .pp-hero { text-align: center; margin-top: 6px; }
+      .pp-tile {
+        width: 110px; height: 110px;
+        margin: 0 auto 16px;
+        border: 3px solid ${T.ink};
+        border-radius: 26%;
+        box-shadow: 5px 6px 0 ${T.ink}33;
+        display: flex; align-items: center; justify-content: center;
+        overflow: hidden;
+      }
+      .pp-tile .tile-tag { font-size: 34px; }
+      .pp-manifesto {
+        max-width: 620px;
+        margin: 18px auto 0;
+        text-align: center;
+        font-size: 17px;
+        line-height: 1.7;
+        color: ${T.ink};
+      }
+      .pp-files {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 12px;
+      }
+      .pp-file {
+        background: #fff;
+        border: 2px solid ${T.ink};
+        border-radius: 14px;
+        box-shadow: 3px 3px 0 ${T.ink};
+        padding: 14px;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+      }
+      .pp-file-icon {
+        width: 34px; height: 34px;
+        border: 2px solid ${T.ink};
+        border-radius: 10px;
+        background: ${T.holoSoft};
+        display: flex; align-items: center; justify-content: center;
+        font-size: 16px;
+      }
+      .pp-file-name { font-size: 14px; font-weight: 600; flex: 1; }
+      .pp-file .btn[disabled] { opacity: .45; cursor: not-allowed; }
+      .pp-note {
+        margin-top: 18px;
+        text-align: center;
+        font-size: 12.5px;
+        color: ${T.muted};
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .marquee-track { animation: none; }
+        * { transition: none !important; }
+      }
+      .loading { text-align: center; }
+      .loading-tv {
+        width: 90px; height: 68px;
+        margin: 0 auto 12px;
+        border: 3px solid ${T.ink};
+        border-radius: 14px;
+        background: ${T.holoSoft};
+        font-size: 30px;
+        display: flex; align-items: center; justify-content: center;
+        color: ${T.ink};
+      }
+      .loading .px-label { font-size: 16px; color: ${T.muted}; }
+
+      ::-webkit-scrollbar { height: 10px; width: 10px; }
+      ::-webkit-scrollbar-thumb { background: ${T.line}; border-radius: 8px; }
+      ::-webkit-scrollbar-track { background: transparent; }
+
+      @media (prefers-reduced-motion: reduce) {
+        .marquee-track { animation: none; }
+        * { transition: none !important; }
+      }
+      @media (max-width: 640px) {
+        .poster { padding: 26px 16px 20px; }
+        .marquee { margin: 16px -16px 18px; }
+        .net-box { min-width: 84px; }
+      }
+    `}</style>
   );
 }

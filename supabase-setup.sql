@@ -166,6 +166,31 @@ alter publication supabase_realtime add table decisions;
 
 
 -- ============================================================
+-- Estúdio: documentos do painel (quadro + calendário) em JSON
+-- id = 'estudio:board' | 'estudio:calendar'
+-- ============================================================
+create table if not exists estudio_docs (
+  id text primary key,
+  value jsonb,
+  client_id text,
+  updated_at timestamptz not null default now()
+);
+
+alter table estudio_docs enable row level security;
+
+drop policy if exists "leitura publica" on estudio_docs;
+drop policy if exists "insert publico"  on estudio_docs;
+drop policy if exists "update publico"  on estudio_docs;
+drop policy if exists "delete publico"  on estudio_docs;
+create policy "leitura publica" on estudio_docs for select using (true);
+create policy "insert publico"  on estudio_docs for insert with check (true);
+create policy "update publico"  on estudio_docs for update using (true) with check (true);
+create policy "delete publico"  on estudio_docs for delete using (true);
+
+alter publication supabase_realtime add table estudio_docs;
+
+
+-- ============================================================
 -- Storage: bucket público "creatives" para guardar as imagens
 -- ============================================================
 insert into storage.buckets (id, name, public)
