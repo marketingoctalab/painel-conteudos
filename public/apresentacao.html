@@ -447,7 +447,8 @@ document.addEventListener('DOMContentLoaded', async function() {
 <script>
 (function () {
   var CSS = `
-  #pf-portfolio{background:#0f0f10 !important;color:#f6f4f0;padding:clamp(64px,9vw,124px) 24px !important;width:100%;box-sizing:border-box}
+  #pf-portfolio{background:#0f0f10 !important;color:#f6f4f0;padding:clamp(64px,9vw,124px) 24px !important;width:100%;box-sizing:border-box;position:relative;z-index:2}
+  #pf-portfolio .pf-slot{pointer-events:auto}
   #pf-portfolio *{box-sizing:border-box}
   #pf-portfolio .pf-inner{max-width:1120px;margin:0 auto;text-align:center}
   #pf-portfolio .pf-eyebrow{font-family:'Jost',sans-serif !important;text-transform:uppercase;letter-spacing:0.5em;font-size:12px;color:#b8925a !important;margin:0 0 18px}
@@ -508,7 +509,7 @@ document.addEventListener('DOMContentLoaded', async function() {
       '<div class="pf-stage"><img class="pf-main" alt=""></div>' +
       '<button class="pf-nav pf-next" aria-label="Proxima">›</button>' +
       '<div class="pf-count"></div><div class="pf-thumbs"></div>';
-    document.body.appendChild(ov);
+    (document.documentElement || document.body).appendChild(ov);
     var main = ov.querySelector(".pf-main"), count = ov.querySelector(".pf-count"), thumbs = ov.querySelector(".pf-thumbs");
     list.forEach(function (src, i) {
       var t = document.createElement("img");
@@ -553,15 +554,21 @@ document.addEventListener('DOMContentLoaded', async function() {
       '<h2 class="pf-title">Conheça um pouco mais do meu trabalho</h2>' +
       '<p class="pf-sub">Quatro identidades visuais que criei. Clique em uma para ver a galeria completa.</p>' +
       '<div class="pf-grid">' + slots + '</div></div>';
-    sec.querySelectorAll(".pf-slot").forEach(function (el) {
-      el.addEventListener("click", function () {
-        var name = el.getAttribute("data-brand");
-        var b = BRANDS.filter(function (x) { return x.name === name; })[0];
-        if (b) openGallery(b);
-      });
-    });
     return sec;
   }
+
+  // clique delegado no document: sobrevive a qualquer re-render do body
+  document.addEventListener("click", function (e) {
+    var el = e.target;
+    for (var i = 0; el && i < 8; i++, el = el.parentElement) {
+      if (el.classList && el.classList.contains("pf-slot")) {
+        var name = el.getAttribute("data-brand");
+        var b = BRANDS.filter(function (x) { return x.name === name; })[0];
+        if (b) { e.preventDefault(); e.stopPropagation(); openGallery(b); }
+        return;
+      }
+    }
+  }, true);
 
   function ensure() {
     addStyle();
