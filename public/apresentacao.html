@@ -490,7 +490,7 @@ document.addEventListener('DOMContentLoaded', async function() {
 
   var BRANDS = [
     { name: "Marca 01", dir: "/portfolio/marca-01", count: 7 },
-    { name: "Marca 02", dir: "/portfolio/marca-02", count: 7 },
+    { name: "Marca 02", dir: "/portfolio/marca-02", count: 7, cover: 1, coverZoom: "152%" },
     { name: "Marca 03", dir: "/portfolio/marca-03", count: 6 }
   ];
   function imgs(b) { var a = []; for (var i = 1; i <= b.count; i++) a.push(b.dir + "/" + (i < 10 ? "0" : "") + i + ".png"); return a; }
@@ -536,8 +536,10 @@ document.addEventListener('DOMContentLoaded', async function() {
     var sec = document.createElement("section");
     sec.id = "pf-portfolio";
     var slots = BRANDS.map(function (b) {
+      var ci = (b.cover != null ? b.cover : 0);
+      var czoom = b.coverZoom ? (";background-size:" + b.coverZoom + ";background-position:center") : "";
       return '<button class="pf-slot" data-brand="' + b.name + '">' +
-        '<span class="pf-slot-img" style="background-image:url(' + imgs(b)[0] + ')"></span>' +
+        '<span class="pf-slot-img" style="background-image:url(' + imgs(b)[ci] + ')' + czoom + '"></span>' +
         '<span class="pf-slot-meta"><span class="pf-slot-eyebrow">Identidade Visual</span>' +
         '<span class="pf-slot-name">' + b.name + '</span>' +
         '<span class="pf-slot-cta">ver galeria →</span></span></button>';
