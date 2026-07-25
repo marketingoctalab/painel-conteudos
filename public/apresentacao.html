@@ -429,14 +429,14 @@ document.addEventListener('DOMContentLoaded', async function() {
     }
     requestAnimationFrame(frame);
   }
-  document.addEventListener("click", function (e) {
-    var el = e.target;
+  var launched = false; document.addEventListener("click", function (e) {
+    if (launched) return; var el = e.target;
     for (var i = 0; i < 6 && el; i++, el = el.parentElement) {
       var txt = (el.textContent || "").replace(/\s+/g, " ").trim().toLowerCase();
       if (txt.indexOf("iniciar projeto") === 0 && txt.length < 22) {
-        var r = el.getBoundingClientRect();
+        launched = true; var r = el.getBoundingClientRect();
         fire(r.left + r.width / 2, r.top + r.height / 2);
-        window.open("https://w.app/wlhqkv", "_blank", "noopener");
+        setTimeout(function () { window.location.href = "https://w.app/wlhqkv"; }, 1500);
         break;
       }
     }
