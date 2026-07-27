@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from "react";
+import React, { useState, useEffect, useRef, useMemo, useId } from "react";
 import { supabase, supabaseReady } from "./supabase";
 
 // id único desta aba/sessão — usado para ignorar o próprio eco no realtime
@@ -45,6 +45,47 @@ const PRIORITIES = {
   alta: { label: "Alta", chip: "#B25E10" },
   urgente: { label: "Urgente", chip: "#C2453A" },
 };
+
+// ---------- login / perfis / admin ----------
+const ADMIN_PASSWORD = import.meta.env.VITE_ADMIN_PASSWORD || "octalab2026";
+const AVATAR_DESIGNS = [
+  { base: "#ff005b", blob: "#ffb238", transform: "translate(9 -5) rotate(219 18 18) scale(1)",   rx: 6,  face: "translate(4.5 -4) rotate(9 18 18)",  mouth: "M15 19c2 1 4 1 6 0",       open: false, eyes: [10, 24], color: "#000000" },
+  { base: "#ff7d10", blob: "#0a0310", transform: "translate(5 -1) rotate(55 18 18) scale(1.1)",  rx: 6,  face: "translate(7 -6) rotate(-5 18 18)",  mouth: "M15 20c2 1 4 1 6 0",       open: false, eyes: [14, 20], color: "#FFFFFF" },
+  { base: "#0a0310", blob: "#1e3a8a", transform: "translate(-3 7) rotate(227 18 18) scale(1.2)", rx: 36, face: "translate(-3 3.5) rotate(7 18 18)", mouth: "M13,21 a1,0.75 0 0,0 10,0", open: true,  eyes: [12, 22], color: "#FFFFFF" },
+  { base: "#d8fcb3", blob: "#89fcb3", transform: "translate(9 -5) rotate(219 18 18) scale(1)",   rx: 6,  face: "translate(4.5 -4) rotate(9 18 18)",  mouth: "M15 19c2 1 4 1 6 0",       open: false, eyes: [10, 24], color: "#000000" },
+  { base: "#6d28d9", blob: "#22d3ee", transform: "translate(-4 6) rotate(135 18 18) scale(1.15)", rx: 36, face: "translate(2 -3) rotate(-7 18 18)", mouth: "M15 19c2 1 4 1 6 0",        open: false, eyes: [11, 23], color: "#FFFFFF" },
+];
+const PROFILES = [
+  { key: "marcos", name: "Marcos", avatar: 1 },
+  { key: "silvio", name: "Silvio", avatar: 3 },
+  { key: "thiago", name: "Thiago", avatar: 4 },
+];
+const profileByName = (name) => PROFILES.find((p) => p.name === name) || null;
+const DELETE_PROFILES = ["Marcos", "Silvio"]; // além do admin
+
+function BoringAvatar({ index = 0, size = 40 }) {
+  const raw = useId();
+  const maskId = "bav" + raw.replace(/[^a-zA-Z0-9]/g, "");
+  const d = AVATAR_DESIGNS[index] || AVATAR_DESIGNS[0];
+  return (
+    <svg viewBox="0 0 36 36" width={size} height={size} fill="none" role="img" xmlns="http://www.w3.org/2000/svg">
+      <mask id={maskId} maskUnits="userSpaceOnUse" x="0" y="0" width="36" height="36">
+        <rect width="36" height="36" rx="72" fill="#FFFFFF" />
+      </mask>
+      <g mask={`url(#${maskId})`}>
+        <rect width="36" height="36" fill={d.base} />
+        <rect x="0" y="0" width="36" height="36" transform={d.transform} fill={d.blob} rx={d.rx} />
+        <g transform={d.face}>
+          {d.open
+            ? <path d={d.mouth} fill={d.color} />
+            : <path d={d.mouth} stroke={d.color} fill="none" strokeLinecap="round" />}
+          <rect x={d.eyes[0]} y="14" width="1.5" height="2" rx="1" fill={d.color} />
+          <rect x={d.eyes[1]} y="14" width="1.5" height="2" rx="1" fill={d.color} />
+        </g>
+      </g>
+    </svg>
+  );
+}
 
 // ---------- slots do carrossel de entrada (6 posições) ----------
 // para usar imagem real, preencha "img" com a URL; sem imagem, o tile usa o degradê
@@ -183,7 +224,7 @@ async function uploadEstudioImage(file) {
 }
 
 // descrição + imagens de um item do calendário
-function ItemMedia({ item, onPatch }) {
+function ItemMedia({ item, onPatch, canDelete }) {
   const [uploading, setUploading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [preview, setPreview] = useState(null);
@@ -215,7 +256,7 @@ function ItemMedia({ item, onPatch }) {
         {images.map((u, i) => (
           <div key={i} className="img-thumb">
             <img src={u} alt="" onClick={() => setPreview(u)} title="Clique para ver em tamanho grande" />
-            <button className="img-del" onClick={() => onPatch({ images: images.filter((_, idx) => idx !== i) })}>×</button>
+            {canDelete && <button className="img-del" onClick={() => onPatch({ images: images.filter((_, idx) => idx !== i) })}>×</button>}
           </div>
         ))}
         <label
@@ -262,6 +303,9 @@ export default function App() {
   const [trash, setTrash] = useState({ items: [] });
   const [showTrash, setShowTrash] = useState(false);
   const [confirmState, setConfirmState] = useState(null); // { message, onOk }
+  const [currentUser, setCurrentUser] = useState(() => {
+    try { return localStorage.getItem("estudio-user") || null; } catch { return null; }
+  });
   const [month, setMonth] = useState(() => {
     const d = new Date();
     return { y: d.getFullYear(), m: d.getMonth() };
@@ -367,6 +411,16 @@ export default function App() {
 
   const emptyTrash = () => updateTrash((t) => { t.items = []; return t; });
 
+  // permissão de exclusão: admin + perfis autorizados
+  const canDelete = currentUser === "Admin" || DELETE_PROFILES.includes(currentUser);
+
+  const chooseProfile = (name) => {
+    setCurrentUser(name);
+    try { localStorage.setItem("estudio-user", name); } catch { /* ignore */ }
+    setScreen("app");
+  };
+  const enterAdmin = () => { setCurrentUser("Admin"); setScreen("app"); }; // admin não fica salvo
+
   if (!board || !calendar) {
     return (
       <div className="page center">
@@ -381,12 +435,25 @@ export default function App() {
 
   const dateStr = new Date().toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long" });
 
+  if (screen === "identify") {
+    return (
+      <div className="page center">
+        <GlobalStyle />
+        <Identify
+          onPick={chooseProfile}
+          onAdmin={enterAdmin}
+          onBack={() => setScreen("landing")}
+        />
+      </div>
+    );
+  }
+
   if (screen === "landing") {
     return (
       <div className="page center">
         <GlobalStyle />
         <Landing
-          onEnter={() => setScreen("app")}
+          onEnter={() => setScreen("identify")}
           onProduct={(k) => setScreen("product:" + k)}
         />
       </div>
@@ -401,7 +468,7 @@ export default function App() {
         <ProductPage
           slot={slot}
           onBack={() => setScreen("landing")}
-          onEnter={() => setScreen("app")}
+          onEnter={() => setScreen("identify")}
         />
       </div>
     );
@@ -412,6 +479,15 @@ export default function App() {
       <GlobalStyle />
       <div className="poster">
         <button className="back-link px-label" onClick={() => setScreen("landing")}>← entrada</button>
+        <div className="user-chip">
+          {currentUser === "Admin" ? (
+            <span className="user-badge px-label">★ admin</span>
+          ) : (
+            profileByName(currentUser) && <BoringAvatar index={profileByName(currentUser).avatar} size={22} />
+          )}
+          <span className="px-label">{currentUser === "Admin" ? "" : currentUser || "visitante"}</span>
+          <button className="link-btn px-label" onClick={() => setScreen("identify")}>trocar</button>
+        </div>
         <div className="eyebrow">painel pessoal de conteúdo</div>
         <h1 className="hero">ESTÚDIO</h1>
         <div className="hero-sub">{dateStr}</div>
@@ -421,6 +497,7 @@ export default function App() {
             ["hoje", "Hoje"],
             ["calendario", "Calendário"],
             ["kanban", "Quadro"],
+            ["publicados", "Publicados"],
           ].map(([id, label]) => (
             <button
               key={id}
@@ -447,7 +524,7 @@ export default function App() {
           <TodayView board={board} calendar={calendar} setOpenCard={setOpenCard} setOpenDay={setOpenDay} />
         )}
         {tab === "kanban" && (
-          <Kanban board={board} updateBoard={updateBoard} setOpenCard={setOpenCard} askConfirm={askConfirm} sendToTrash={sendToTrash} />
+          <Kanban board={board} updateBoard={updateBoard} setOpenCard={setOpenCard} askConfirm={askConfirm} sendToTrash={sendToTrash} canDelete={canDelete} />
         )}
         {tab === "calendario" && (
           <Calendar
@@ -459,6 +536,9 @@ export default function App() {
             filter={calFilter}
             setFilter={setCalFilter}
           />
+        )}
+        {tab === "publicados" && (
+          <PublishedView calendar={calendar} setOpenDay={setOpenDay} />
         )}
 
         <footer className="footer px-label">
@@ -477,6 +557,7 @@ export default function App() {
           updateCalendar={updateCalendar}
           askConfirm={askConfirm}
           sendToTrash={sendToTrash}
+          canDelete={canDelete}
           close={() => setOpenCard(null)}
         />
       )}
@@ -489,6 +570,7 @@ export default function App() {
           setOpenCard={setOpenCard}
           askConfirm={askConfirm}
           sendToTrash={sendToTrash}
+          canDelete={canDelete}
           close={() => setOpenDay(null)}
         />
       )}
@@ -505,6 +587,7 @@ export default function App() {
           onRestore={restoreFromTrash}
           onPurge={purgeFromTrash}
           onEmpty={emptyTrash}
+          canDelete={canDelete}
           close={() => setShowTrash(false)}
         />
       )}
@@ -663,6 +746,79 @@ function TodayView({ board, calendar, setOpenCard, setOpenDay }) {
   );
 }
 
+// ---------- visão PUBLICADOS ----------
+function PublishedView({ calendar, setOpenDay }) {
+  const [filter, setFilter] = useState("todos");
+
+  const all = [];
+  Object.entries(calendar.items || {}).forEach(([date, items]) => {
+    (items || []).forEach((it) => {
+      if (it.status === "publicado") all.push({ ...it, date });
+    });
+  });
+
+  const filtered = (filter === "todos" ? all : all.filter((it) => it.product === filter))
+    .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
+
+  const groups = {};
+  filtered.forEach((it) => {
+    const key = it.date.slice(0, 7); // YYYY-MM
+    (groups[key] ||= []).push(it);
+  });
+  const monthKeys = Object.keys(groups).sort().reverse();
+
+  return (
+    <div className="view">
+      <div className="px-label sec">Conteúdos publicados</div>
+
+      <div className="chip-row" style={{ justifyContent: "center", marginBottom: 12 }}>
+        <button className={`chip ${filter === "todos" ? "sel" : ""}`} onClick={() => setFilter("todos")}>
+          Todos <b style={{ marginLeft: 4 }}>{all.length}</b>
+        </button>
+        {Object.entries(PRODUCTS).filter(([k]) => k !== "outro").map(([k, p]) => {
+          const n = all.filter((it) => it.product === k).length;
+          return (
+            <button
+              key={k}
+              className={`chip ${filter === k ? "sel" : ""}`}
+              style={filter === k ? { borderColor: p.color, color: p.color } : {}}
+              onClick={() => setFilter(k)}
+            >
+              {p.label} <b style={{ marginLeft: 4 }}>{n}</b>
+            </button>
+          );
+        })}
+      </div>
+
+      {filtered.length === 0 ? (
+        <div className="empty">
+          Nenhum conteúdo publicado ainda. No calendário, marque um item como <b>Publicado</b> que ele aparece aqui.
+        </div>
+      ) : (
+        monthKeys.map((mk) => {
+          const [y, m] = mk.split("-");
+          return (
+            <div key={mk}>
+              <div className="week-day-head px-label">{MONTHS[Number(m) - 1]} {y} · {groups[mk].length}</div>
+              {groups[mk].map((it) => {
+                const p = PRODUCTS[it.product] || PRODUCTS.outro;
+                return (
+                  <button key={it.id} className="row" onClick={() => setOpenDay(it.date)}>
+                    <ProdTag k={it.product} />
+                    <span className="pub-check px-label" style={{ color: p.color }}>✓</span>
+                    <span className="row-title">{it.title}</span>
+                    <span className="row-end">{fmtShort(it.date)} · {it.network}</span>
+                  </button>
+                );
+              })}
+            </div>
+          );
+        })
+      )}
+    </div>
+  );
+}
+
 function ProdTag({ k }) {
   const p = PRODUCTS[k] || PRODUCTS.outro;
   return (
@@ -679,7 +835,7 @@ function PrioDot({ k }) {
 }
 
 // ---------- kanban ----------
-function Kanban({ board, updateBoard, setOpenCard, askConfirm, sendToTrash }) {
+function Kanban({ board, updateBoard, setOpenCard, askConfirm, sendToTrash, canDelete }) {
   const [drag, setDrag] = useState(null);
   const [overCol, setOverCol] = useState(null);
   const [addingCol, setAddingCol] = useState(false);
@@ -725,6 +881,7 @@ function Kanban({ board, updateBoard, setOpenCard, askConfirm, sendToTrash }) {
             moveCard={moveCard}
             askConfirm={askConfirm}
             sendToTrash={sendToTrash}
+            canDelete={canDelete}
           />
         ))}
         <div style={{ minWidth: 240 }}>
@@ -752,7 +909,7 @@ function Kanban({ board, updateBoard, setOpenCard, askConfirm, sendToTrash }) {
   );
 }
 
-function Column({ col, board, updateBoard, setOpenCard, drag, setDrag, isOver, setOverCol, moveCard, askConfirm, sendToTrash }) {
+function Column({ col, board, updateBoard, setOpenCard, drag, setDrag, isOver, setOverCol, moveCard, askConfirm, sendToTrash, canDelete }) {
   const [adding, setAdding] = useState(false);
   const [newTitle, setNewTitle] = useState("");
   const [editingTitle, setEditingTitle] = useState(false);
@@ -835,7 +992,7 @@ function Column({ col, board, updateBoard, setOpenCard, drag, setDrag, isOver, s
             {col.title} <span className="count">{col.cardIds.length}</span>
           </div>
         )}
-        <button className="icon-btn" title="Excluir coluna" onClick={deleteCol}>×</button>
+        {canDelete && <button className="icon-btn" title="Excluir coluna" onClick={deleteCol}>×</button>}
       </div>
 
       <div className="card-list">
@@ -903,7 +1060,7 @@ function Column({ col, board, updateBoard, setOpenCard, drag, setDrag, isOver, s
 }
 
 // ---------- modal do cartão ----------
-function CardModal({ card, board, updateBoard, updateCalendar, askConfirm, sendToTrash, close }) {
+function CardModal({ card, board, updateBoard, updateCalendar, askConfirm, sendToTrash, canDelete, close }) {
   const [checkText, setCheckText] = useState("");
   const [tpl, setTpl] = useState("");
   const [schedDate, setSchedDate] = useState(card.due || todayKey());
@@ -1153,7 +1310,7 @@ function CardModal({ card, board, updateBoard, updateCalendar, askConfirm, sendT
 
         <div className="modal-foot">
           <button className="btn ghost" onClick={duplicateCard}>⧉ duplicar</button>
-          <button className="btn danger" onClick={deleteCard}>✕ excluir</button>
+          {canDelete && <button className="btn danger" onClick={deleteCard}>✕ excluir</button>}
         </div>
       </div>
     </Overlay>
@@ -1267,7 +1424,7 @@ function Calendar({ calendar, board, month, setMonth, setOpenDay, filter, setFil
 }
 
 // ---------- modal do dia ----------
-function DayModal({ dateKey: key, calendar, board, updateCalendar, setOpenCard, askConfirm, sendToTrash, close }) {
+function DayModal({ dateKey: key, calendar, board, updateCalendar, setOpenCard, askConfirm, sendToTrash, canDelete, close }) {
   const items = calendar.items[key] || [];
   const [form, setForm] = useState({ title: "", desc: "", product: "octalab", network: "Instagram", status: "ideia" });
   const [y, m, d] = key.split("-").map(Number);
@@ -1342,9 +1499,9 @@ function DayModal({ dateKey: key, calendar, board, updateCalendar, setOpenCard, 
                   </div>
                   <div className="di-title">{it.title}</div>
                 </div>
-                <button className="icon-btn" onClick={() => removeItem(it.id)}>×</button>
+                {canDelete && <button className="icon-btn" onClick={() => removeItem(it.id)}>×</button>}
               </div>
-              <ItemMedia item={it} onPatch={(fields) => patchItem(it.id, fields)} />
+              <ItemMedia item={it} onPatch={(fields) => patchItem(it.id, fields)} canDelete={canDelete} />
               <div className="chip-row" style={{ marginTop: 8 }}>
                 {Object.entries(CAL_STATUS).map(([k, s]) => (
                   <button
@@ -1537,6 +1694,56 @@ function ProductPage({ slot, onBack, onEnter }) {
 }
 
 // ---------- compartilhados ----------
+// ---------- tela de login (perfil ou admin) ----------
+function Identify({ onPick, onAdmin, onBack }) {
+  const [pw, setPw] = useState("");
+  const [err, setErr] = useState(false);
+  const [adminOpen, setAdminOpen] = useState(false);
+  const tryAdmin = () => {
+    if (pw === ADMIN_PASSWORD) onAdmin();
+    else { setErr(true); setPw(""); }
+  };
+  return (
+    <div className="poster identify-poster">
+      <button className="back-link px-label" onClick={onBack}>← entrada</button>
+      <div className="eyebrow">quem está usando?</div>
+      <h1 className="hero" style={{ fontSize: "clamp(38px, 7vw, 68px)" }}>ENTRAR</h1>
+      <div className="hero-sub">escolha seu perfil</div>
+
+      <div className="profiles">
+        {PROFILES.map((p) => (
+          <button key={p.key} className="profile-tile" onClick={() => onPick(p.name)}>
+            <span className="profile-av"><BoringAvatar index={p.avatar} size={78} /></span>
+            <span className="profile-name px-label">{p.name}</span>
+          </button>
+        ))}
+      </div>
+
+      <div className="admin-area">
+        {adminOpen ? (
+          <div className="admin-box">
+            <input
+              className="input"
+              type="password"
+              autoFocus
+              placeholder="senha do admin"
+              value={pw}
+              onChange={(e) => { setPw(e.target.value); setErr(false); }}
+              onKeyDown={(e) => e.key === "Enter" && tryAdmin()}
+              style={{ maxWidth: 220 }}
+            />
+            <button className="btn" onClick={tryAdmin}>entrar</button>
+            <button className="btn ghost" onClick={() => { setAdminOpen(false); setErr(false); setPw(""); }}>voltar</button>
+            {err && <div className="admin-err">senha incorreta</div>}
+          </div>
+        ) : (
+          <button className="link-btn px-label" onClick={() => setAdminOpen(true)}>★ entrar como admin</button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function Overlay({ children, close }) {
   return (
     <div className="overlay" onClick={close}>
@@ -1572,7 +1779,7 @@ function ConfirmModal({ message, onOk, onCancel }) {
   );
 }
 
-function TrashModal({ trash, onRestore, onPurge, onEmpty, close }) {
+function TrashModal({ trash, onRestore, onPurge, onEmpty, canDelete, close }) {
   const items = trash.items || [];
   return (
     <Overlay close={close}>
@@ -1598,12 +1805,14 @@ function TrashModal({ trash, onRestore, onPurge, onEmpty, close }) {
                   <div className="trash-title">{e.label || "(sem título)"}</div>
                 </div>
                 <button className="btn small" onClick={() => onRestore(e.id)}>restaurar</button>
-                <button className="icon-btn" title="Apagar de vez" onClick={() => onPurge(e.id)}>×</button>
+                {canDelete && <button className="icon-btn" title="Apagar de vez" onClick={() => onPurge(e.id)}>×</button>}
               </div>
             ))}
-            <div className="modal-foot">
-              <button className="btn ghost small" onClick={onEmpty}>esvaziar lixeira</button>
-            </div>
+            {canDelete && (
+              <div className="modal-foot">
+                <button className="btn ghost small" onClick={onEmpty}>esvaziar lixeira</button>
+              </div>
+            )}
           </>
         )}
       </div>
@@ -1674,6 +1883,43 @@ function GlobalStyle() {
         margin-bottom: 18px;
         text-transform: capitalize;
       }
+
+      /* ---------- login / perfil ---------- */
+      .user-chip {
+        position: absolute; top: 18px; right: 22px; z-index: 3;
+        display: flex; align-items: center; gap: 8px;
+        font-size: 13px; color: ${T.muted};
+      }
+      .user-badge { color: ${T.ink}; }
+      .link-btn {
+        background: transparent; border: none;
+        color: ${T.muted}; font-size: 13px; cursor: pointer;
+        text-decoration: underline; padding: 0;
+      }
+      .link-btn:hover { color: ${T.ink}; }
+
+      .identify-poster { align-self: center; padding: 34px 24px 40px; }
+      .profiles {
+        display: flex; flex-wrap: wrap; gap: 22px; justify-content: center;
+        margin: 26px 0 8px;
+      }
+      .profile-tile {
+        background: transparent; border: none; cursor: pointer;
+        display: flex; flex-direction: column; align-items: center; gap: 10px;
+        padding: 8px; transition: transform .15s ease;
+      }
+      .profile-tile:hover { transform: translateY(-3px); }
+      .profile-av {
+        width: 96px; height: 96px;
+        border: 3px solid ${T.ink}; border-radius: 50%;
+        box-shadow: 4px 5px 0 ${T.ink}33;
+        overflow: hidden; display: flex; align-items: center; justify-content: center;
+        background: #fff;
+      }
+      .profile-name { font-size: 16px; color: ${T.ink}; }
+      .admin-area { text-align: center; margin-top: 22px; }
+      .admin-box { display: flex; gap: 8px; justify-content: center; align-items: center; flex-wrap: wrap; }
+      .admin-err { width: 100%; color: ${T.danger}; font-size: 13px; margin-top: 6px; }
 
       .px-label {
         font-family: 'Pixelify Sans', sans-serif;
@@ -1784,6 +2030,7 @@ function GlobalStyle() {
         padding: 1px 5px;
         flex-shrink: 0;
       }
+      .pub-check { font-size: 15px; font-weight: 700; flex-shrink: 0; }
 
       .net-grid { display: flex; gap: 10px; flex-wrap: wrap; }
       .net-box {
