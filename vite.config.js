@@ -7,10 +7,12 @@ export default defineConfig({
   build: {
     rollupOptions: {
       input: {
-        // "/" continua sendo a apresentação (wrapper em index.html)
+        // "/" é o Estúdio React (login/admin + calendário/planejamento/tarefas)
         main: fileURLToPath(new URL('./index.html', import.meta.url)),
-        // "/estudio" carrega o Estúdio React (login/admin + calendário/quadro)
+        // "/estudio" mantém o mesmo app, para não quebrar links já compartilhados
         estudio: fileURLToPath(new URL('./estudio.html', import.meta.url)),
+        // A proposta (apresentação) segue publicada, mas fora da raiz:
+        // acessível apenas em /apresentacao.html (arquivo estático em public/).
       },
     },
   },

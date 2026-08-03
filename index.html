@@ -4,14 +4,16 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Branding para Secret Town — Proposta</title>
+    <title>Estúdio · Octalab</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <style>
-      html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; background: #0f0f10; }
-      iframe { border: 0; width: 100vw; height: 100vh; display: block; }
+      html, body, #root { margin: 0; padding: 0; min-height: 100%; }
+      * { box-sizing: border-box; }
     </style>
   </head>
   <body>
-    <!-- TEMPORÁRIO: apresentação. Para reverter, restaure index.html.estudio.bak e remova public/apresentacao.html -->
-    <iframe src="/apresentacao.html" title="Apresentação"></iframe>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
