@@ -5,20 +5,23 @@ import { supabase, supabaseReady } from "./supabase";
 const CLIENT_ID = Math.random().toString(36).slice(2);
 
 /* ============================================================
-   ESTÚDIO — painel pessoal retrô pixel, paleta clara
-   Ref: poster "Cyber Monday" (creme + marrom + holográfico)
+   ESTÚDIO — painel de conteúdo, visual limpo e moderno
+   Ref: pitch deck (branco + preto + acento amarelo, cantos suaves)
    ============================================================ */
 
 // ---------- tokens ----------
 const T = {
-  bg: "#E9E5DB",        // fundo externo
-  paper: "#F5F2EA",     // cartão/papel
-  ink: "#3B2E28",       // marrom escuro (texto e bordas)
-  muted: "#8C8478",
-  line: "#D8D2C4",
-  danger: "#C2453A",
-  holo: "linear-gradient(90deg,#FFB7C5,#FFE0A3,#BDEAD0,#A9D7EF,#D6B3F5)",
-  holoSoft: "linear-gradient(135deg,#FFD9E2,#FFF0CE,#DDF5E8,#D3EBF9,#EBDDFB)",
+  bg: "#F2F2F0",        // fundo externo
+  paper: "#FFFFFF",     // cartão/papel
+  ink: "#111114",       // preto (texto)
+  muted: "#7C7C85",
+  line: "#E7E7E3",      // bordas suaves
+  danger: "#E5484D",
+  accent: "#E4FB55",    // amarelo de destaque
+  accentInk: "#141608", // texto sobre o amarelo
+  // mantidos com os mesmos nomes, agora no acento moderno
+  holo: "linear-gradient(90deg,#E4FB55,#CFF24B)",
+  holoSoft: "#FAFAF8",
 };
 
 const PRODUCTS = {
@@ -30,6 +33,42 @@ const PRODUCTS = {
 };
 
 const NETWORKS = ["Instagram", "LinkedIn", "X", "YouTube", "WhatsApp"];
+
+// ---------- planilha de orçamentos ----------
+// quem fecha o pedido com a gráfica
+const FECHA = {
+  firmino: { label: "Firmino", short: "FIR" },
+  superiores: { label: "Superiores", short: "SUP" },
+  indefinido: { label: "A definir", short: "—" },
+};
+const ORC_STATUS = {
+  cotando: { label: "Cotando", chip: "#8C8478" },
+  aprovado: { label: "Aprovado", chip: "#3F6B4F" },
+  fechado: { label: "Fechado", chip: "#1F5C8C" },
+  recusado: { label: "Recusado", chip: "#C2453A" },
+};
+// prazo de produção: 1 a 7, em dias corridos (verde) ou dias úteis (vermelho)
+const PRAZO_TIPO = {
+  dias: { label: "dias", one: "dia" },
+  uteis: { label: "dias úteis", one: "dia útil" },
+};
+const PRAZO_DIAS = [1, 2, 3, 4, 5, 6, 7];
+
+const BRL = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+const money = (n) => BRL.format(Number(n) || 0);
+
+const NEW_ORC_ITEM = () => ({
+  id: uid(),
+  nome: "",
+  qtd: "",
+  valor: 0,
+  prazoDias: "",
+  prazoTipo: "dias",
+  fornecedor: "",
+  fecha: "indefinido",
+  status: "cotando",
+  obs: "",
+});
 
 const CAL_STATUS = {
   ideia: { label: "Ideia" },
@@ -62,6 +101,50 @@ const PROFILES = [
 ];
 const profileByName = (name) => PROFILES.find((p) => p.name === name) || null;
 const DELETE_PROFILES = ["Marcos", "Silvio"]; // além do admin
+
+/* ---------- ícones do menu (SVG inline, sem dependência) ---------- */
+function Ico({ children }) {
+  return (
+    <svg className="sb-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      {children}
+    </svg>
+  );
+}
+const IconHome = () => (
+  <Ico><path d="M3 10.5 12 3l9 7.5" /><path d="M5.5 9.5V21h13V9.5" /></Ico>
+);
+const IconCalendar = () => (
+  <Ico>
+    <rect x="3" y="5" width="18" height="16" rx="3" /><path d="M3 10h18" />
+    <path d="M8 3v4M16 3v4" />
+  </Ico>
+);
+const IconBoard = () => (
+  <Ico>
+    <rect x="3" y="4" width="5.5" height="16" rx="2" />
+    <rect x="9.75" y="4" width="5.5" height="11" rx="2" />
+    <rect x="16.5" y="4" width="4.5" height="14" rx="2" />
+  </Ico>
+);
+const IconCheck = () => (
+  <Ico><circle cx="12" cy="12" r="9" /><path d="M8 12.2l2.8 2.8L16 9.5" /></Ico>
+);
+const IconSheet = () => (
+  <Ico>
+    <rect x="3" y="4" width="18" height="16" rx="2.5" />
+    <path d="M3 9.5h18M3 15h18M9 4v16M15 4v16" />
+  </Ico>
+);
+const IconTrash = () => (
+  <Ico><path d="M4 7h16" /><path d="M9 7V4.5h6V7" /><path d="M6.5 7l1 13h9l1-13" /></Ico>
+);
+const IconUser = () => (
+  <Ico><circle cx="12" cy="8.5" r="3.8" /><path d="M4.5 20c1.3-3.8 4-5.6 7.5-5.6s6.2 1.8 7.5 5.6" /></Ico>
+);
+const IconExit = () => (
+  <Ico><path d="M14 4.5H6.5v15H14" /><path d="M17.5 12H10" /><path d="M15 9l3 3-3 3" /></Ico>
+);
 
 function BoringAvatar({ index = 0, size = 40 }) {
   const raw = useId();
@@ -297,6 +380,7 @@ export default function App() {
   const [tab, setTab] = useState("hoje");
   const [board, setBoard] = useState(null);
   const [calendar, setCalendar] = useState(null);
+  const [orcamentos, setOrcamentos] = useState({ events: [] });
   const [openCard, setOpenCard] = useState(null);
   const [openDay, setOpenDay] = useState(null);
   const [calFilter, setCalFilter] = useState("todos");
@@ -324,6 +408,7 @@ export default function App() {
       setBoard(b);
       setCalendar(await loadKey("estudio:calendar", { items: {} }));
       setTrash(await loadKey("estudio:trash", { items: [] }));
+      setOrcamentos(await loadKey("estudio:orcamentos", { events: [] }));
     })();
   }, []);
 
@@ -338,6 +423,7 @@ export default function App() {
         if (row.id === "estudio:board" && row.value) setBoard(row.value);
         else if (row.id === "estudio:calendar" && row.value) setCalendar(row.value);
         else if (row.id === "estudio:trash" && row.value) setTrash(row.value);
+        else if (row.id === "estudio:orcamentos" && row.value) setOrcamentos(row.value);
       })
       .subscribe();
     return () => supabase.removeChannel(ch);
@@ -360,6 +446,13 @@ export default function App() {
       const nc = fn(structuredClone(c));
       persist("estudio:calendar", nc);
       return nc;
+    });
+
+  const updateOrcamentos = (fn) =>
+    setOrcamentos((o) => {
+      const no = fn(structuredClone(o || { events: [] }));
+      persist("estudio:orcamentos", no);
+      return no;
     });
 
   const updateTrash = (fn) =>
@@ -450,7 +543,7 @@ export default function App() {
 
   if (screen === "landing") {
     return (
-      <div className="page center">
+      <div className="page bare">
         <GlobalStyle />
         <Landing
           onEnter={() => setScreen("identify")}
@@ -474,80 +567,113 @@ export default function App() {
     );
   }
 
-  return (
-    <div className="page">
-      <GlobalStyle />
-      <div className="poster">
-        <button className="back-link px-label" onClick={() => setScreen("landing")}>← entrada</button>
-        <div className="user-chip">
-          {currentUser === "Admin" ? (
-            <span className="user-badge px-label">★ admin</span>
-          ) : (
-            profileByName(currentUser) && <BoringAvatar index={profileByName(currentUser).avatar} size={22} />
-          )}
-          <span className="px-label">{currentUser === "Admin" ? "" : currentUser || "visitante"}</span>
-          <button className="link-btn px-label" onClick={() => setScreen("identify")}>trocar</button>
-        </div>
-        <div className="eyebrow">painel pessoal de conteúdo</div>
-        <h1 className="hero">ESTÚDIO</h1>
-        <div className="hero-sub">{dateStr}</div>
+  const navGeral = [
+    ["hoje", "Hoje", IconHome],
+    ["calendario", "Calendário", IconCalendar],
+    ["kanban", "Quadro", IconBoard],
+    ["publicados", "Publicados", IconCheck],
+    ["planilha", "Planilha", IconSheet],
+  ];
+  const userLabel = currentUser === "Admin" ? "Admin" : currentUser || "visitante";
 
-        <nav className="tabs">
-          {[
-            ["hoje", "Hoje"],
-            ["calendario", "Calendário"],
-            ["kanban", "Quadro"],
-            ["publicados", "Publicados"],
-          ].map(([id, label]) => (
+  return (
+    <div className="app">
+      <GlobalStyle />
+
+      <aside className="sidebar">
+        <div className="sb-brand">
+          <span className="sb-brand-glyph">✳</span>
+          <span className="sb-brand-name">Estúdio</span>
+        </div>
+
+        <div className="sb-group">
+          <div className="sb-group-label">Geral</div>
+          {navGeral.map(([id, label, Icon]) => (
             <button
               key={id}
-              className={`tab ${tab === id ? "active" : ""}`}
+              className={`sb-item ${tab === id ? "active" : ""}`}
               onClick={() => setTab(id)}
             >
-              {label}
+              <Icon />
+              <span>{label}</span>
             </button>
           ))}
-        </nav>
-
-        <div className="marquee" aria-hidden="true">
-          <div className="marquee-track">
-            {Array.from({ length: 2 }).map((_, i) => (
-              <span key={i} className="marquee-seg">
-                organize → produza → aprove → publique → repita →&nbsp;
-                organize → produza → aprove → publique → repita →&nbsp;
-              </span>
-            ))}
-          </div>
         </div>
 
-        {tab === "hoje" && (
-          <TodayView board={board} calendar={calendar} setOpenCard={setOpenCard} setOpenDay={setOpenDay} />
-        )}
-        {tab === "kanban" && (
-          <Kanban board={board} updateBoard={updateBoard} setOpenCard={setOpenCard} askConfirm={askConfirm} sendToTrash={sendToTrash} canDelete={canDelete} />
-        )}
-        {tab === "calendario" && (
-          <Calendar
-            calendar={calendar}
-            board={board}
-            month={month}
-            setMonth={setMonth}
-            setOpenDay={setOpenDay}
-            filter={calFilter}
-            setFilter={setCalFilter}
-          />
-        )}
-        {tab === "publicados" && (
-          <PublishedView calendar={calendar} setOpenDay={setOpenDay} />
-        )}
-
-        <footer className="footer px-label">
-          <span>estúdio · feito para uso diário · dados salvos automaticamente</span>
-          <button className="trash-btn px-label" onClick={() => setShowTrash(true)}>
-            🗑 lixeira{trash.items?.length ? ` · ${trash.items.length}` : ""}
+        <div className="sb-group">
+          <div className="sb-group-label">Ferramentas</div>
+          <button className="sb-item" onClick={() => setShowTrash(true)}>
+            <IconTrash />
+            <span>Lixeira</span>
+            {trash.items?.length ? <span className="sb-count">{trash.items.length}</span> : null}
           </button>
-        </footer>
-      </div>
+          <button className="sb-item" onClick={() => setScreen("identify")}>
+            <IconUser />
+            <span>Trocar de perfil</span>
+          </button>
+        </div>
+
+        <button className="sb-item sb-exit" onClick={() => setScreen("landing")}>
+          <IconExit />
+          <span>Sair para a entrada</span>
+        </button>
+      </aside>
+
+      <main className="main">
+        <header className="topbar">
+          <div className="tb-eyebrow">Painel de conteúdo</div>
+          <div className="tb-right">
+            <span className="date-pill">{dateStr}</span>
+            <div className="user-chip">
+              {currentUser === "Admin" ? (
+                <span className="user-badge">★</span>
+              ) : (
+                profileByName(currentUser) && (
+                  <BoringAvatar index={profileByName(currentUser).avatar} size={26} />
+                )
+              )}
+              <span>{userLabel}</span>
+            </div>
+          </div>
+        </header>
+
+        <div className="main-head">
+          <h1 className="greet">
+            Tudo em dia, <em>{userLabel}</em>
+          </h1>
+        </div>
+
+        <div className="view-wrap">
+          {tab === "hoje" && (
+            <TodayView board={board} calendar={calendar} setOpenCard={setOpenCard} setOpenDay={setOpenDay} />
+          )}
+          {tab === "kanban" && (
+            <Kanban board={board} updateBoard={updateBoard} setOpenCard={setOpenCard} askConfirm={askConfirm} sendToTrash={sendToTrash} canDelete={canDelete} />
+          )}
+          {tab === "calendario" && (
+            <Calendar
+              calendar={calendar}
+              board={board}
+              month={month}
+              setMonth={setMonth}
+              setOpenDay={setOpenDay}
+              filter={calFilter}
+              setFilter={setCalFilter}
+            />
+          )}
+          {tab === "publicados" && (
+            <PublishedView calendar={calendar} setOpenDay={setOpenDay} />
+          )}
+          {tab === "planilha" && (
+            <Planilha
+              orcamentos={orcamentos}
+              updateOrcamentos={updateOrcamentos}
+              askConfirm={askConfirm}
+              canDelete={canDelete}
+            />
+          )}
+        </div>
+      </main>
 
       {openCard && board.cards[openCard] && (
         <CardModal
@@ -1575,73 +1701,322 @@ function DayModal({ dateKey: key, calendar, board, updateCalendar, setOpenCard, 
 // caixa girando, então nenhum contorno de contêiner pode aparecer.
 function Landing({ onEnter, onProduct }) {
   const n = SLOTS.length;
-  const [offset, setOffset] = useState(0);
-  const paused = useRef(false);
-
-  useEffect(() => {
-    if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    let raf;
-    let last = performance.now();
-    const loop = (t) => {
-      const dt = Math.min((t - last) / 1000, 0.1);
-      last = t;
-      if (!paused.current) setOffset((o) => (o + dt * 9) % 360); // volta completa em 40s
-      raf = requestAnimationFrame(loop);
-    };
-    raf = requestAnimationFrame(loop);
-    return () => cancelAnimationFrame(raf);
-  }, []);
 
   return (
-    <div className="poster landing-poster">
-      <div className="arc-stage">
-        <div className="arc-clip">
+    <div className="lp">
+      <header className="lp-nav">
+        <button className="lp-mark" onClick={onEnter} aria-label="Octalab">
+          <span className="lp-mark-glyph">✳</span>
+          <span className="lp-mark-name">Octalab</span>
+        </button>
+        <nav className="lp-links">
+          {SLOTS.filter((s) => s.files.length > 0).map((s) => (
+            <button key={s.key} className="lp-link" onClick={() => onProduct(s.key)}>
+              {s.label}
+            </button>
+          ))}
+        </nav>
+        <button className="lp-cta-pill" onClick={onEnter}>Entrar no painel</button>
+      </header>
+
+      <section className="lp-hero">
+        <div className="lp-glow" aria-hidden="true" />
+
+        {/* produtos flutuando em arco: o arco sobe no centro */}
+        <div className="lp-orbit">
           {SLOTS.map((s, i) => {
-            const deg = (360 / n) * i + offset;
-            const rad = (deg * Math.PI) / 180;
-            const sin = Math.sin(rad).toFixed(4);
-            const cos = Math.cos(rad).toFixed(4);
+            const t = n === 1 ? 0 : (i / (n - 1)) * 2 - 1;
             return (
-              <div
+              <button
                 key={s.key}
-                className="arc-slot"
+                className="lp-chip"
                 style={{
-                  left: `calc(50% + var(--R) * ${sin})`,
-                  top: `calc(var(--cy) - var(--R) * ${cos})`,
+                  left: `calc(50% + ${(t * 38).toFixed(2)}%)`,
+                  top: `${(t * t * 78).toFixed(1)}px`,
+                  "--rot": `${(t * 11).toFixed(1)}deg`,
+                  "--delay": `${(i * 0.6).toFixed(2)}s`,
                 }}
+                onClick={() => onProduct(s.key)}
+                aria-label={s.label}
+                title={s.label}
               >
-                <button
-                  className="tile"
-                  style={{ background: s.img ? undefined : s.grad }}
-                  onClick={() => onProduct(s.key)}
-                  onMouseEnter={() => (paused.current = true)}
-                  onMouseLeave={() => (paused.current = false)}
-                  aria-label={s.label}
-                >
+                <span className="lp-chip-face">
                   {s.img ? (
-                    <img src={s.img} alt={s.label} className="tile-img" />
+                    <img src={s.img} alt="" className="lp-chip-img" />
                   ) : (
-                    <span className="tile-tag px-label">{s.tag}</span>
+                    <span className="lp-chip-tag">{s.tag}</span>
                   )}
-                  <span className="tile-name px-label">{s.label}</span>
-                </button>
-              </div>
+                </span>
+              </button>
             );
           })}
         </div>
 
-        <div className="arc-center">
-          <div className="eyebrow">octalab · casa de produtos</div>
-          <h1 className="hero arc-hero">ESTÚDIO</h1>
-          <p className="orbit-sub">
-            Passe o mouse pelos produtos para explorar.<br />
-            Clique para ver o manifesto e os arquivos da marca.
+        <div className="lp-copy">
+          <div className="lp-badge">
+            <span className="lp-badge-dot" />
+            Casa de produtos nativos de IA
+          </div>
+          <h1 className="lp-title">
+            A casa dos produtos
+            <br />
+            <em>nativos</em> de IA
+          </h1>
+          <p className="lp-sub">
+            Manifesto, identidade e arquivos de marca de cada produto da casa —
+            e o painel onde o time planeja e publica o conteúdo.
           </p>
-          <button className="btn" style={{ fontSize: 16, padding: "10px 26px" }} onClick={onEnter}>
-            entrar no painel →
-          </button>
+          <div className="lp-actions">
+            <button className="lp-btn" onClick={onEnter}>Entrar no painel</button>
+            <button className="lp-btn-ghost" onClick={() => onProduct(SLOTS[0].key)}>
+              Ver o manifesto
+            </button>
+          </div>
         </div>
+      </section>
+    </div>
+  );
+}
+
+/* ---------- planilha de orçamentos ----------
+   Um evento agrupa os itens a cotar (folder, cartão de visita, etc.).
+   Cada item guarda valor, data de produção, onde foi orçado e quem
+   fecha o pedido com a gráfica. Edição é direta na célula. */
+function Planilha({ orcamentos, updateOrcamentos, askConfirm, canDelete }) {
+  const events = orcamentos?.events || [];
+
+  const addEvent = () =>
+    updateOrcamentos((o) => {
+      o.events = [
+        ...(o.events || []),
+        { id: uid(), name: "Novo evento", data: "", items: [NEW_ORC_ITEM()] },
+      ];
+      return o;
+    });
+
+  const patchEvent = (evId, patch) =>
+    updateOrcamentos((o) => {
+      const ev = o.events.find((e) => e.id === evId);
+      if (ev) Object.assign(ev, patch);
+      return o;
+    });
+
+  const removeEvent = (ev) =>
+    askConfirm(`Excluir o evento "${ev.name}" e todos os seus itens?`, () =>
+      updateOrcamentos((o) => {
+        o.events = o.events.filter((e) => e.id !== ev.id);
+        return o;
+      })
+    );
+
+  const addItem = (evId) =>
+    updateOrcamentos((o) => {
+      const ev = o.events.find((e) => e.id === evId);
+      if (ev) ev.items = [...(ev.items || []), NEW_ORC_ITEM()];
+      return o;
+    });
+
+  const patchItem = (evId, itemId, patch) =>
+    updateOrcamentos((o) => {
+      const ev = o.events.find((e) => e.id === evId);
+      const it = ev?.items?.find((x) => x.id === itemId);
+      if (it) Object.assign(it, patch);
+      return o;
+    });
+
+  const removeItem = (evId, it) =>
+    askConfirm(`Excluir o item "${it.nome || "sem nome"}"?`, () =>
+      updateOrcamentos((o) => {
+        const ev = o.events.find((e) => e.id === evId);
+        if (ev) ev.items = ev.items.filter((x) => x.id !== it.id);
+        return o;
+      })
+    );
+
+  const evTotal = (ev) =>
+    (ev.items || []).reduce((sum, it) => sum + (Number(it.valor) || 0), 0);
+  const grandTotal = events.reduce((sum, ev) => sum + evTotal(ev), 0);
+
+  // quanto está sob responsabilidade de quem, para o resumo do topo
+  const porResponsavel = events
+    .flatMap((ev) => ev.items || [])
+    .reduce((acc, it) => {
+      const k = it.fecha || "indefinido";
+      acc[k] = (acc[k] || 0) + (Number(it.valor) || 0);
+      return acc;
+    }, {});
+
+  return (
+    <div className="view">
+      <div className="orc-top">
+        <div className="orc-totals">
+          <div className="orc-total-box">
+            <div className="orc-total-num">{money(grandTotal)}</div>
+            <div className="orc-total-name">Total orçado</div>
+          </div>
+          {Object.keys(FECHA).map((k) =>
+            porResponsavel[k] ? (
+              <div key={k} className="orc-total-box sub">
+                <div className="orc-total-num">{money(porResponsavel[k])}</div>
+                <div className="orc-total-name">Fecha: {FECHA[k].label}</div>
+              </div>
+            ) : null
+          )}
+        </div>
+        <button className="btn accent" onClick={addEvent}>+ novo evento</button>
       </div>
+
+      {events.length === 0 && (
+        <div className="empty">
+          Nenhum evento ainda. Crie um evento e comece a cotar os itens.
+        </div>
+      )}
+
+      {events.map((ev) => (
+        <section key={ev.id} className="orc-event">
+          <header className="orc-event-head">
+            <input
+              className="input orc-event-name"
+              value={ev.name}
+              placeholder="Nome do evento"
+              onChange={(e) => patchEvent(ev.id, { name: e.target.value })}
+            />
+            <input
+              className="input orc-event-date"
+              type="date"
+              value={ev.data || ""}
+              onChange={(e) => patchEvent(ev.id, { data: e.target.value })}
+              title="Data do evento"
+            />
+            <div className="orc-event-total">{money(evTotal(ev))}</div>
+            {canDelete && (
+              <button className="icon-btn" title="Excluir evento" onClick={() => removeEvent(ev)}>
+                ×
+              </button>
+            )}
+          </header>
+
+          <div className="orc-table-wrap">
+            <table className="orc-table">
+              <thead>
+                <tr>
+                  <th className="c-item">Item</th>
+                  <th className="c-qtd">Qtd.</th>
+                  <th className="c-valor">Valor</th>
+                  <th className="c-data">Prazo de produção</th>
+                  <th className="c-forn">Orçado em</th>
+                  <th className="c-fecha">Quem fecha</th>
+                  <th className="c-status">Status</th>
+                  <th className="c-del" aria-label="ações" />
+                </tr>
+              </thead>
+              <tbody>
+                {(ev.items || []).map((it) => (
+                  <tr key={it.id}>
+                    <td>
+                      <input
+                        className="cell"
+                        value={it.nome}
+                        placeholder="Folder, cartão de visita…"
+                        onChange={(e) => patchItem(ev.id, it.id, { nome: e.target.value })}
+                      />
+                    </td>
+                    <td>
+                      <input
+                        className="cell"
+                        value={it.qtd || ""}
+                        placeholder="500"
+                        onChange={(e) => patchItem(ev.id, it.id, { qtd: e.target.value })}
+                      />
+                    </td>
+                    <td>
+                      <input
+                        className="cell cell-num"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={it.valor ?? ""}
+                        placeholder="0,00"
+                        onChange={(e) => patchItem(ev.id, it.id, { valor: e.target.value })}
+                      />
+                    </td>
+                    <td>
+                      <div className={`prazo prazo-${it.prazoTipo || "dias"} ${it.prazoDias ? "" : "vazio"}`}>
+                        <select
+                          className="prazo-num"
+                          value={it.prazoDias || ""}
+                          onChange={(e) => patchItem(ev.id, it.id, { prazoDias: e.target.value })}
+                          aria-label="Prazo em dias"
+                        >
+                          <option value="">–</option>
+                          {PRAZO_DIAS.map((d) => (
+                            <option key={d} value={d}>{d}</option>
+                          ))}
+                        </select>
+                        <select
+                          className="prazo-tipo"
+                          value={it.prazoTipo || "dias"}
+                          onChange={(e) => patchItem(ev.id, it.id, { prazoTipo: e.target.value })}
+                          aria-label="Dias corridos ou úteis"
+                        >
+                          {Object.entries(PRAZO_TIPO).map(([k, v]) => (
+                            <option key={k} value={k}>
+                              {String(it.prazoDias) === "1" ? v.one : v.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </td>
+                    <td>
+                      <input
+                        className="cell"
+                        value={it.fornecedor}
+                        placeholder="Gráfica / fornecedor"
+                        onChange={(e) => patchItem(ev.id, it.id, { fornecedor: e.target.value })}
+                      />
+                    </td>
+                    <td>
+                      <select
+                        className={`cell cell-select fecha-${it.fecha || "indefinido"}`}
+                        value={it.fecha || "indefinido"}
+                        onChange={(e) => patchItem(ev.id, it.id, { fecha: e.target.value })}
+                      >
+                        {Object.entries(FECHA).map(([k, v]) => (
+                          <option key={k} value={k}>{v.label}</option>
+                        ))}
+                      </select>
+                    </td>
+                    <td>
+                      <select
+                        className="cell cell-select"
+                        value={it.status || "cotando"}
+                        onChange={(e) => patchItem(ev.id, it.id, { status: e.target.value })}
+                      >
+                        {Object.entries(ORC_STATUS).map(([k, v]) => (
+                          <option key={k} value={k}>{v.label}</option>
+                        ))}
+                      </select>
+                    </td>
+                    <td className="c-del">
+                      {canDelete && (
+                        <button
+                          className="icon-btn small"
+                          title="Excluir item"
+                          onClick={() => removeItem(ev.id, it)}
+                        >
+                          ×
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <button className="add-card" onClick={() => addItem(ev.id)}>+ item para cotar</button>
+        </section>
+      ))}
     </div>
   );
 }
@@ -1707,7 +2082,7 @@ function Identify({ onPick, onAdmin, onBack }) {
     <div className="poster identify-poster">
       <button className="back-link px-label" onClick={onBack}>← entrada</button>
       <div className="eyebrow">quem está usando?</div>
-      <h1 className="hero" style={{ fontSize: "clamp(38px, 7vw, 68px)" }}>ENTRAR</h1>
+      <h1 className="hero" style={{ fontSize: "clamp(38px, 7vw, 62px)" }}>Entrar</h1>
       <div className="hero-sub">escolha seu perfil</div>
 
       <div className="profiles">
@@ -1824,7 +2199,7 @@ function TrashModal({ trash, onRestore, onPurge, onEmpty, canDelete, close }) {
 function GlobalStyle() {
   return (
     <style>{`
-      @import url('https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;600;700&family=Inter:wght@400;500;600&display=swap');
+      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap');
 
       * { box-sizing: border-box; }
       body { margin: 0; background: ${T.bg}; }
@@ -1839,41 +2214,38 @@ function GlobalStyle() {
         color: ${T.ink};
       }
       .page.center { align-items: center; }
+      /* landing ocupa a tela inteira, sem o cartão .poster em volta */
+      .page.bare { padding: 0; background: ${T.bg}; display: block; }
 
       .poster {
         width: 100%;
-        max-width: 1080px;
+        max-width: 1140px;
         background: ${T.paper};
-        border-radius: 18px;
-        box-shadow: 0 3px 0 ${T.ink}22, 0 18px 44px rgba(59,46,40,.14);
-        padding: 36px 28px 28px;
+        border: 1px solid ${T.line};
+        border-radius: 24px;
+        box-shadow: 0 1px 2px rgba(17,17,20,.03), 0 12px 40px rgba(17,17,20,.06);
+        padding: 34px 30px 30px;
         position: relative;
         overflow: hidden;
       }
 
-      /* faixa holográfica no topo do poster */
-      .poster::before {
-        content: "";
-        position: absolute; top: 0; left: 0; right: 0; height: 8px;
-        background: ${T.holo};
-      }
-
       .eyebrow {
         text-align: center;
-        font-size: 12px;
-        letter-spacing: 3px;
+        font-size: 11.5px;
+        letter-spacing: 1.4px;
         text-transform: uppercase;
-        font-weight: 600;
+        font-weight: 500;
         color: ${T.muted};
       }
       .hero {
-        margin: 8px 0 2px;
+        margin: 6px 0 2px;
         text-align: center;
-        font-family: 'Pixelify Sans', sans-serif;
-        font-weight: 700;
-        font-size: clamp(52px, 10vw, 96px);
-        line-height: .95;
-        letter-spacing: 2px;
+        font-family: 'Instrument Serif', Georgia, serif;
+        font-weight: 400;
+        font-size: clamp(44px, 8vw, 78px);
+        line-height: 1;
+        letter-spacing: -1.5px;
+        text-transform: none;
         color: ${T.ink};
       }
       .hero-sub {
@@ -1884,13 +2256,162 @@ function GlobalStyle() {
         text-transform: capitalize;
       }
 
-      /* ---------- login / perfil ---------- */
-      .user-chip {
-        position: absolute; top: 18px; right: 22px; z-index: 3;
-        display: flex; align-items: center; gap: 8px;
-        font-size: 13px; color: ${T.muted};
+      /* ============================================================
+         shell do painel — menu escuro fixo à esquerda, conteúdo à direita
+         ============================================================ */
+      .app {
+        display: flex;
+        gap: 18px;
+        min-height: 100vh;
+        padding: 16px;
+        background: ${T.bg};
+        font-family: 'Inter', sans-serif;
+        color: ${T.ink};
       }
-      .user-badge { color: ${T.ink}; }
+
+      /* ---------- menu lateral ---------- */
+      .sidebar {
+        width: 236px;
+        flex-shrink: 0;
+        background: #141416;
+        border-radius: 26px;
+        padding: 26px 16px 18px;
+        display: flex;
+        flex-direction: column;
+        gap: 26px;
+        position: sticky;
+        top: 16px;
+        height: calc(100vh - 32px);
+      }
+      .sb-brand {
+        display: flex; align-items: center; gap: 10px;
+        padding: 0 10px 4px;
+        color: #fff;
+      }
+      .sb-brand-glyph { font-size: 18px; line-height: 1; color: ${T.accent}; }
+      .sb-brand-name {
+        font-family: 'Instrument Serif', Georgia, serif;
+        font-size: 25px;
+        letter-spacing: -.3px;
+      }
+
+      .sb-group { display: flex; flex-direction: column; gap: 2px; }
+      .sb-group-label {
+        font-size: 10.5px;
+        text-transform: uppercase;
+        letter-spacing: 1.6px;
+        color: rgba(255,255,255,.34);
+        padding: 0 10px 8px;
+      }
+      .sb-item {
+        display: flex; align-items: center; gap: 11px;
+        width: 100%;
+        background: transparent;
+        border: 0;
+        border-radius: 12px;
+        padding: 10px 11px;
+        font-family: 'Inter', sans-serif;
+        font-size: 14px;
+        color: rgba(255,255,255,.66);
+        cursor: pointer;
+        text-align: left;
+        transition: background .16s ease, color .16s ease;
+      }
+      .sb-item:hover { background: rgba(255,255,255,.07); color: #fff; }
+      .sb-item.active {
+        background: ${T.accent};
+        color: ${T.accentInk};
+        font-weight: 600;
+      }
+      .sb-ico { width: 18px; height: 18px; flex-shrink: 0; }
+      .sb-count {
+        margin-left: auto;
+        font-size: 11px; font-weight: 600;
+        background: rgba(255,255,255,.14);
+        color: #fff;
+        border-radius: 999px;
+        padding: 1px 7px;
+      }
+      .sb-item.active .sb-count { background: rgba(0,0,0,.16); color: ${T.accentInk}; }
+      .sb-exit { margin-top: auto; color: rgba(255,255,255,.46); }
+
+      /* ---------- área principal ---------- */
+      .main {
+        flex: 1;
+        min-width: 0;
+        background: ${T.paper};
+        border: 1px solid ${T.line};
+        border-radius: 26px;
+        padding: 22px clamp(18px, 2.6vw, 34px) 30px;
+        overflow: hidden;
+      }
+      .topbar {
+        display: flex; align-items: center; justify-content: space-between;
+        gap: 16px; flex-wrap: wrap;
+        padding-bottom: 18px;
+        border-bottom: 1px solid ${T.line};
+      }
+      .tb-eyebrow {
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 1.6px;
+        color: ${T.muted};
+      }
+      .tb-right { display: flex; align-items: center; gap: 10px; }
+      .date-pill {
+        font-size: 13px;
+        color: ${T.muted};
+        background: ${T.bg};
+        border-radius: 999px;
+        padding: 7px 15px;
+        text-transform: capitalize;
+      }
+      .user-chip {
+        display: flex; align-items: center; gap: 8px;
+        background: ${T.bg};
+        border-radius: 999px;
+        padding: 5px 14px 5px 5px;
+        font-size: 13.5px;
+        color: ${T.ink};
+      }
+      .user-chip svg { border-radius: 50%; }
+      .user-badge {
+        width: 26px; height: 26px; border-radius: 50%;
+        background: ${T.accent}; color: ${T.accentInk};
+        display: flex; align-items: center; justify-content: center;
+        font-size: 13px;
+      }
+
+      .main-head { padding: 24px 0 20px; }
+      .greet {
+        font-family: 'Instrument Serif', Georgia, serif;
+        font-weight: 400;
+        font-size: clamp(30px, 3.8vw, 46px);
+        line-height: 1.1;
+        letter-spacing: -1px;
+        margin: 0;
+        color: ${T.ink};
+      }
+      .greet em { font-style: italic; }
+
+      .view-wrap { position: relative; }
+
+      @media (max-width: 900px) {
+        .app { flex-direction: column; padding: 12px; gap: 12px; }
+        .sidebar {
+          width: auto; height: auto; position: static;
+          flex-direction: row; align-items: center; gap: 8px;
+          overflow-x: auto; padding: 12px;
+          border-radius: 20px;
+        }
+        .sb-brand, .sb-group-label { display: none; }
+        .sb-group { flex-direction: row; gap: 6px; }
+        .sb-item { width: auto; white-space: nowrap; padding: 9px 13px; }
+        .sb-exit { margin-top: 0; }
+        .main { border-radius: 20px; padding: 18px 14px 24px; }
+      }
+
+      /* ---------- login / perfil ---------- */
       .link-btn {
         background: transparent; border: none;
         color: ${T.muted}; font-size: 13px; cursor: pointer;
@@ -1911,8 +2432,8 @@ function GlobalStyle() {
       .profile-tile:hover { transform: translateY(-3px); }
       .profile-av {
         width: 96px; height: 96px;
-        border: 3px solid ${T.ink}; border-radius: 50%;
-        box-shadow: 4px 5px 0 ${T.ink}33;
+        border: 1px solid ${T.line}; border-radius: 50%;
+        box-shadow: 0 1px 2px rgba(17,17,20,.04), 0 6px 16px rgba(17,17,20,.06);
         overflow: hidden; display: flex; align-items: center; justify-content: center;
         background: #fff;
       }
@@ -1921,54 +2442,62 @@ function GlobalStyle() {
       .admin-box { display: flex; gap: 8px; justify-content: center; align-items: center; flex-wrap: wrap; }
       .admin-err { width: 100%; color: ${T.danger}; font-size: 13px; margin-top: 6px; }
 
+      /* micro-rótulo moderno: caixa alta, discreto (era a fonte pixel) */
       .px-label {
-        font-family: 'Pixelify Sans', sans-serif;
-        font-weight: 600;
-        letter-spacing: .5px;
+        font-family: 'Inter', sans-serif;
+        font-weight: 500;
+        letter-spacing: .2px;
       }
 
-      /* ---------- tabs ---------- */
-      .tabs { display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; }
-      .tab {
-        font-family: 'Pixelify Sans', sans-serif;
-        font-weight: 600;
-        font-size: 16px;
-        padding: 9px 22px;
+      /* ---------- tabs: nav em pílulas, ativa em amarelo ---------- */
+      .tabs {
+        display: flex; justify-content: center; gap: 4px; flex-wrap: wrap;
+        background: ${T.bg};
         border-radius: 999px;
-        border: 2px solid ${T.ink};
-        background: ${T.paper};
-        color: ${T.ink};
-        cursor: pointer;
-        transition: transform .12s ease;
+        padding: 5px;
+        width: fit-content;
+        margin: 0 auto;
       }
-      .tab:hover { transform: translateY(-1px); }
+      .tab {
+        font-family: 'Inter', sans-serif;
+        font-weight: 500;
+        font-size: 14px;
+        padding: 9px 20px;
+        border-radius: 999px;
+        border: 0;
+        background: transparent;
+        color: ${T.muted};
+        cursor: pointer;
+        transition: background .16s ease, color .16s ease;
+      }
+      .tab:hover { color: ${T.ink}; }
       .tab.active {
-        background: ${T.ink};
-        color: ${T.paper};
-        position: relative;
+        background: ${T.accent};
+        color: ${T.accentInk};
+        font-weight: 600;
       }
 
-      /* ---------- letreiro ---------- */
+      /* ---------- letreiro: discreto, só um fio de contexto ---------- */
       .marquee {
-        margin: 18px -28px 22px;
-        border-top: 2px solid ${T.ink};
-        border-bottom: 2px solid ${T.ink};
+        margin: 20px -30px 24px;
+        border-top: 1px solid ${T.line};
+        border-bottom: 1px solid ${T.line};
         overflow: hidden;
         background: ${T.holoSoft};
       }
       .marquee-track {
         display: flex;
         white-space: nowrap;
-        animation: scroll 22s linear infinite;
+        animation: scroll 34s linear infinite;
       }
       .marquee-seg {
-        font-family: 'Pixelify Sans', sans-serif;
-        font-weight: 600;
-        font-size: 14px;
-        letter-spacing: 2px;
+        font-family: 'Inter', sans-serif;
+        font-weight: 500;
+        font-size: 11.5px;
+        letter-spacing: 1.6px;
         text-transform: uppercase;
-        padding: 7px 0;
-        color: ${T.ink};
+        padding: 9px 0;
+        color: ${T.muted};
       }
       @keyframes scroll { to { transform: translateX(-50%); } }
 
@@ -1979,7 +2508,7 @@ function GlobalStyle() {
         margin: 20px 0 10px;
         display: flex; align-items: center; gap: 8px;
       }
-      .sec::after { content: ""; flex: 1; border-top: 2px dotted ${T.line}; }
+      .sec::after { content: ""; flex: 1; border-top: 1px solid ${T.line}; }
       .sec.danger { color: ${T.danger}; }
       .week-day-head {
         font-size: 13px;
@@ -1992,7 +2521,7 @@ function GlobalStyle() {
       .empty {
         text-align: center;
         color: ${T.muted};
-        border: 2px dashed ${T.line};
+        border: 1px dashed ${T.line};
         border-radius: 12px;
         padding: 18px;
         font-size: 14px;
@@ -2003,9 +2532,9 @@ function GlobalStyle() {
         display: flex; align-items: center; gap: 10px;
         width: 100%; text-align: left;
         background: ${T.paper};
-        border: 2px solid ${T.ink};
+        border: 1px solid ${T.line};
         border-radius: 12px;
-        box-shadow: 3px 3px 0 ${T.ink};
+        box-shadow: 0 1px 2px rgba(17,17,20,.04), 0 6px 16px rgba(17,17,20,.06);
         padding: 9px 12px;
         margin-bottom: 8px;
         font-family: 'Inter', sans-serif;
@@ -2014,18 +2543,18 @@ function GlobalStyle() {
         cursor: pointer;
         transition: transform .1s ease, box-shadow .1s ease;
       }
-      .row:hover { transform: translate(1px,1px); box-shadow: 2px 2px 0 ${T.ink}; }
-      .row.danger { border-color: ${T.danger}; box-shadow: 3px 3px 0 ${T.danger}; }
-      .row.danger:hover { box-shadow: 2px 2px 0 ${T.danger}; }
+      .row:hover { transform: translate(1px,1px); box-shadow: 0 1px 2px rgba(17,17,20,.04), 0 6px 16px rgba(17,17,20,.06); }
+      .row.danger { border-color: ${T.danger}; box-shadow: 0 1px 2px rgba(17,17,20,.04), 0 6px 16px rgba(17,17,20,.06); }
+      .row.danger:hover { box-shadow: 0 1px 2px rgba(17,17,20,.04), 0 6px 16px rgba(17,17,20,.06); }
       .row-title { flex: 1; font-weight: 500; }
       .row-end { color: ${T.muted}; font-size: 12.5px; white-space: nowrap; }
       .row.danger .row-end { color: ${T.danger}; font-weight: 600; }
 
       .prod-tag {
-        font-family: 'Pixelify Sans', sans-serif;
+        font-family: 'Inter', sans-serif;
         font-weight: 700;
         font-size: 11px;
-        border: 2px solid;
+        border: 1px solid;
         border-radius: 6px;
         padding: 1px 5px;
         flex-shrink: 0;
@@ -2036,30 +2565,32 @@ function GlobalStyle() {
       .net-box {
         flex: 1; min-width: 100px;
         background: ${T.paper};
-        border: 2px solid ${T.ink};
+        border: 1px solid ${T.line};
         border-radius: 14px;
-        box-shadow: 3px 3px 0 ${T.ink};
+        box-shadow: 0 1px 2px rgba(17,17,20,.04), 0 6px 16px rgba(17,17,20,.06);
         padding: 12px 8px;
         text-align: center;
         position: relative;
         overflow: hidden;
       }
+      /* rede com conteúdo ganha faixa de acento no topo */
       .net-box::before {
         content: "";
-        position: absolute; inset: 0;
-        background: ${T.holoSoft};
+        position: absolute; top: 0; left: 0; right: 0; height: 4px;
+        background: ${T.accent};
         opacity: 0;
       }
-      .net-box:not(.zero)::before { opacity: .45; }
+      .net-box:not(.zero)::before { opacity: 1; }
       .net-num {
         position: relative;
-        font-family: 'Pixelify Sans', sans-serif;
-        font-weight: 700; font-size: 30px; line-height: 1;
+        font-family: 'Inter', sans-serif;
+        font-weight: 600; font-size: 30px; line-height: 1;
+        letter-spacing: -1px;
       }
       .net-name { position: relative; font-size: 12.5px; color: ${T.muted}; margin-top: 4px; font-weight: 500; }
       .net-warn {
         position: relative;
-        font-family: 'Pixelify Sans', sans-serif;
+        font-family: 'Inter', sans-serif;
         font-size: 12px; color: ${T.danger}; margin-top: 2px; font-weight: 700;
       }
 
@@ -2068,9 +2599,9 @@ function GlobalStyle() {
       .board { display: flex; gap: 14px; align-items: flex-start; min-height: 360px; }
       .column {
         background: ${T.bg};
-        border: 2px solid ${T.ink};
+        border: 1px solid ${T.line};
         border-radius: 16px;
-        box-shadow: 4px 4px 0 ${T.ink};
+        box-shadow: 0 1px 2px rgba(17,17,20,.04), 0 6px 16px rgba(17,17,20,.06);
         padding: 12px;
         min-width: 265px; max-width: 285px; flex-shrink: 0;
       }
@@ -2086,19 +2617,19 @@ function GlobalStyle() {
       .card-list { display: flex; flex-direction: column; gap: 9px; min-height: 4px; }
       .card {
         background: ${T.paper};
-        border: 2px solid ${T.ink};
+        border: 1px solid ${T.line};
         border-radius: 12px;
-        box-shadow: 3px 3px 0 ${T.ink};
+        box-shadow: 0 1px 2px rgba(17,17,20,.04), 0 6px 16px rgba(17,17,20,.06);
         padding: 10px 11px;
         cursor: grab;
         transition: transform .1s ease, box-shadow .1s ease;
       }
-      .card:hover { transform: translate(1px,1px); box-shadow: 2px 2px 0 ${T.ink}; }
+      .card:hover { transform: translate(1px,1px); box-shadow: 0 1px 2px rgba(17,17,20,.04), 0 6px 16px rgba(17,17,20,.06); }
       .card-top { display: flex; align-items: center; gap: 6px; margin-bottom: 5px; flex-wrap: wrap; }
       .card-prod { font-size: 11.5px; color: ${T.muted}; font-weight: 500; }
       .due-flag {
         margin-left: auto;
-        font-family: 'Pixelify Sans', sans-serif;
+        font-family: 'Inter', sans-serif;
         font-size: 12px; font-weight: 700;
       }
       .due-flag.danger { color: ${T.danger}; }
@@ -2107,7 +2638,7 @@ function GlobalStyle() {
       .progress { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
       .track {
         flex: 1; height: 10px;
-        border: 2px solid ${T.ink};
+        border: 1px solid ${T.line};
         border-radius: 999px;
         background: ${T.paper};
         overflow: hidden;
@@ -2120,37 +2651,37 @@ function GlobalStyle() {
       .card.p-urgente {
         background: #C2453A;
         border-color: #7E2B24;
-        box-shadow: 3px 3px 0 #7E2B24;
+        box-shadow: 0 1px 2px rgba(17,17,20,.04), 0 6px 16px rgba(17,17,20,.06);
         color: #FFF3EE;
       }
-      .card.p-urgente:hover { box-shadow: 2px 2px 0 #7E2B24; }
+      .card.p-urgente:hover { box-shadow: 0 1px 2px rgba(17,17,20,.04), 0 6px 16px rgba(17,17,20,.06); }
 
       /* Alta: fundo laranja -> texto marrom bem escuro */
       .card.p-alta {
         background: #E58A3A;
         border-color: #8C4A16;
-        box-shadow: 3px 3px 0 #8C4A16;
+        box-shadow: 0 1px 2px rgba(17,17,20,.04), 0 6px 16px rgba(17,17,20,.06);
         color: #2E1A08;
       }
-      .card.p-alta:hover { box-shadow: 2px 2px 0 #8C4A16; }
+      .card.p-alta:hover { box-shadow: 0 1px 2px rgba(17,17,20,.04), 0 6px 16px rgba(17,17,20,.06); }
 
       /* Média: fundo amarelo -> texto marrom escuro */
       .card.p-media {
         background: #F2C94C;
         border-color: #8A6A14;
-        box-shadow: 3px 3px 0 #8A6A14;
+        box-shadow: 0 1px 2px rgba(17,17,20,.04), 0 6px 16px rgba(17,17,20,.06);
         color: #3B2A06;
       }
-      .card.p-media:hover { box-shadow: 2px 2px 0 #8A6A14; }
+      .card.p-media:hover { box-shadow: 0 1px 2px rgba(17,17,20,.04), 0 6px 16px rgba(17,17,20,.06); }
 
       /* Baixa: fundo verde suave -> texto verde bem escuro */
       .card.p-baixa {
         background: #A9CFAF;
         border-color: #3F6B4F;
-        box-shadow: 3px 3px 0 #3F6B4F;
+        box-shadow: 0 1px 2px rgba(17,17,20,.04), 0 6px 16px rgba(17,17,20,.06);
         color: #142B1C;
       }
-      .card.p-baixa:hover { box-shadow: 2px 2px 0 #3F6B4F; }
+      .card.p-baixa:hover { box-shadow: 0 1px 2px rgba(17,17,20,.04), 0 6px 16px rgba(17,17,20,.06); }
 
       /* elementos internos herdam a cor de contraste do fundo */
       .card[class*="p-"] .card-prod,
@@ -2171,12 +2702,12 @@ function GlobalStyle() {
 
       .prio-flag {
         margin-left: auto;
-        font-family: 'Pixelify Sans', sans-serif;
+        font-family: 'Inter', sans-serif;
         font-weight: 700;
         font-size: 11.5px;
         letter-spacing: .5px;
         text-transform: uppercase;
-        border: 2px solid currentColor;
+        border: 1px solid currentColor;
         border-radius: 6px;
         padding: 1px 6px;
       }
@@ -2196,7 +2727,7 @@ function GlobalStyle() {
         padding: 10px;
         background: transparent;
         color: ${T.muted};
-        border: 2px dashed ${T.muted};
+        border: 1px dashed ${T.line};
         border-radius: 12px;
         cursor: pointer;
       }
@@ -2210,7 +2741,7 @@ function GlobalStyle() {
         font-size: 14px;
         background: #fff;
         color: ${T.ink};
-        border: 2px solid ${T.ink};
+        border: 1px solid ${T.line};
         border-radius: 10px;
         padding: 7px 10px;
       }
@@ -2223,25 +2754,30 @@ function GlobalStyle() {
       .input.inline { width: auto; font-size: 12.5px; padding: 1px 6px; border-radius: 7px; border-width: 1.5px; }
 
       .btn {
-        font-family: 'Pixelify Sans', sans-serif;
-        font-weight: 600;
-        font-size: 14.5px;
-        padding: 8px 16px;
+        font-family: 'Inter', sans-serif;
+        font-weight: 500;
+        font-size: 14px;
+        padding: 10px 20px;
         border-radius: 999px;
         background: ${T.ink};
-        color: ${T.paper};
-        border: 2px solid ${T.ink};
+        color: #fff;
+        border: 1px solid ${T.ink};
         cursor: pointer;
         text-decoration: none;
         display: inline-flex; align-items: center;
         white-space: nowrap;
-        transition: transform .1s ease;
+        transition: transform .16s ease, opacity .16s ease;
       }
-      .btn:hover { transform: translateY(-1px); }
-      .btn:active { transform: translateY(1px); }
-      .btn.ghost { background: transparent; color: ${T.ink}; }
-      .btn.danger { background: ${T.danger}; border-color: ${T.danger}; }
-      .btn.small { font-size: 13px; padding: 5px 12px; }
+      .btn:hover { transform: translateY(-1px); opacity: .88; }
+      .btn:active { transform: translateY(0); }
+      .btn.ghost {
+        background: transparent; color: ${T.ink};
+        border-color: ${T.line};
+      }
+      .btn.ghost:hover { border-color: ${T.ink}; opacity: 1; }
+      .btn.accent { background: ${T.accent}; border-color: ${T.accent}; color: ${T.accentInk}; }
+      .btn.danger { background: ${T.danger}; border-color: ${T.danger}; color: #fff; }
+      .btn.small { font-size: 13px; padding: 6px 14px; }
       .btn-row { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
 
       .icon-btn {
@@ -2257,7 +2793,7 @@ function GlobalStyle() {
         display: inline-flex; align-items: center; gap: 5px;
         background: transparent;
         color: ${T.muted};
-        border: 2px solid ${T.line};
+        border: 1px solid ${T.line};
         border-radius: 999px;
         padding: 4px 12px;
         cursor: pointer;
@@ -2266,29 +2802,181 @@ function GlobalStyle() {
       .chip.small { font-size: 12px; padding: 3px 10px; }
       .chip-row { display: flex; gap: 6px; flex-wrap: wrap; }
 
+      /* ---------- planilha de orçamentos ---------- */
+      .orc-top {
+        display: flex; align-items: center; justify-content: space-between;
+        gap: 14px; flex-wrap: wrap;
+        margin: 18px 0 22px;
+      }
+      .orc-totals { display: flex; gap: 10px; flex-wrap: wrap; }
+      .orc-total-box {
+        background: ${T.ink};
+        color: #fff;
+        border-radius: 16px;
+        padding: 14px 20px;
+        min-width: 150px;
+      }
+      .orc-total-box.sub {
+        background: ${T.paper};
+        color: ${T.ink};
+        border: 1px solid ${T.line};
+      }
+      .orc-total-num {
+        font-size: 22px; font-weight: 600; letter-spacing: -.6px; line-height: 1.1;
+      }
+      .orc-total-name {
+        font-size: 11px; text-transform: uppercase; letter-spacing: 1.2px;
+        opacity: .62; margin-top: 4px;
+      }
+
+      .orc-event {
+        border: 1px solid ${T.line};
+        border-radius: 18px;
+        background: ${T.paper};
+        padding: 14px 14px 12px;
+        margin-bottom: 16px;
+      }
+      .orc-event-head {
+        display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+        margin-bottom: 12px;
+      }
+      .orc-event-name {
+        flex: 1; min-width: 180px;
+        font-size: 16px; font-weight: 600;
+        border-color: transparent;
+        background: transparent;
+        padding-left: 4px;
+      }
+      .orc-event-name:hover { border-color: ${T.line}; }
+      .orc-event-date { width: auto; flex-shrink: 0; font-size: 13px; }
+      .orc-event-total {
+        font-size: 15px; font-weight: 600;
+        background: ${T.accent};
+        color: ${T.accentInk};
+        border-radius: 999px;
+        padding: 6px 14px;
+        white-space: nowrap;
+      }
+
+      .orc-table-wrap { overflow-x: auto; }
+      .orc-table {
+        width: 100%;
+        border-collapse: collapse;
+        min-width: 900px;
+      }
+      .orc-table th {
+        text-align: left;
+        font-size: 10.5px;
+        text-transform: uppercase;
+        letter-spacing: 1.2px;
+        font-weight: 500;
+        color: ${T.muted};
+        padding: 0 8px 8px;
+        border-bottom: 1px solid ${T.line};
+        white-space: nowrap;
+      }
+      .orc-table td {
+        padding: 3px 4px;
+        border-bottom: 1px solid ${T.line};
+        vertical-align: middle;
+      }
+      .orc-table tr:last-child td { border-bottom: 0; }
+      .orc-table .c-qtd { width: 78px; }
+      .orc-table .c-valor { width: 118px; }
+      .orc-table .c-data { width: 142px; }
+      .orc-table .c-fecha { width: 130px; }
+      .orc-table .c-status { width: 124px; }
+      .orc-table .c-del { width: 34px; text-align: center; }
+
+      /* célula editável: parece planilha, sem moldura até o foco */
+      .cell {
+        width: 100%;
+        font-family: 'Inter', sans-serif;
+        font-size: 13.5px;
+        color: ${T.ink};
+        background: transparent;
+        border: 1px solid transparent;
+        border-radius: 8px;
+        padding: 8px 8px;
+      }
+      .cell::placeholder { color: ${T.muted}; opacity: .7; }
+      .cell:hover { border-color: ${T.line}; }
+      .cell:focus {
+        outline: none;
+        background: ${T.paper};
+        border-color: ${T.ink};
+      }
+      .cell-num { text-align: right; font-variant-numeric: tabular-nums; }
+      .cell-select { cursor: pointer; appearance: none; }
+      .cell-select.fecha-firmino { color: #1F5C8C; font-weight: 600; }
+      .cell-select.fecha-superiores { color: #8A5A14; font-weight: 600; }
+
+      /* prazo de produção como tag: verde = dias corridos, vermelho = dias úteis */
+      .prazo {
+        display: inline-flex; align-items: center; gap: 2px;
+        border-radius: 999px;
+        padding: 5px 6px 5px 10px;
+        border: 1px solid transparent;
+        transition: filter .16s ease;
+      }
+      .prazo select {
+        appearance: none;
+        background: transparent;
+        border: 0;
+        font-family: 'Inter', sans-serif;
+        font-size: 12.5px;
+        font-weight: 600;
+        color: inherit;
+        cursor: pointer;
+        padding: 0;
+      }
+      .prazo select:focus { outline: none; text-decoration: underline; }
+      .prazo-num { text-align: right; }
+      .prazo-tipo { padding-right: 2px; }
+      .prazo:hover { filter: brightness(.97); }
+
+      .prazo-dias {
+        background: #E4F7DC;
+        border-color: #BFE6B0;
+        color: #2C6B27;
+      }
+      .prazo-uteis {
+        background: #FCE4E2;
+        border-color: #F2BDB8;
+        color: #A83228;
+      }
+      /* sem prazo definido: neutro, até escolher */
+      .prazo.vazio {
+        background: ${T.bg};
+        border-color: ${T.line};
+        color: ${T.muted};
+      }
+
+      .icon-btn.small { font-size: 18px; }
+
+      @media (max-width: 640px) {
+        .orc-total-box { min-width: 0; padding: 12px 15px; }
+        .orc-total-num { font-size: 18px; }
+      }
+
       /* ---------- modal ---------- */
       .overlay {
         position: fixed; inset: 0;
-        background: rgba(59,46,40,.45);
-        backdrop-filter: blur(2px);
+        background: rgba(17,17,20,.42);
+        -webkit-backdrop-filter: blur(6px);
+        backdrop-filter: blur(6px);
         display: flex; align-items: center; justify-content: center;
         padding: 14px; z-index: 60;
       }
       .modal {
         background: ${T.paper};
-        border: 2px solid ${T.ink};
-        border-radius: 18px;
-        box-shadow: 6px 6px 0 ${T.ink};
-        padding: 20px;
+        border: 1px solid ${T.line};
+        border-radius: 22px;
+        box-shadow: 0 8px 20px rgba(17,17,20,.08), 0 30px 70px rgba(17,17,20,.16);
+        padding: 24px;
         width: 100%; max-width: 620px;
         max-height: 88vh; overflow-y: auto;
         position: relative;
-      }
-      .modal::before {
-        content: "";
-        position: absolute; top: 0; left: 0; right: 0; height: 6px;
-        background: ${T.holo};
-        border-radius: 16px 16px 0 0;
       }
       .modal-head { display: flex; justify-content: space-between; gap: 10px; align-items: center; margin-top: 4px; }
       .modal-title { font-size: 19px; }
@@ -2309,7 +2997,7 @@ function GlobalStyle() {
       .checkbox {
         width: 22px; height: 22px; flex-shrink: 0;
         background: #fff;
-        border: 2px solid ${T.ink};
+        border: 1px solid ${T.line};
         border-radius: 7px;
         color: ${T.ink};
         font-size: 13px; font-weight: 700;
@@ -2327,7 +3015,7 @@ function GlobalStyle() {
       .cal-month { font-size: 22px; min-width: 210px; text-align: center; }
       .week-bar {
         display: flex; gap: 14px; flex-wrap: wrap; align-items: center; justify-content: center;
-        border: 2px solid ${T.ink};
+        border: 1px solid ${T.line};
         border-radius: 999px;
         background: ${T.holoSoft};
         padding: 7px 18px;
@@ -2344,7 +3032,7 @@ function GlobalStyle() {
       .day {
         text-align: left;
         background: ${T.paper};
-        border: 2px solid ${T.line};
+        border: 1px solid ${T.line};
         border-radius: 12px;
         min-height: 88px;
         padding: 6px;
@@ -2356,26 +3044,21 @@ function GlobalStyle() {
       }
       .day:hover { border-color: ${T.ink}; }
       .day.blank { background: transparent; border-style: dotted; cursor: default; }
+      /* hoje: anel escuro discreto + número em pílula amarela */
       .day.today {
         border-color: ${T.ink};
-        box-shadow: 3px 3px 0 ${T.ink};
-        background:
-          linear-gradient(${T.paper}, ${T.paper}) padding-box;
+        box-shadow: 0 0 0 1px ${T.ink};
         position: relative;
       }
-      .day.today::after {
-        content: "";
-        position: absolute; inset: -2px;
-        border-radius: 12px;
-        padding: 2px;
-        background: ${T.holo};
-        -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-        -webkit-mask-composite: xor;
-        mask-composite: exclude;
-        pointer-events: none;
-      }
       .day-num { font-size: 14px; margin-bottom: 4px; }
-      .day.today .day-num { font-weight: 700; }
+      .day.today .day-num {
+        font-weight: 600;
+        background: ${T.accent};
+        color: ${T.accentInk};
+        border-radius: 999px;
+        padding: 1px 8px;
+        display: inline-block;
+      }
       .day-items { display: flex; flex-direction: column; gap: 3px; }
       .cal-item { display: flex; align-items: center; gap: 4px; font-size: 11.5px; line-height: 1.2; }
       .cal-item.pub { opacity: .55; text-decoration: line-through; }
@@ -2392,18 +3075,18 @@ function GlobalStyle() {
       }
 
       .day-item {
-        border: 2px solid ${T.ink};
+        border: 1px solid ${T.line};
         border-left-width: 8px;
         border-radius: 12px;
         background: #fff;
-        box-shadow: 3px 3px 0 ${T.ink};
+        box-shadow: 0 1px 2px rgba(17,17,20,.04), 0 6px 16px rgba(17,17,20,.06);
         padding: 10px 12px;
         margin-top: 10px;
       }
       .img-strip { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
       .img-thumb {
         position: relative; width: 66px; height: 66px;
-        border: 2px solid ${T.ink}; border-radius: 10px;
+        border: 1px solid ${T.line}; border-radius: 10px;
         overflow: hidden; background: #fff;
       }
       .img-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; cursor: zoom-in; }
@@ -2411,17 +3094,17 @@ function GlobalStyle() {
       .img-preview {
         display: block; max-width: 92vw; max-height: 88vh;
         object-fit: contain;
-        border: 2px solid ${T.ink}; border-radius: 12px;
-        box-shadow: 6px 6px 0 ${T.ink}; background: ${T.paper};
+        border: 1px solid ${T.line}; border-radius: 12px;
+        box-shadow: 0 1px 2px rgba(17,17,20,.05), 0 10px 26px rgba(17,17,20,.09); background: ${T.paper};
       }
       .img-preview-close {
         position: absolute; top: -14px; right: -14px;
         width: 36px; height: 36px;
-        border: 2px solid ${T.ink}; border-radius: 50%;
+        border: 1px solid ${T.line}; border-radius: 50%;
         background: ${T.paper}; color: ${T.ink};
         font-size: 20px; cursor: pointer;
         display: flex; align-items: center; justify-content: center;
-        box-shadow: 3px 3px 0 ${T.ink};
+        box-shadow: 0 1px 2px rgba(17,17,20,.04), 0 6px 16px rgba(17,17,20,.06);
       }
       .img-del {
         position: absolute; top: 2px; right: 2px;
@@ -2432,7 +3115,7 @@ function GlobalStyle() {
       }
       .img-add {
         width: 66px; height: 66px;
-        border: 2px dashed ${T.muted}; border-radius: 10px;
+        border: 1px dashed ${T.line}; border-radius: 10px;
         background: ${T.holoSoft}; color: ${T.ink};
         font-size: 26px; cursor: pointer;
         display: flex; align-items: center; justify-content: center;
@@ -2456,7 +3139,7 @@ function GlobalStyle() {
       }
       .trash-btn {
         background: transparent;
-        border: 2px solid ${T.line};
+        border: 1px solid ${T.line};
         border-radius: 999px;
         padding: 5px 14px;
         color: ${T.ink};
@@ -2466,136 +3149,236 @@ function GlobalStyle() {
       .trash-btn:hover { border-color: ${T.ink}; }
       .trash-row {
         display: flex; align-items: center; gap: 10px;
-        border: 2px solid ${T.ink};
+        border: 1px solid ${T.line};
         border-radius: 12px;
         background: #fff;
-        box-shadow: 3px 3px 0 ${T.ink};
+        box-shadow: 0 1px 2px rgba(17,17,20,.04), 0 6px 16px rgba(17,17,20,.06);
         padding: 9px 12px;
         margin-top: 10px;
       }
       .trash-type { font-size: 11px; color: ${T.muted}; text-transform: uppercase; letter-spacing: .5px; }
       .trash-title { font-size: 14px; font-weight: 600; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-      /* ---------- tela de entrada: arco (meio círculo) ---------- */
-      .landing-poster {
-        align-self: center;
-        padding: 30px 20px 34px;
-      }
-      .arc-stage {
-        --R: clamp(220px, 33vw, 380px);
-        --tile: clamp(72px, 11vw, 112px);
-        /* centro do círculo: na base do palco */
-        --cy: calc(var(--R) + var(--tile) / 2 + 24px);
-        position: relative;
+      /* ============================================================
+         tela de entrada — mesma linguagem do painel:
+         cinza-claro, cartões brancos, acento verde-limão
+         ============================================================ */
+      .lp {
         width: 100%;
-        height: calc(var(--R) + var(--tile) + 44px);
-        margin: 0 auto;
-      }
-      /* camada recortada: só o arco de cima aparece, dissolvendo na base */
-      .arc-clip {
-        position: absolute;
-        inset: 0;
+        min-height: 100vh;
+        background: ${T.bg};
+        color: ${T.ink};
+        font-family: 'Inter', sans-serif;
+        display: flex;
+        flex-direction: column;
         overflow: hidden;
-        outline: none;
-        border: 0;
-        -webkit-mask-image: linear-gradient(to top, transparent 0, #000 130px);
-        mask-image: linear-gradient(to top, transparent 0, #000 130px);
-      }
-      .landing-poster { user-select: none; -webkit-user-select: none; }
-
-      /* cada slot é um ponto posicionado por cálculo; nada gira */
-      .arc-slot {
-        position: absolute;
-        transform: translate(-50%, -50%);
-        outline: none;
-        border: 0;
+        user-select: none;
+        -webkit-user-select: none;
       }
 
-      .tile {
+      /* ---------- nav ---------- */
+      .lp-nav {
         position: relative;
-        width: var(--tile);
-        height: var(--tile);
-        border: 2px solid ${T.ink}22;
-        border-radius: 28%;
-        box-shadow: 0 10px 22px ${T.ink}2E;
-        cursor: pointer;
+        z-index: 6;
         display: flex;
         align-items: center;
-        justify-content: center;
-        overflow: visible;
-        scale: 1;
-        transition: scale .28s cubic-bezier(.34,1.4,.5,1), box-shadow .28s ease, border-color .28s ease;
-        padding: 0;
+        justify-content: space-between;
+        gap: 20px;
+        padding: 20px clamp(18px, 4vw, 48px);
       }
-      /* hover: o tile cresce, os irmãos encolhem */
-      .arc-clip:has(.tile:hover) .tile { scale: .84; }
-      .arc-clip .tile:hover {
-        scale: 1.26;
-        border-color: ${T.ink};
-        box-shadow: 0 16px 30px ${T.ink}44;
-        z-index: 10;
-      }
-      .tile-img {
-        width: 100%; height: 100%;
-        object-fit: cover;
-        border-radius: 22%;
-      }
-      .tile-tag {
-        font-size: calc(var(--tile) * .3);
-        font-weight: 700;
+      .lp-mark {
+        display: flex; align-items: center; gap: 9px;
+        background: none; border: 0; padding: 0; cursor: pointer;
         color: ${T.ink};
-        text-shadow: 2px 2px 0 rgba(255,255,255,.5);
       }
-      /* nome do produto: sobreposto no centro do tile, sem risco de corte */
-      .tile-name {
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%) scale(.9);
-        background: ${T.ink}E6;
-        color: ${T.paper};
-        font-size: 13px;
-        padding: 4px 12px;
-        border-radius: 999px;
-        white-space: nowrap;
-        opacity: 0;
-        pointer-events: none;
-        transition: opacity .2s ease, transform .2s ease;
-      }
-      .tile:hover .tile-name { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+      .lp-mark-glyph { font-size: 18px; line-height: 1; }
+      .lp-mark-name { font-size: 17px; font-weight: 600; letter-spacing: -.2px; }
 
-      /* texto central sob o arco */
-      .arc-center {
-        position: absolute;
-        left: 50%;
-        bottom: 0;
-        transform: translateX(-50%);
-        z-index: 2;
-        text-align: center;
-        width: min(70%, 430px);
+      /* links no mesmo trilho de pílulas das abas do painel */
+      .lp-links {
+        display: flex; align-items: center; gap: 4px;
+        background: ${T.paper};
+        border: 1px solid ${T.line};
+        border-radius: 999px;
+        padding: 5px;
+      }
+      .lp-link {
+        background: transparent; border: 0; cursor: pointer;
+        font-size: 13.5px; color: ${T.muted};
+        padding: 8px 16px; border-radius: 999px;
+        transition: background .16s ease, color .16s ease;
+      }
+      .lp-link:hover { background: ${T.bg}; color: ${T.ink}; }
+      .lp-cta-pill {
+        background: ${T.accent}; color: ${T.accentInk};
+        border: 0; cursor: pointer;
+        font-size: 14px; font-weight: 600;
+        padding: 11px 22px; border-radius: 999px;
+        transition: transform .18s ease, opacity .18s ease;
+      }
+      .lp-cta-pill:hover { transform: translateY(-1px); opacity: .9; }
+
+      /* ---------- hero ---------- */
+      .lp-hero {
+        position: relative;
+        flex: 1;
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 7px;
+        padding: clamp(18px, 3.5vh, 46px) 20px clamp(30px, 6vh, 70px);
       }
-      .arc-hero { font-size: clamp(36px, 5.5vw, 60px); margin: 0; }
-      .orbit-sub {
-        color: ${T.muted};
-        font-size: 14px;
-        line-height: 1.55;
-        margin: 0 0 8px;
+      /* halo do acento atrás do título */
+      .lp-glow {
+        position: absolute;
+        top: -8%;
+        left: 50%;
+        transform: translateX(-50%);
+        width: min(760px, 92vw);
+        aspect-ratio: 1 / 1;
+        border-radius: 50%;
+        background: radial-gradient(circle at 50% 45%,
+          rgba(228,251,85,.5) 0%,
+          rgba(228,251,85,.22) 34%,
+          rgba(228,251,85,0) 66%);
+        filter: blur(6px);
+        pointer-events: none;
+        z-index: 0;
       }
 
-      @media (max-width: 560px) {
-        .arc-stage { --R: clamp(140px, 42vw, 190px); --tile: 56px; }
-        .arc-clip {
-          -webkit-mask-image: linear-gradient(to top, transparent 0, #000 90px);
-          mask-image: linear-gradient(to top, transparent 0, #000 90px);
-        }
-        .arc-center { width: 88%; }
-        .arc-hero { font-size: 30px; }
-        .orbit-sub { font-size: 12.5px; }
+      /* ---------- cartões dos produtos, em arco ---------- */
+      .lp-orbit {
+        position: absolute;
+        top: clamp(30px, 5vh, 70px);
+        left: 0; right: 0;
+        height: 180px;
+        z-index: 3;
+        pointer-events: none;
       }
+      .lp-chip {
+        position: absolute;
+        transform: translateX(-50%);
+        background: none; border: 0; padding: 0;
+        cursor: pointer;
+        pointer-events: auto;
+        animation: lp-float 6.5s ease-in-out infinite;
+        animation-delay: var(--delay);
+      }
+      .lp-chip-face {
+        display: flex; align-items: center; justify-content: center;
+        width: clamp(46px, 5.2vw, 60px);
+        height: clamp(46px, 5.2vw, 60px);
+        background: ${T.paper};
+        border: 1px solid ${T.line};
+        border-radius: 20px;
+        box-shadow: 0 1px 2px rgba(17,17,20,.04), 0 10px 24px rgba(17,17,20,.08);
+        transform: rotate(var(--rot));
+        transition: transform .3s cubic-bezier(.34,1.4,.5,1), box-shadow .3s ease;
+      }
+      .lp-chip:hover .lp-chip-face {
+        transform: rotate(0deg) scale(1.12);
+        box-shadow: 0 16px 32px rgba(17,17,20,.16);
+      }
+      .lp-chip-img { width: 66%; height: 66%; object-fit: contain; }
+      .lp-chip-tag {
+        font-size: clamp(15px, 1.7vw, 18px);
+        font-weight: 600;
+        letter-spacing: -.5px;
+        color: ${T.ink};
+      }
+      @keyframes lp-float {
+        0%, 100% { translate: 0 0; }
+        50%      { translate: 0 -10px; }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .lp-chip { animation: none; }
+      }
+
+      /* ---------- texto central ---------- */
+      .lp-copy {
+        position: relative;
+        z-index: 4;
+        text-align: center;
+        max-width: 700px;
+        margin-top: clamp(84px, 13vh, 150px);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+      .lp-badge {
+        display: inline-flex; align-items: center; gap: 8px;
+        background: ${T.paper};
+        border: 1px solid ${T.line};
+        border-radius: 999px;
+        padding: 8px 18px;
+        font-size: 13.5px;
+        color: ${T.ink};
+        margin-bottom: 22px;
+      }
+      .lp-badge-dot {
+        width: 7px; height: 7px; border-radius: 50%;
+        background: ${T.accent};
+        box-shadow: 0 0 0 3px rgba(228,251,85,.35);
+      }
+      .lp-title {
+        font-family: 'Instrument Serif', Georgia, serif;
+        font-weight: 400;
+        font-size: clamp(42px, 7.2vw, 88px);
+        line-height: 1.03;
+        letter-spacing: -1.5px;
+        margin: 0;
+        color: ${T.ink};
+      }
+      /* a palavra em itálico ganha o acento por trás, como marca-texto */
+      .lp-title em {
+        font-style: italic;
+        position: relative;
+        display: inline-block;
+        padding: 0 .1em;
+      }
+      .lp-title em::before {
+        content: "";
+        position: absolute;
+        left: 0; right: 0; bottom: .1em;
+        height: .42em;
+        background: ${T.accent};
+        border-radius: 3px;
+        z-index: -1;
+      }
+      .lp-sub {
+        max-width: 500px;
+        margin: 20px 0 0;
+        font-size: clamp(14.5px, 1.5vw, 16.5px);
+        line-height: 1.62;
+        color: ${T.muted};
+      }
+      .lp-actions {
+        display: flex; align-items: center; gap: 10px;
+        margin-top: 28px; flex-wrap: wrap; justify-content: center;
+      }
+      .lp-btn {
+        background: ${T.ink}; color: #fff; border: 1px solid ${T.ink};
+        cursor: pointer;
+        font-size: 14.5px; font-weight: 500;
+        padding: 14px 28px; border-radius: 999px;
+        transition: transform .18s ease, opacity .18s ease;
+      }
+      .lp-btn:hover { transform: translateY(-1px); opacity: .88; }
+      .lp-btn-ghost {
+        background: ${T.paper}; color: ${T.ink};
+        border: 1px solid ${T.line};
+        cursor: pointer;
+        font-size: 14.5px; font-weight: 500;
+        padding: 14px 24px; border-radius: 999px;
+        transition: border-color .18s ease, transform .18s ease;
+      }
+      .lp-btn-ghost:hover { border-color: ${T.ink}; transform: translateY(-1px); }
+
+      @media (max-width: 760px) {
+        .lp-links { display: none; }
+        .lp-orbit { height: 140px; top: 26px; }
+        .lp-copy { margin-top: 104px; }
+      }
+
 
       /* ---------- página de produto ---------- */
       .back-link {
@@ -2620,9 +3403,9 @@ function GlobalStyle() {
       .pp-tile {
         width: 110px; height: 110px;
         margin: 0 auto 16px;
-        border: 3px solid ${T.ink};
+        border: 1px solid ${T.line};
         border-radius: 26%;
-        box-shadow: 5px 6px 0 ${T.ink}33;
+        box-shadow: 0 1px 2px rgba(17,17,20,.04), 0 6px 16px rgba(17,17,20,.06);
         display: flex; align-items: center; justify-content: center;
         overflow: hidden;
       }
@@ -2642,9 +3425,9 @@ function GlobalStyle() {
       }
       .pp-file {
         background: #fff;
-        border: 2px solid ${T.ink};
+        border: 1px solid ${T.line};
         border-radius: 14px;
-        box-shadow: 3px 3px 0 ${T.ink};
+        box-shadow: 0 1px 2px rgba(17,17,20,.04), 0 6px 16px rgba(17,17,20,.06);
         padding: 14px;
         display: flex;
         flex-direction: column;
@@ -2653,7 +3436,7 @@ function GlobalStyle() {
       }
       .pp-file-icon {
         width: 34px; height: 34px;
-        border: 2px solid ${T.ink};
+        border: 1px solid ${T.line};
         border-radius: 10px;
         background: ${T.holoSoft};
         display: flex; align-items: center; justify-content: center;
@@ -2676,7 +3459,7 @@ function GlobalStyle() {
       .loading-tv {
         width: 90px; height: 68px;
         margin: 0 auto 12px;
-        border: 3px solid ${T.ink};
+        border: 1px solid ${T.line};
         border-radius: 14px;
         background: ${T.holoSoft};
         font-size: 30px;
