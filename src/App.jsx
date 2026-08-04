@@ -559,19 +559,9 @@ export default function App() {
     );
   }
 
-  // só o painel depende dos documentos do Supabase; capa, login e
-  // página de produto renderizam na hora, sem esperar a rede
-  if (!board || !calendar) {
-    return (
-      <div className="page center">
-        <GlobalStyle />
-        <div className="loading">
-          <div className="loading-tv">☺</div>
-          <div className="px-label">carregando…</div>
-        </div>
-      </div>
-    );
-  }
+  // o painel aparece inteiro na hora; só a área de conteúdo espera os
+  // documentos do Supabase, sem tela de carregando cobrindo tudo
+  const dadosProntos = Boolean(board && calendar);
 
   const dateStr = new Date().toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long" });
 
@@ -652,13 +642,19 @@ export default function App() {
         </div>
 
         <div className="view-wrap">
-          {tab === "hoje" && (
+          {!dadosProntos && (
+            <div className="view-loading">
+              <span className="spin" aria-hidden="true" />
+              carregando seus dados…
+            </div>
+          )}
+          {dadosProntos && tab === "hoje" && (
             <TodayView board={board} calendar={calendar} setOpenCard={setOpenCard} setOpenDay={setOpenDay} />
           )}
-          {tab === "kanban" && (
+          {dadosProntos && tab === "kanban" && (
             <Kanban board={board} updateBoard={updateBoard} setOpenCard={setOpenCard} askConfirm={askConfirm} sendToTrash={sendToTrash} canDelete={canDelete} />
           )}
-          {tab === "calendario" && (
+          {dadosProntos && tab === "calendario" && (
             <Calendar
               calendar={calendar}
               board={board}
@@ -669,10 +665,10 @@ export default function App() {
               setFilter={setCalFilter}
             />
           )}
-          {tab === "publicados" && (
+          {dadosProntos && tab === "publicados" && (
             <PublishedView calendar={calendar} setOpenDay={setOpenDay} />
           )}
-          {tab === "planilha" && (
+          {dadosProntos && tab === "planilha" && (
             <Planilha
               orcamentos={orcamentos}
               updateOrcamentos={updateOrcamentos}
@@ -683,7 +679,7 @@ export default function App() {
         </div>
       </main>
 
-      {openCard && board.cards[openCard] && (
+      {openCard && board?.cards?.[openCard] && (
         <CardModal
           card={board.cards[openCard]}
           board={board}
@@ -695,7 +691,7 @@ export default function App() {
           close={() => setOpenCard(null)}
         />
       )}
-      {openDay && (
+      {openDay && dadosProntos && (
         <DayModal
           dateKey={openDay}
           calendar={calendar}
@@ -2401,6 +2397,22 @@ function GlobalStyle() {
       .greet em { font-style: italic; }
 
       .view-wrap { position: relative; }
+      /* espera discreta, só na área de conteúdo — o painel já está na tela */
+      .view-loading {
+        display: flex; align-items: center; justify-content: center; gap: 10px;
+        padding: 70px 20px;
+        font-size: 14px;
+        color: ${T.muted};
+      }
+      .spin {
+        width: 16px; height: 16px;
+        border: 2px solid ${T.line};
+        border-top-color: ${T.ink};
+        border-radius: 50%;
+        animation: spin .7s linear infinite;
+      }
+      @keyframes spin { to { transform: rotate(360deg); } }
+      @media (prefers-reduced-motion: reduce) { .spin { animation: none; } }
 
       @media (max-width: 900px) {
         .app { flex-direction: column; padding: 12px; gap: 12px; }
