@@ -267,18 +267,29 @@ const DEFAULT_BOARD = () => ({
 });
 
 // ---------- persistência (Supabase, com sync em tempo real entre o time) ----------
+// requisição sem timeout fica pendurada para sempre quando o banco está
+// fora do ar — foi o que deixou o painel num "carregando" eterno
+const withTimeout = (p, ms = 9000) =>
+  Promise.race([
+    p,
+    new Promise((_, reject) =>
+      setTimeout(() => reject(new Error("Tempo esgotado ao falar com o banco")), ms)
+    ),
+  ]);
+
 async function loadKey(key, fallback) {
   if (!supabaseReady) {
     try { const r = localStorage.getItem(key); return r ? JSON.parse(r) : fallback; }
     catch { return fallback; }
   }
-  try {
-    const { data, error } = await supabase.from("estudio_docs").select("value").eq("id", key).maybeSingle();
-    if (error || !data) return fallback;
-    return data.value ?? fallback;
-  } catch {
-    return fallback;
-  }
+  // Falha de conexão sobe como erro de propósito. Se engolíssemos e
+  // devolvêssemos o fallback, o painel abriria vazio e a primeira edição
+  // gravaria esse vazio por cima dos dados reais quando o banco voltasse.
+  const { data, error } = await withTimeout(
+    supabase.from("estudio_docs").select("value").eq("id", key).maybeSingle()
+  );
+  if (error) throw error;
+  return data?.value ?? fallback; // linha ausente = documento ainda não criado
 }
 async function saveKey(key, value) {
   if (!supabaseReady) {
@@ -394,10 +405,12 @@ export default function App() {
     const d = new Date();
     return { y: d.getFullYear(), m: d.getMonth() };
   });
+  const [loadError, setLoadError] = useState(null);
   const saveTimer = useRef({});
 
-  useEffect(() => {
-    (async () => {
+  const carregarTudo = async () => {
+    setLoadError(null);
+    try {
       // as quatro leituras vão juntas: em série eram 4 idas ao Supabase
       const [b, cal, tr, orc] = await Promise.all([
         loadKey("estudio:board", DEFAULT_BOARD()),
@@ -405,7 +418,7 @@ export default function App() {
         loadKey("estudio:trash", { items: [] }),
         loadKey("estudio:orcamentos", { events: [] }),
       ]);
-      Object.values(b.cards).forEach((c) => {
+      Object.values(b.cards || {}).forEach((c) => {
         if (c.due === undefined) c.due = "";
         if (c.link === undefined) c.link = "";
         if (!c.checklist) c.checklist = [];
@@ -415,7 +428,14 @@ export default function App() {
       setCalendar(cal);
       setTrash(tr);
       setOrcamentos(orc);
-    })();
+    } catch (e) {
+      console.error("[Estúdio] falha ao carregar", e);
+      setLoadError(e?.message || "Não foi possível falar com o banco de dados.");
+    }
+  };
+
+  useEffect(() => {
+    carregarTudo();
   }, []);
 
   // sincroniza em tempo real: aplica alterações feitas por outras pessoas
@@ -642,7 +662,19 @@ export default function App() {
         </div>
 
         <div className="view-wrap">
-          {!dadosProntos && (
+          {loadError && (
+            <div className="view-error">
+              <div className="ve-title">Não foi possível carregar seus dados</div>
+              <p className="ve-msg">{loadError}</p>
+              <p className="ve-hint">
+                O banco de dados não respondeu. Se o projeto do Supabase estiver
+                pausado, é preciso restaurá-lo no painel da Supabase — projetos
+                gratuitos pausam sozinhos após alguns dias sem uso.
+              </p>
+              <button className="btn" onClick={carregarTudo}>tentar de novo</button>
+            </div>
+          )}
+          {!loadError && !dadosProntos && (
             <div className="view-loading">
               <span className="spin" aria-hidden="true" />
               carregando seus dados…
@@ -2412,6 +2444,25 @@ function GlobalStyle() {
         animation: spin .7s linear infinite;
       }
       @keyframes spin { to { transform: rotate(360deg); } }
+      /* falha de conexão: estado honesto, com saída, no lugar do spinner eterno */
+      .view-error {
+        max-width: 460px;
+        margin: 56px auto;
+        text-align: center;
+        border: 1px solid ${T.line};
+        border-radius: 18px;
+        padding: 28px 24px;
+        background: ${T.paper};
+      }
+      .ve-title { font-size: 16px; font-weight: 600; }
+      .ve-msg {
+        font-size: 13.5px; color: ${T.danger};
+        margin: 8px 0 0;
+      }
+      .ve-hint {
+        font-size: 13px; color: ${T.muted}; line-height: 1.6;
+        margin: 12px 0 18px;
+      }
       @media (prefers-reduced-motion: reduce) { .spin { animation: none; } }
 
       @media (max-width: 900px) {
