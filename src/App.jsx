@@ -1829,6 +1829,33 @@ function Landing({ onEnter, onProduct }) {
   );
 }
 
+/* célula "Orçado em": como o agrupamento depende deste valor, ele só é
+   gravado ao sair do campo — senão a linha pularia de grupo a cada tecla */
+function FornecedorCell({ value, listId, onCommit, className = "cell", placeholder = "Gráfica / fornecedor" }) {
+  const [v, setV] = useState(value ?? "");
+  const editando = useRef(false);
+  useEffect(() => {
+    if (!editando.current) setV(value ?? "");
+  }, [value]);
+  const commit = () => {
+    editando.current = false;
+    const limpo = v.trim();
+    if (limpo !== (value ?? "")) onCommit(limpo);
+  };
+  return (
+    <input
+      className={className}
+      value={v}
+      list={listId}
+      placeholder={placeholder}
+      onFocus={() => (editando.current = true)}
+      onChange={(e) => setV(e.target.value)}
+      onBlur={commit}
+      onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
+    />
+  );
+}
+
 /* ---------- planilha de orçamentos ----------
    Um evento agrupa os itens a cotar (folder, cartão de visita, etc.).
    Cada item guarda valor, data de produção, onde foi orçado e quem
@@ -1860,10 +1887,22 @@ function Planilha({ orcamentos, updateOrcamentos, askConfirm, canDelete }) {
       })
     );
 
-  const addItem = (evId) =>
+  const addItem = (evId, fornecedor = "") =>
     updateOrcamentos((o) => {
       const ev = o.events.find((e) => e.id === evId);
-      if (ev) ev.items = [...(ev.items || []), NEW_ORC_ITEM()];
+      if (ev) ev.items = [...(ev.items || []), { ...NEW_ORC_ITEM(), fornecedor }];
+      return o;
+    });
+
+  // renomear o cabeçalho troca a gráfica de todos os itens daquele grupo;
+  // apontar para uma gráfica que já existe funde os dois grupos
+  const renameGrupo = (evId, chave, novoNome) =>
+    updateOrcamentos((o) => {
+      const ev = o.events.find((e) => e.id === evId);
+      if (!ev) return o;
+      (ev.items || []).forEach((it) => {
+        if ((it.fornecedor || "").trim().toLowerCase() === chave) it.fornecedor = novoNome;
+      });
       return o;
     });
 
@@ -1883,6 +1922,27 @@ function Planilha({ orcamentos, updateOrcamentos, askConfirm, canDelete }) {
         return o;
       })
     );
+
+  // agrupa os itens por onde foram orçados, mantendo tudo no mesmo evento.
+  // A chave normaliza caixa/espaços; o rótulo usa a grafia da primeira aparição.
+  const agruparPorFornecedor = (items) => {
+    const grupos = [];
+    const porChave = new Map();
+    (items || []).forEach((it) => {
+      const nome = (it.fornecedor || "").trim();
+      const chave = nome.toLowerCase();
+      if (!porChave.has(chave)) {
+        const g = { chave, nome, items: [] };
+        porChave.set(chave, g);
+        grupos.push(g);
+      }
+      porChave.get(chave).items.push(it);
+    });
+    // os ainda sem fornecedor ficam por último
+    return grupos.sort((a, b) => (a.chave === "" ? 1 : b.chave === "" ? -1 : 0));
+  };
+  const somaItems = (items) =>
+    (items || []).reduce((sum, it) => sum + (Number(it.valor) || 0), 0);
 
   const evTotal = (ev) =>
     (ev.items || []).reduce((sum, it) => sum + (Number(it.valor) || 0), 0);
@@ -1947,6 +2007,14 @@ function Planilha({ orcamentos, updateOrcamentos, askConfirm, canDelete }) {
             )}
           </header>
 
+          <datalist id={`forn-${ev.id}`}>
+            {agruparPorFornecedor(ev.items)
+              .filter((g) => g.nome)
+              .map((g) => (
+                <option key={g.chave} value={g.nome} />
+              ))}
+          </datalist>
+
           <div className="orc-table-wrap">
             <table className="orc-table">
               <thead>
@@ -1961,8 +2029,33 @@ function Planilha({ orcamentos, updateOrcamentos, askConfirm, canDelete }) {
                   <th className="c-del" aria-label="ações" />
                 </tr>
               </thead>
-              <tbody>
-                {(ev.items || []).map((it) => (
+              {agruparPorFornecedor(ev.items).map((g) => (
+              <tbody key={g.chave || "__sem__"} className="orc-group">
+                {(agruparPorFornecedor(ev.items).length > 1 || g.nome) && (
+                  <tr className="orc-group-head">
+                    <td colSpan={8}>
+                      <FornecedorCell
+                        className="ogh-name"
+                        value={g.nome}
+                        listId={`forn-${ev.id}`}
+                        placeholder="Sem gráfica definida"
+                        onCommit={(val) => renameGrupo(ev.id, g.chave, val)}
+                      />
+                      <span className="ogh-count">
+                        {g.items.length} {g.items.length === 1 ? "item" : "itens"}
+                      </span>
+                      <button
+                        className="ogh-add"
+                        onClick={() => addItem(ev.id, g.nome)}
+                        title={g.nome ? `Adicionar item em ${g.nome}` : "Adicionar item sem gráfica"}
+                      >
+                        + item
+                      </button>
+                      <span className="ogh-total">{money(somaItems(g.items))}</span>
+                    </td>
+                  </tr>
+                )}
+                {g.items.map((it) => (
                   <tr key={it.id}>
                     <td>
                       <input
@@ -2019,11 +2112,10 @@ function Planilha({ orcamentos, updateOrcamentos, askConfirm, canDelete }) {
                       </div>
                     </td>
                     <td>
-                      <input
-                        className="cell"
+                      <FornecedorCell
                         value={it.fornecedor}
-                        placeholder="Gráfica / fornecedor"
-                        onChange={(e) => patchItem(ev.id, it.id, { fornecedor: e.target.value })}
+                        listId={`forn-${ev.id}`}
+                        onCommit={(val) => patchItem(ev.id, it.id, { fornecedor: val })}
                       />
                     </td>
                     <td>
@@ -2062,10 +2154,11 @@ function Planilha({ orcamentos, updateOrcamentos, askConfirm, canDelete }) {
                   </tr>
                 ))}
               </tbody>
+              ))}
             </table>
           </div>
 
-          <button className="add-card" onClick={() => addItem(ev.id)}>+ item para cotar</button>
+          <button className="add-card" onClick={() => addItem(ev.id)}>+ item para cotar (sem gráfica)</button>
         </section>
       ))}
     </div>
@@ -2964,7 +3057,63 @@ function GlobalStyle() {
         border-bottom: 1px solid ${T.line};
         vertical-align: middle;
       }
-      .orc-table tr:last-child td { border-bottom: 0; }
+      .orc-table tbody:last-child tr:last-child td { border-bottom: 0; }
+
+      /* cabeçalho de gráfica: separa os orçamentos sem quebrar o evento */
+      .orc-group-head td {
+        padding: 16px 4px 7px;
+        border-bottom: 1px solid ${T.line};
+      }
+      .orc-group + .orc-group .orc-group-head td { padding-top: 22px; }
+      /* nome da gráfica: editável, mas sem cara de campo até o hover */
+      .ogh-name {
+        font-family: 'Inter', sans-serif;
+        font-size: 12px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 1.1px;
+        color: ${T.ink};
+        background: transparent;
+        border: 1px solid transparent;
+        border-radius: 8px;
+        padding: 5px 8px;
+        width: 230px;
+        max-width: 45%;
+      }
+      .ogh-name::placeholder { color: ${T.muted}; font-weight: 500; }
+      .ogh-name:hover { border-color: ${T.line}; }
+      .ogh-name:focus {
+        outline: none;
+        background: ${T.paper};
+        border-color: ${T.ink};
+      }
+      .ogh-count {
+        font-size: 11.5px;
+        color: ${T.muted};
+        margin-left: 4px;
+      }
+      .ogh-add {
+        margin-left: 12px;
+        background: transparent;
+        border: 1px dashed ${T.line};
+        border-radius: 999px;
+        padding: 4px 12px;
+        font-family: 'Inter', sans-serif;
+        font-size: 11.5px;
+        color: ${T.muted};
+        cursor: pointer;
+        transition: border-color .16s ease, color .16s ease;
+      }
+      .ogh-add:hover { border-color: ${T.ink}; color: ${T.ink}; }
+      .ogh-total {
+        float: right;
+        font-size: 13px;
+        font-weight: 600;
+        background: ${T.bg};
+        border-radius: 999px;
+        padding: 3px 12px;
+        font-variant-numeric: tabular-nums;
+      }
       .orc-table .c-qtd { width: 78px; }
       .orc-table .c-valor { width: 118px; }
       .orc-table .c-data { width: 142px; }
