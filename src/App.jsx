@@ -398,7 +398,13 @@ export default function App() {
 
   useEffect(() => {
     (async () => {
-      const b = await loadKey("estudio:board", DEFAULT_BOARD());
+      // as quatro leituras vão juntas: em série eram 4 idas ao Supabase
+      const [b, cal, tr, orc] = await Promise.all([
+        loadKey("estudio:board", DEFAULT_BOARD()),
+        loadKey("estudio:calendar", { items: {} }),
+        loadKey("estudio:trash", { items: [] }),
+        loadKey("estudio:orcamentos", { events: [] }),
+      ]);
       Object.values(b.cards).forEach((c) => {
         if (c.due === undefined) c.due = "";
         if (c.link === undefined) c.link = "";
@@ -406,9 +412,9 @@ export default function App() {
         if (!c.priority) c.priority = "nenhuma";
       });
       setBoard(b);
-      setCalendar(await loadKey("estudio:calendar", { items: {} }));
-      setTrash(await loadKey("estudio:trash", { items: [] }));
-      setOrcamentos(await loadKey("estudio:orcamentos", { events: [] }));
+      setCalendar(cal);
+      setTrash(tr);
+      setOrcamentos(orc);
     })();
   }, []);
 
@@ -514,20 +520,6 @@ export default function App() {
   };
   const enterAdmin = () => { setCurrentUser("Admin"); setScreen("app"); }; // admin não fica salvo
 
-  if (!board || !calendar) {
-    return (
-      <div className="page center">
-        <GlobalStyle />
-        <div className="loading">
-          <div className="loading-tv">☺</div>
-          <div className="px-label">carregando…</div>
-        </div>
-      </div>
-    );
-  }
-
-  const dateStr = new Date().toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long" });
-
   if (screen === "identify") {
     return (
       <div className="page center">
@@ -566,6 +558,22 @@ export default function App() {
       </div>
     );
   }
+
+  // só o painel depende dos documentos do Supabase; capa, login e
+  // página de produto renderizam na hora, sem esperar a rede
+  if (!board || !calendar) {
+    return (
+      <div className="page center">
+        <GlobalStyle />
+        <div className="loading">
+          <div className="loading-tv">☺</div>
+          <div className="px-label">carregando…</div>
+        </div>
+      </div>
+    );
+  }
+
+  const dateStr = new Date().toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long" });
 
   const navGeral = [
     ["hoje", "Hoje", IconHome],
@@ -2199,8 +2207,6 @@ function TrashModal({ trash, onRestore, onPurge, onEmpty, canDelete, close }) {
 function GlobalStyle() {
   return (
     <style>{`
-      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap');
-
       * { box-sizing: border-box; }
       body { margin: 0; background: ${T.bg}; }
 
