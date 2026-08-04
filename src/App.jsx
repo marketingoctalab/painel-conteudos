@@ -98,7 +98,13 @@ const PROFILES = [
   { key: "marcos", name: "Marcos", avatar: 1 },
   { key: "silvio", name: "Silvio", avatar: 3 },
   { key: "thiago", name: "Thiago", avatar: 4 },
+  { key: "firmino", name: "Firmino", avatar: 0 },
+  { key: "clara", name: "Clara", avatar: 2 },
 ];
+// o Quadro (tarefas) é privado destes perfis; os demais nem veem a aba
+// nem os cartões vazando pelas outras telas
+const QUADRO_PROFILES = ["Firmino", "Clara"];
+const canSeeQuadro = (user) => user === "Admin" || QUADRO_PROFILES.includes(user);
 const profileByName = (name) => PROFILES.find((p) => p.name === name) || null;
 const DELETE_PROFILES = ["Marcos", "Silvio"]; // além do admin
 
@@ -532,6 +538,12 @@ export default function App() {
 
   // permissão de exclusão: admin + perfis autorizados
   const canDelete = currentUser === "Admin" || DELETE_PROFILES.includes(currentUser);
+  const podeVerQuadro = canSeeQuadro(currentUser);
+
+  // trocou para um perfil sem acesso enquanto estava no Quadro: volta pro Hoje
+  useEffect(() => {
+    if (!podeVerQuadro && tab === "kanban") setTab("hoje");
+  }, [podeVerQuadro, tab]);
 
   const chooseProfile = (name) => {
     setCurrentUser(name);
@@ -591,7 +603,7 @@ export default function App() {
     ["kanban", "Quadro", IconBoard],
     ["publicados", "Publicados", IconCheck],
     ["planilha", "Planilha", IconSheet],
-  ];
+  ].filter(([id]) => id !== "kanban" || podeVerQuadro);
   const userLabel = currentUser === "Admin" ? "Admin" : currentUser || "visitante";
 
   return (
@@ -681,9 +693,9 @@ export default function App() {
             </div>
           )}
           {dadosProntos && tab === "hoje" && (
-            <TodayView board={board} calendar={calendar} setOpenCard={setOpenCard} setOpenDay={setOpenDay} />
+            <TodayView board={board} calendar={calendar} setOpenCard={setOpenCard} setOpenDay={setOpenDay} podeVerQuadro={podeVerQuadro} />
           )}
-          {dadosProntos && tab === "kanban" && (
+          {dadosProntos && tab === "kanban" && podeVerQuadro && (
             <Kanban board={board} updateBoard={updateBoard} setOpenCard={setOpenCard} askConfirm={askConfirm} sendToTrash={sendToTrash} canDelete={canDelete} />
           )}
           {dadosProntos && tab === "calendario" && (
@@ -711,7 +723,7 @@ export default function App() {
         </div>
       </main>
 
-      {openCard && board?.cards?.[openCard] && (
+      {openCard && podeVerQuadro && board?.cards?.[openCard] && (
         <CardModal
           card={board.cards[openCard]}
           board={board}
@@ -733,6 +745,7 @@ export default function App() {
           askConfirm={askConfirm}
           sendToTrash={sendToTrash}
           canDelete={canDelete}
+          podeVerQuadro={podeVerQuadro}
           close={() => setOpenDay(null)}
         />
       )}
@@ -785,18 +798,20 @@ function weekRange() {
 const fmtShort = (iso) => iso.split("-").reverse().slice(0, 2).join("/");
 
 // ---------- visão HOJE ----------
-function TodayView({ board, calendar, setOpenCard, setOpenDay }) {
+function TodayView({ board, calendar, setOpenCard, setOpenDay, podeVerQuadro }) {
   const tk = todayKey();
   const week = weekRange();
   const todayItems = calendar.items[tk] || [];
   const restOfWeek = week.filter((d) => d > tk); // dias da semana depois de hoje
   const cardsDueOn = (d) =>
-    Object.values(board.cards).filter((c) => c.due === d && dueState(c, board) !== null);
+    podeVerQuadro
+      ? Object.values(board.cards).filter((c) => c.due === d && dueState(c, board) !== null)
+      : [];
 
   const overdue = [];
   const dueToday = [];
   const pending = [];
-  Object.values(board.cards).forEach((card) => {
+  Object.values(podeVerQuadro ? board.cards : {}).forEach((card) => {
     const st = dueState(card, board);
     if (st === "atrasado") overdue.push(card);
     else if (st === "hoje") dueToday.push(card);
@@ -1586,7 +1601,7 @@ function Calendar({ calendar, board, month, setMonth, setOpenDay, filter, setFil
 }
 
 // ---------- modal do dia ----------
-function DayModal({ dateKey: key, calendar, board, updateCalendar, setOpenCard, askConfirm, sendToTrash, canDelete, close }) {
+function DayModal({ dateKey: key, calendar, board, updateCalendar, setOpenCard, askConfirm, sendToTrash, canDelete, podeVerQuadro, close }) {
   const items = calendar.items[key] || [];
   const [form, setForm] = useState({ title: "", desc: "", product: "octalab", network: "Instagram", status: "ideia" });
   const [y, m, d] = key.split("-").map(Number);
@@ -1677,7 +1692,7 @@ function DayModal({ dateKey: key, calendar, board, updateCalendar, setOpenCard, 
               </div>
               <div className="btn-row">
                 <button className="btn ghost small" onClick={() => duplicateItem(it.id)}>⧉ duplicar</button>
-                {linkedCard && (
+                {linkedCard && podeVerQuadro && (
                   <button
                     className="btn small"
                     onClick={() => {
