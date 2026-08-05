@@ -1829,6 +1829,177 @@ function Landing({ onEnter, onProduct }) {
   );
 }
 
+/* ---------- leitura dos orçamentos ----------
+   Duas cotações do MESMO item em gráficas diferentes são alternativas:
+   você compra uma só. Somar as duas infla o total e não significa nada.
+   Aqui os itens são agrupados pelo nome e, para cada um, vale a cotação
+   mais barata — é isso que forma o total realista. */
+// cores de MARCA: fatias da rosca, pontos e fios. Validadas para daltonismo.
+const PALETA = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300"];
+// mesmas matizes, escurecidas para servirem de TEXTO. As de marca têm
+// contraste de ~2:1 sobre branco (o amarelo chega a 2.17) e seriam ilegíveis;
+// estas ficam acima de 6:1, com folga sobre o mínimo de 4.5:1.
+const PALETA_TEXTO = ["#1c5cab", "#a8420f", "#0d6b49", "#7d5500", "#a83a63", "#006100"];
+const COR_NEUTRA = "#9A9A93"; // sem gráfica definida / agrupamento "Outras"
+const COR_NEUTRA_TEXTO = "#6B6B64";
+
+/* A cor identifica a gráfica, não a posição dela no ranking: é atribuída
+   pela ordem em que a gráfica aparece nos itens e não muda se os valores
+   mudarem. Sem isso, encarecer uma gráfica repintaria as outras. */
+function coresDasGraficas(events) {
+  const mapa = new Map();
+  (events || []).forEach((ev) =>
+    (ev.items || []).forEach((it) => {
+      const chave = (it.fornecedor || "").trim().toLowerCase();
+      if (!chave || mapa.has(chave)) return;
+      mapa.set(chave, mapa.size % PALETA.length);
+    })
+  );
+  return mapa;
+}
+const corDe = (cores, chave) => {
+  const i = chave ? cores.get(chave) : undefined;
+  return i === undefined ? COR_NEUTRA : PALETA[i];
+};
+const corTextoDe = (cores, chave) => {
+  const i = chave ? cores.get(chave) : undefined;
+  return i === undefined ? COR_NEUTRA_TEXTO : PALETA_TEXTO[i];
+};
+
+
+function analisarOrcamentos(events) {
+  const linhas = [];
+  (events || []).forEach((ev) => {
+    const porNome = new Map();
+    (ev.items || []).forEach((it) => {
+      const chave = (it.nome || "").trim().toLowerCase();
+      if (!chave) return; // item ainda sem nome não entra na conta
+      if (!porNome.has(chave)) porNome.set(chave, { nome: (it.nome || "").trim(), cotacoes: [] });
+      porNome.get(chave).cotacoes.push(it);
+    });
+    linhas.push(...porNome.values());
+  });
+
+  let melhorTotal = 0;
+  let economia = 0;
+  let semComparacao = 0;
+  let totalCotacoes = 0;
+  let maiorDiferenca = null;
+  const porGrafica = new Map();
+
+  linhas.forEach((l) => {
+    const validas = l.cotacoes.filter((c) => Number(c.valor) > 0);
+    totalCotacoes += validas.length;
+    if (!validas.length) return;
+
+    const ordenadas = [...validas].sort((a, b) => Number(a.valor) - Number(b.valor));
+    const menor = ordenadas[0];
+    const maior = ordenadas[ordenadas.length - 1];
+    melhorTotal += Number(menor.valor);
+
+    if (validas.length === 1) {
+      semComparacao++;
+    } else {
+      const dif = Number(maior.valor) - Number(menor.valor);
+      economia += dif;
+      if (!maiorDiferenca || dif > maiorDiferenca.dif) {
+        maiorDiferenca = { nome: l.nome, dif, menor, maior };
+      }
+    }
+
+    const nomeG = (menor.fornecedor || "").trim();
+    const g = nomeG || "Sem gráfica";
+    const atual = porGrafica.get(g) || { nome: g, chave: nomeG.toLowerCase(), valor: 0, itens: 0 };
+    atual.valor += Number(menor.valor);
+    atual.itens += 1;
+    porGrafica.set(g, atual);
+  });
+
+  // no máximo 6 fatias: acima disso as menores viram "Outras"
+  let fatias = [...porGrafica.values()].sort((a, b) => b.valor - a.valor);
+  if (fatias.length > 6) {
+    const resto = fatias.slice(5);
+    fatias = [
+      ...fatias.slice(0, 5),
+      {
+        nome: "Outras",
+        chave: "",
+        valor: resto.reduce((s, f) => s + f.valor, 0),
+        itens: resto.reduce((s, f) => s + f.itens, 0),
+      },
+    ];
+  }
+
+  const semResponsavel = (events || [])
+    .flatMap((e) => e.items || [])
+    .filter((i) => (i.fecha || "indefinido") === "indefinido").length;
+
+  return {
+    melhorTotal,
+    economia,
+    fatias,
+    semComparacao,
+    semResponsavel,
+    totalItens: linhas.length,
+    totalCotacoes,
+    maiorDiferenca,
+  };
+}
+
+/* Rosca: parte-do-todo num relance. Cada fatia é um arco com 2px de
+   respiro, e a legenda traz nome e valor — cor nunca carrega sozinha. */
+function Rosca({ fatias, total, cores }) {
+  const R = 52;
+  const C = 2 * Math.PI * R;
+  let acumulado = 0;
+  return (
+    <svg className="rosca" viewBox="0 0 120 120" role="img"
+      aria-label={`Divisão do orçamento entre ${fatias.length} gráficas`}>
+      <circle cx="60" cy="60" r={R} className="rosca-trilho" />
+      {fatias.map((f) => {
+        const fracao = total > 0 ? f.valor / total : 0;
+        const comp = Math.max(fracao * C - 2, 0); // 2px de respiro entre fatias
+        const arco = (
+          <circle
+            key={f.nome}
+            cx="60" cy="60" r={R}
+            className="rosca-fatia"
+            stroke={corDe(cores, f.chave)}
+            strokeDasharray={`${comp} ${C - comp}`}
+            strokeDashoffset={-acumulado}
+          />
+        );
+        acumulado += fracao * C;
+        return arco;
+      })}
+    </svg>
+  );
+}
+
+/* nome do item: <input> nunca quebra linha, então nomes longos ficavam
+   cortados. Textarea de uma linha que cresce conforme o texto. */
+function NomeCell({ value, onChange }) {
+  const ref = useRef(null);
+  const ajustar = () => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = el.scrollHeight + "px";
+  };
+  useEffect(ajustar, [value]);
+  return (
+    <textarea
+      ref={ref}
+      rows={1}
+      className="cell cell-nome"
+      value={value}
+      placeholder="Folder, cartão de visita…"
+      onChange={(e) => onChange(e.target.value)}
+      onInput={ajustar}
+    />
+  );
+}
+
 /* célula "Orçado em": como o agrupamento depende deste valor, ele só é
    gravado ao sair do campo — senão a linha pularia de grupo a cada tecla */
 function FornecedorCell({ value, listId, onCommit, className = "cell", placeholder = "Gráfica / fornecedor" }) {
@@ -1862,6 +2033,9 @@ function FornecedorCell({ value, listId, onCommit, className = "cell", placehold
    fecha o pedido com a gráfica. Edição é direta na célula. */
 function Planilha({ orcamentos, updateOrcamentos, askConfirm, canDelete }) {
   const events = orcamentos?.events || [];
+  // no celular o item abre resumido (nome, valor, prazo); o resto vem ao expandir
+  const [abertos, setAbertos] = useState({});
+  const alternarItem = (id) => setAbertos((a) => ({ ...a, [id]: !a[id] }));
 
   const addEvent = () =>
     updateOrcamentos((o) => {
@@ -1944,38 +2118,69 @@ function Planilha({ orcamentos, updateOrcamentos, askConfirm, canDelete }) {
   const somaItems = (items) =>
     (items || []).reduce((sum, it) => sum + (Number(it.valor) || 0), 0);
 
-  const evTotal = (ev) =>
-    (ev.items || []).reduce((sum, it) => sum + (Number(it.valor) || 0), 0);
-  const grandTotal = events.reduce((sum, ev) => sum + evTotal(ev), 0);
-
-  // quanto está sob responsabilidade de quem, para o resumo do topo
-  const porResponsavel = events
-    .flatMap((ev) => ev.items || [])
-    .reduce((acc, it) => {
-      const k = it.fecha || "indefinido";
-      acc[k] = (acc[k] || 0) + (Number(it.valor) || 0);
-      return acc;
-    }, {});
+  // total do evento pela mesma régua do resumo: a cotação mais barata de
+  // cada item, e não a soma de cotações que competem entre si
+  const evTotal = (ev) => analisarOrcamentos([ev]).melhorTotal;
+  const resumo = analisarOrcamentos(events);
+  const cores = coresDasGraficas(events);
 
   return (
     <div className="view">
       <div className="orc-top">
-        <div className="orc-totals">
-          <div className="orc-total-box">
-            <div className="orc-total-num">{money(grandTotal)}</div>
-            <div className="orc-total-name">Total orçado</div>
-          </div>
-          {Object.keys(FECHA).map((k) =>
-            porResponsavel[k] ? (
-              <div key={k} className="orc-total-box sub">
-                <div className="orc-total-num">{money(porResponsavel[k])}</div>
-                <div className="orc-total-name">Fecha: {FECHA[k].label}</div>
-              </div>
-            ) : null
-          )}
-        </div>
+        <div className="orc-top-title">Resumo dos orçamentos</div>
         <button className="btn accent" onClick={addEvent}>+ novo evento</button>
       </div>
+
+      {resumo.totalCotacoes > 0 && (
+        <div className="dash">
+          {resumo.fatias.length > 1 ? (
+            <>
+              <div className="rosca-wrap">
+                <Rosca fatias={resumo.fatias} total={resumo.melhorTotal} cores={cores} />
+                <div className="rosca-centro">
+                  <div className="rosca-num">{money(resumo.melhorTotal)}</div>
+                  <div
+                    className="rosca-cap"
+                    title="Soma da cotação mais barata de cada item. Cotações do mesmo item em gráficas diferentes são alternativas — não se somam."
+                  >
+                    melhor combinação
+                  </div>
+                </div>
+              </div>
+              <ul className="dash-legenda">
+                {resumo.fatias.map((f) => (
+                  <li key={f.nome}>
+                    <span className="lg-cor" style={{ background: corDe(cores, f.chave) }} />
+                    <span className="lg-nome">{f.nome}</span>
+                    <span className="lg-valor">{money(f.valor)}</span>
+                  </li>
+                ))}
+              </ul>
+            </>
+          ) : (
+            /* uma gráfica só: rosca de fatia única não diz nada, o número basta */
+            <div className="dash-solo">
+              <div className="rosca-num grande">{money(resumo.melhorTotal)}</div>
+              <div className="rosca-cap solo-cap" title="Soma da cotação mais barata de cada item.">
+                <span className="solo-dot" style={{ background: corDe(cores, resumo.fatias[0]?.chave) }} />
+                melhor combinação ·{" "}
+                <strong style={{ color: corTextoDe(cores, resumo.fatias[0]?.chave) }}>
+                  {resumo.fatias[0]?.nome}
+                </strong>
+              </div>
+            </div>
+          )}
+
+          <div className="dash-rodape">
+            {resumo.economia > 0 && (
+              <span className="dr-ganho">economiza {money(resumo.economia)}</span>
+            )}
+            {resumo.semResponsavel > 0 && (
+              <span className="dr-alerta">{resumo.semResponsavel} sem responsável</span>
+            )}
+          </div>
+        </div>
+      )}
 
       {events.length === 0 && (
         <div className="empty">
@@ -1999,7 +2204,7 @@ function Planilha({ orcamentos, updateOrcamentos, askConfirm, canDelete }) {
               onChange={(e) => patchEvent(ev.id, { data: e.target.value })}
               title="Data do evento"
             />
-            <div className="orc-event-total">{money(evTotal(ev))}</div>
+            <div className="orc-event-total" title="Soma da cotação mais barata de cada item deste evento">{money(evTotal(ev))}</div>
             {canDelete && (
               <button className="icon-btn" title="Excluir evento" onClick={() => removeEvent(ev)}>
                 ×
@@ -2030,10 +2235,15 @@ function Planilha({ orcamentos, updateOrcamentos, askConfirm, canDelete }) {
                 </tr>
               </thead>
               {agruparPorFornecedor(ev.items).map((g) => (
-              <tbody key={g.chave || "__sem__"} className="orc-group">
+              <tbody
+                key={g.chave || "__sem__"}
+                className="orc-group"
+                style={{ "--cor-grafica": corDe(cores, g.chave) }}
+              >
                 {(agruparPorFornecedor(ev.items).length > 1 || g.nome) && (
                   <tr className="orc-group-head">
                     <td colSpan={8}>
+                      <span className="ogh-dot" />
                       <FornecedorCell
                         className="ogh-name"
                         value={g.nome}
@@ -2055,17 +2265,36 @@ function Planilha({ orcamentos, updateOrcamentos, askConfirm, canDelete }) {
                     </td>
                   </tr>
                 )}
-                {g.items.map((it) => (
-                  <tr key={it.id}>
-                    <td>
-                      <input
-                        className="cell"
-                        value={it.nome}
-                        placeholder="Folder, cartão de visita…"
-                        onChange={(e) => patchItem(ev.id, it.id, { nome: e.target.value })}
-                      />
+                {g.items.map((it) => {
+                  const semResponsavel = (it.fecha || "indefinido") === "indefinido";
+                  return (
+                  <tr key={it.id} className={abertos[it.id] ? "aberto" : ""}>
+                    <td data-label="Item">
+                      <div className="item-head">
+                        <NomeCell
+                          value={it.nome}
+                          onChange={(val) => patchItem(ev.id, it.id, { nome: val })}
+                        />
+                        <button
+                          className="row-toggle"
+                          onClick={() => alternarItem(it.id)}
+                          aria-expanded={Boolean(abertos[it.id])}
+                          aria-label={abertos[it.id] ? "Recolher item" : "Ver mais deste item"}
+                        >
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M6 9l6 6 6-6" />
+                          </svg>
+                        </button>
+                      </div>
+                      {semResponsavel && (
+                        <div className="aviso-fecha">
+                          <span className="aviso-dot" />
+                          definir responsável para fechar
+                        </div>
+                      )}
                     </td>
-                    <td>
+                    <td data-label="Qtd.">
                       <input
                         className="cell"
                         value={it.qtd || ""}
@@ -2073,7 +2302,7 @@ function Planilha({ orcamentos, updateOrcamentos, askConfirm, canDelete }) {
                         onChange={(e) => patchItem(ev.id, it.id, { qtd: e.target.value })}
                       />
                     </td>
-                    <td>
+                    <td data-label="Valor">
                       <input
                         className="cell cell-num"
                         type="number"
@@ -2084,7 +2313,7 @@ function Planilha({ orcamentos, updateOrcamentos, askConfirm, canDelete }) {
                         onChange={(e) => patchItem(ev.id, it.id, { valor: e.target.value })}
                       />
                     </td>
-                    <td>
+                    <td data-label="Prazo de produção">
                       <div className={`prazo prazo-${it.prazoTipo || "dias"} ${it.prazoDias ? "" : "vazio"}`}>
                         <select
                           className="prazo-num"
@@ -2111,34 +2340,42 @@ function Planilha({ orcamentos, updateOrcamentos, askConfirm, canDelete }) {
                         </select>
                       </div>
                     </td>
-                    <td>
+                    <td data-label="Orçado em">
                       <FornecedorCell
                         value={it.fornecedor}
                         listId={`forn-${ev.id}`}
                         onCommit={(val) => patchItem(ev.id, it.id, { fornecedor: val })}
                       />
                     </td>
-                    <td>
-                      <select
-                        className={`cell cell-select fecha-${it.fecha || "indefinido"}`}
-                        value={it.fecha || "indefinido"}
-                        onChange={(e) => patchItem(ev.id, it.id, { fecha: e.target.value })}
-                      >
-                        {Object.entries(FECHA).map(([k, v]) => (
-                          <option key={k} value={k}>{v.label}</option>
-                        ))}
-                      </select>
+                    <td data-label="Quem fecha">
+                      <div className={`tag tag-fecha fecha-${it.fecha || "indefinido"}`}>
+                        <select
+                          value={it.fecha || "indefinido"}
+                          onChange={(e) => patchItem(ev.id, it.id, { fecha: e.target.value })}
+                          aria-label="Quem fecha o pedido"
+                        >
+                          {Object.entries(FECHA).map(([k, v]) => (
+                            <option key={k} value={k}>{v.label}</option>
+                          ))}
+                        </select>
+                      </div>
                     </td>
-                    <td>
-                      <select
-                        className="cell cell-select"
-                        value={it.status || "cotando"}
-                        onChange={(e) => patchItem(ev.id, it.id, { status: e.target.value })}
-                      >
-                        {Object.entries(ORC_STATUS).map(([k, v]) => (
-                          <option key={k} value={k}>{v.label}</option>
-                        ))}
-                      </select>
+                    <td data-label="Status">
+                      <div className="tag tag-status">
+                        <span
+                          className="tag-dot"
+                          style={{ background: (ORC_STATUS[it.status] || ORC_STATUS.cotando).chip }}
+                        />
+                        <select
+                          value={it.status || "cotando"}
+                          onChange={(e) => patchItem(ev.id, it.id, { status: e.target.value })}
+                          aria-label="Status do orçamento"
+                        >
+                          {Object.entries(ORC_STATUS).map(([k, v]) => (
+                            <option key={k} value={k}>{v.label}</option>
+                          ))}
+                        </select>
+                      </div>
                     </td>
                     <td className="c-del">
                       {canDelete && (
@@ -2152,7 +2389,8 @@ function Planilha({ orcamentos, updateOrcamentos, askConfirm, canDelete }) {
                       )}
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
               ))}
             </table>
@@ -2980,6 +3218,26 @@ function GlobalStyle() {
       .chip-row { display: flex; gap: 6px; flex-wrap: wrap; }
 
       /* ---------- planilha de orçamentos ---------- */
+
+      /* ---------- a cor identifica a gráfica, do gráfico até a tabela ---------- */
+      .ogh-dot {
+        display: inline-block;
+        width: 9px; height: 9px;
+        border-radius: 3px;
+        background: var(--cor-grafica, ${T.muted});
+        margin-right: 8px;
+        vertical-align: middle;
+      }
+      /* fio colorido na borda esquerda das linhas do grupo */
+      .orc-group td:first-child {
+        border-left: 3px solid var(--cor-grafica, transparent);
+        padding-left: 9px;
+      }
+      .orc-group .orc-group-head td:first-child {
+        border-left: 0;
+        padding-left: 0;
+      }
+
       .orc-top {
         display: flex; align-items: center; justify-content: space-between;
         gap: 14px; flex-wrap: wrap;
@@ -3004,6 +3262,90 @@ function GlobalStyle() {
       .orc-total-name {
         font-size: 11px; text-transform: uppercase; letter-spacing: 1.2px;
         opacity: .62; margin-top: 4px;
+      }
+
+
+      /* ---------- dashboard do orçamento: só o essencial ---------- */
+      .orc-top-title { font-size: 15px; font-weight: 600; }
+
+      .dash {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        flex-wrap: wrap;
+        border: 0;
+        border-radius: 20px;
+        padding: 18px 22px;
+        margin-bottom: 20px;
+        background: ${T.accent};
+        color: ${T.accentInk};
+        box-shadow: 0 2px 10px rgba(17,17,20,.06);
+      }
+
+      .rosca-wrap { position: relative; width: 116px; height: 116px; flex-shrink: 0; }
+      .rosca { width: 100%; height: 100%; transform: rotate(-90deg); }
+      .rosca-trilho { fill: none; stroke: rgba(20,22,8,.14); stroke-width: 12; }
+      .rosca-fatia { fill: none; stroke-width: 12; stroke-linecap: butt; }
+      .rosca-centro {
+        position: absolute; inset: 0;
+        display: flex; flex-direction: column;
+        align-items: center; justify-content: center;
+        text-align: center;
+        padding: 0 12px;
+      }
+      .rosca-num {
+        font-size: 16px; font-weight: 700; letter-spacing: -.4px;
+        font-variant-numeric: tabular-nums; line-height: 1.2;
+        color: ${T.accentInk};
+      }
+      .rosca-num.grande { font-size: 32px; letter-spacing: -1.4px; }
+      .solo-cap {
+        display: inline-flex; align-items: center; gap: 7px;
+        color: ${T.accentInk};
+        margin-top: 8px;
+      }
+      .solo-cap strong { font-weight: 700; }
+      .solo-dot {
+        width: 9px; height: 9px; border-radius: 3px; flex-shrink: 0;
+      }
+      .rosca-cap {
+        font-size: 9.5px; text-transform: uppercase; letter-spacing: .9px;
+        color: rgba(20,22,8,.66); margin-top: 3px; line-height: 1.3;
+      }
+
+      .dash-solo { flex: 1; min-width: 0; }
+      .dash-solo .rosca-cap { font-size: 11px; margin-top: 4px; }
+
+      .dash-legenda { list-style: none; margin: 0; padding: 0; flex: 1; min-width: 170px; }
+      .dash-legenda li {
+        display: flex; align-items: center; gap: 9px;
+        padding: 5px 0;
+        font-size: 13px;
+        color: ${T.accentInk};
+      }
+      .lg-cor { width: 9px; height: 9px; border-radius: 3px; flex-shrink: 0; }
+      .lg-nome {
+        flex: 1; min-width: 0;
+        overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      }
+      .lg-valor { font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+      .dash-rodape {
+        display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+        margin-left: auto;
+        font-size: 12.5px;
+      }
+      .dr-ganho, .dr-alerta {
+        background: rgba(255,255,255,.62);
+        border-radius: 999px;
+        padding: 5px 12px;
+      }
+      .dr-ganho { font-weight: 600; color: #2C6B27; }
+      .dr-alerta { color: #8A5A14; }
+
+      @media (max-width: 620px) {
+        .dash { padding: 14px 16px; gap: 14px; }
+        .dash-rodape { margin-left: 0; width: 100%; }
       }
 
       .orc-event {
@@ -3039,7 +3381,7 @@ function GlobalStyle() {
       .orc-table {
         width: 100%;
         border-collapse: collapse;
-        min-width: 900px;
+        min-width: 820px;
       }
       .orc-table th {
         text-align: left;
@@ -3114,12 +3456,24 @@ function GlobalStyle() {
         padding: 3px 12px;
         font-variant-numeric: tabular-nums;
       }
-      .orc-table .c-qtd { width: 78px; }
-      .orc-table .c-valor { width: 118px; }
-      .orc-table .c-data { width: 142px; }
-      .orc-table .c-fecha { width: 130px; }
-      .orc-table .c-status { width: 124px; }
+      .orc-table .c-item { width: auto; min-width: 220px; }
+      .orc-table .c-qtd { width: 68px; }
+      .orc-table .c-valor { width: 106px; }
+      .orc-table .c-data { width: 138px; }
+      .orc-table .c-forn { width: 168px; }
+      .orc-table .c-fecha { width: 148px; }
+      .orc-table .c-status { width: 140px; }
       .orc-table .c-del { width: 34px; text-align: center; }
+
+      /* o nome do item nunca é cortado: quebra em duas linhas se precisar */
+      .cell-nome {
+        white-space: normal;
+        resize: none;
+        overflow: hidden;
+        line-height: 1.35;
+        min-height: 34px;
+        display: block;
+      }
 
       /* célula editável: parece planilha, sem moldura até o foco */
       .cell {
@@ -3190,6 +3544,225 @@ function GlobalStyle() {
       @media (max-width: 640px) {
         .orc-total-box { min-width: 0; padding: 12px 15px; }
         .orc-total-num { font-size: 18px; }
+      }
+
+
+      /* ---------- etiquetas de destaque (quem fecha / status) ---------- */
+      .tag {
+        display: inline-flex; align-items: center; gap: 6px;
+        border-radius: 999px;
+        border: 1px solid transparent;
+        padding: 6px 10px;
+        max-width: 100%;
+      }
+      .tag select {
+        appearance: none;
+        background: transparent;
+        border: 0;
+        font-family: 'Inter', sans-serif;
+        font-size: 12.5px;
+        font-weight: 600;
+        color: inherit;
+        cursor: pointer;
+        padding: 0;
+        max-width: 100%;
+      }
+      .tag select:focus { outline: none; text-decoration: underline; }
+      .tag-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+      /* quem fecha: cada responsável tem sua cor; "a definir" fica tracejado
+         de propósito, para ler como pendência e não como decisão tomada */
+      .tag-fecha.fecha-firmino { background: #E4EFFA; border-color: #BBD6EE; color: #1F5C8C; }
+      .tag-fecha.fecha-superiores { background: #FBEFDB; border-color: #EFD6A8; color: #8A5A14; }
+      .tag-fecha.fecha-indefinido {
+        background: transparent;
+        border-color: ${T.line};
+        border-style: dashed;
+        color: ${T.muted};
+      }
+      .tag-status { background: ${T.bg}; border-color: transparent; color: ${T.ink}; }
+
+
+      /* aviso de pendência: discreto, mas com um pulso que puxa o olho */
+      .aviso-fecha {
+        display: inline-flex; align-items: center; gap: 7px;
+        margin-top: 6px;
+        font-size: 11.5px;
+        font-weight: 500;
+        letter-spacing: .2px;
+        color: #8A5A14;
+      }
+      .aviso-dot {
+        width: 7px; height: 7px; border-radius: 50%;
+        background: #E8A33D;
+        box-shadow: 0 0 0 0 rgba(232,163,61,.55);
+        animation: aviso-pulse 2.4s ease-out infinite;
+        flex-shrink: 0;
+      }
+      @keyframes aviso-pulse {
+        0%   { box-shadow: 0 0 0 0 rgba(232,163,61,.55); }
+        70%  { box-shadow: 0 0 0 7px rgba(232,163,61,0); }
+        100% { box-shadow: 0 0 0 0 rgba(232,163,61,0); }
+      }
+      @media (prefers-reduced-motion: reduce) { .aviso-dot { animation: none; } }
+
+      .item-head { display: flex; align-items: flex-start; gap: 8px; }
+      .item-head > .cell-nome { flex: 1; min-width: 0; }
+      /* a seta só existe no celular, onde o item abre resumido */
+      .row-toggle { display: none; }
+
+      /* ---------- celular: a tabela vira um cartão por item ----------
+         Sem grid e sem overflow visível: cada campo é uma linha simples,
+         e todo container ganha min-width:0 para poder encolher de verdade. */
+      @media (max-width: 780px) {
+        .orc-table-wrap { overflow-x: hidden; }
+        .orc-table { min-width: 0; width: 100%; display: block; }
+        .orc-table thead { display: none; }
+        .orc-table tbody { display: block; }
+        .orc-table colgroup { display: none; }
+
+        .orc-table tbody tr {
+          display: block;
+          border: 1px solid ${T.line};
+          border-left: 3px solid var(--cor-grafica, ${T.line});
+          border-radius: 14px;
+          padding: 12px;
+          margin-bottom: 10px;
+          background: ${T.paper};
+        }
+
+        .orc-table td {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+          width: auto;
+          min-width: 0;
+          padding: 7px 0;
+          border-bottom: 1px dashed ${T.line};
+        }
+        .orc-table td::before {
+          content: attr(data-label);
+          flex: 0 0 auto;
+          max-width: 45%;
+          font-size: 10.5px;
+          text-transform: uppercase;
+          letter-spacing: .8px;
+          color: ${T.muted};
+        }
+        /* o valor do campo encolhe junto com a tela em vez de vazar */
+        .orc-table td > * { min-width: 0; max-width: 100%; }
+        .orc-table td .cell {
+          flex: 1 1 auto;
+          width: auto;
+          min-width: 0;
+          text-align: right;
+          padding: 4px 6px;
+        }
+
+        /* nome do item: linha inteira, em destaque, sem rótulo */
+        .orc-group td:first-child { border-left: 0; padding-left: 0; }
+        .orc-table td[data-label="Item"] {
+          display: block;
+          padding: 0 0 10px;
+          margin-bottom: 4px;
+          border-bottom: 1px solid ${T.line};
+        }
+        .orc-table td[data-label="Item"]::before { display: none; }
+        .orc-table td[data-label="Item"] .cell {
+          width: 100%;
+          text-align: left;
+          font-size: 15px;
+          font-weight: 600;
+          padding: 0;
+        }
+
+        /* etiquetas alinhadas à direita, encolhendo se faltar espaço
+           (.prazo tem a mesma estrutura, mas não compartilha a classe .tag) */
+        .orc-table td .tag,
+        .orc-table td .prazo { flex: 0 1 auto; min-width: 0; }
+        .orc-table td .tag select,
+        .orc-table td .prazo select { min-width: 0; }
+        .orc-table td .prazo { white-space: nowrap; }
+
+
+        /* resumo: só nome, valor e prazo. O resto aparece ao expandir. */
+        .orc-table tbody tr:not(.aberto) td[data-label="Qtd."],
+        .orc-table tbody tr:not(.aberto) td[data-label="Orçado em"],
+        .orc-table tbody tr:not(.aberto) td[data-label="Quem fecha"],
+        .orc-table tbody tr:not(.aberto) td[data-label="Status"],
+        .orc-table tbody tr:not(.aberto) td.c-del { display: none; }
+        /* sem nada abaixo, o prazo não precisa de linha divisória */
+        .orc-table tbody tr:not(.aberto) td[data-label="Prazo de produção"] {
+          border-bottom: 0;
+          padding-bottom: 0;
+        }
+
+        .row-toggle {
+          display: flex; align-items: center; justify-content: center;
+          flex-shrink: 0;
+          width: 30px; height: 30px;
+          margin-top: 1px;
+          border: 1px solid ${T.line};
+          border-radius: 50%;
+          background: ${T.paper};
+          color: ${T.ink};
+          cursor: pointer;
+          padding: 0;
+        }
+        .row-toggle svg { width: 15px; height: 15px; transition: transform .2s ease; }
+        tr.aberto .row-toggle svg { transform: rotate(180deg); }
+        tr.aberto .row-toggle { background: ${T.bg}; }
+
+        .orc-table td.c-del {
+          justify-content: flex-end;
+          border-bottom: 0;
+          padding: 6px 0 0;
+        }
+        .orc-table td.c-del::before { display: none; }
+
+        /* cabeçalho de gráfica: nome em cima, contagem/total embaixo */
+        .orc-table tbody tr.orc-group-head {
+          display: block;
+          border: 0;
+          background: transparent;
+          padding: 16px 2px 6px;
+          margin: 0;
+        }
+        .orc-group-head td {
+          display: flex;
+          flex-wrap: wrap;
+          align-items: center;
+          gap: 8px;
+          padding: 0;
+          border: 0;
+        }
+        .orc-group-head td::before { display: none; }
+        .ogh-name {
+          flex: 1 1 100%;
+          width: auto;
+          max-width: 100%;
+          padding-left: 0;
+        }
+        .ogh-count { margin-left: 0; }
+        .ogh-total { float: none; margin-left: auto; }
+
+        /* cabeçalho do evento: nome ocupa a linha, data e total embaixo */
+        .orc-event { padding: 12px 10px 10px; }
+        .orc-event-head { gap: 8px; }
+        .orc-event-name {
+          flex: 1 1 100%;
+          min-width: 0;
+          font-size: 15px;
+          padding-left: 0;
+        }
+        .orc-event-date { flex: 1 1 auto; min-width: 0; }
+        .orc-event-total { margin-left: auto; }
+
+        /* resumo do topo empilha em vez de espremer */
+        .orc-top { margin: 14px 0 18px; }
+        .orc-totals { width: 100%; }
+        .orc-total-box { flex: 1 1 140px; min-width: 0; }
       }
 
       /* ---------- modal ---------- */
