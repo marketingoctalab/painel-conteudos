@@ -599,10 +599,10 @@ export default function App() {
 
   const navGeral = [
     ["hoje", "Hoje", IconHome],
+    ["planilha", "Planilha", IconSheet],
     ["calendario", "Calendário", IconCalendar],
     ["kanban", "Quadro", IconBoard],
     ["publicados", "Publicados", IconCheck],
-    ["planilha", "Planilha", IconSheet],
   ].filter(([id]) => id !== "kanban" || podeVerQuadro);
   const userLabel = currentUser === "Admin" ? "Admin" : currentUser || "visitante";
 
