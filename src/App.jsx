@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo, useId } from "react";
 import { supabase, supabaseReady } from "./supabase";
+import { CONQUISTAS, CATEGORIAS, calcularConquistas } from "./conquistas.js";
 
 // id único desta aba/sessão — usado para ignorar o próprio eco no realtime
 const CLIENT_ID = Math.random().toString(36).slice(2);
@@ -33,6 +34,80 @@ const PRODUCTS = {
 };
 
 const NETWORKS = ["Instagram", "LinkedIn", "X", "YouTube", "WhatsApp"];
+
+// ---------- trilha de desenvolvimento (mentoria) ----------
+const APRENDIZ = "Clara";
+const MENTORES = ["Firmino", "Admin"];
+const TRILHA_PROFILES = [APRENDIZ, ...MENTORES];
+const papelNaTrilha = (user) =>
+  MENTORES.includes(user) ? "mentor" : user === APRENDIZ ? "aprendiz" : null;
+
+// a competência é o que permite medir EM QUE ela evolui, não só quanto fez.
+// A ordem é fixa: a cor de cada competência não muda com o tempo.
+const COMPETENCIAS = {
+  design: "Design",
+  copy: "Copy",
+  social: "Social",
+  ferramentas: "Ferramentas",
+  processo: "Processo",
+};
+const corCompetencia = (k) => {
+  const i = Object.keys(COMPETENCIAS).indexOf(k);
+  return i < 0 ? COR_NEUTRA_TEXTO : PALETA_TEXTO[i % PALETA_TEXTO.length];
+};
+
+const TRILHA_TIPO = { pratica: "Prática", estudo: "Estudo" };
+const TRILHA_STATUS = {
+  afazer: "A fazer",
+  fazendo: "Fazendo",
+  entregue: "Entregue",
+  revisada: "Revisada",
+};
+// três níveis, de propósito: nota numérica sem critério vira ruído
+const AVALIACAO = {
+  refazer: { label: "Refazer", cor: "#C2453A" },
+  ok: { label: "OK", cor: "#2C6B27" },
+  acima: { label: "Acima do esperado", cor: "#1c5cab" },
+};
+
+const NOVA_MATERIA = () => ({
+  id: uid(),
+  ordem: 1,
+  nome: "",
+  criadoEm: Date.now(),
+});
+
+const NOVO_MODULO = () => ({
+  id: uid(),
+  materiaId: null,
+  ordem: 1,
+  titulo: "",
+  objetivo: "",
+  competencia: "design",
+  recursos: [], // links de apoio: {id, titulo, url}
+  // conteúdo do curso: {id, titulo, duracao, temas, visto}
+  conteudo: [],
+  criadoEm: Date.now(),
+});
+
+const NOVA_TAREFA = () => ({
+  moduloId: null,
+  id: uid(),
+  titulo: "",
+  descricao: "",
+  tipo: "pratica",
+  competencia: "design",
+  prazo: "",
+  status: "afazer",
+  link: "",
+  aprendizado: "",
+  entregueEm: null,
+  avaliacao: null,
+  feedback: "",
+  revisadaEm: null,
+  revisoes: [], // append-only: {nivel, em}. É daqui que sai o retrabalho.
+  criadaEm: Date.now(),
+});
 
 // ---------- planilha de orçamentos ----------
 // quem fecha o pedido com a gráfica
@@ -135,6 +210,12 @@ const IconBoard = () => (
 );
 const IconCheck = () => (
   <Ico><circle cx="12" cy="12" r="9" /><path d="M8 12.2l2.8 2.8L16 9.5" /></Ico>
+);
+const IconTrilha = () => (
+  <Ico>
+    <path d="M12 4 21 8.5 12 13 3 8.5 12 4z" />
+    <path d="M6.5 10.6V16c0 1.7 2.5 3 5.5 3s5.5-1.3 5.5-3v-5.4" />
+  </Ico>
 );
 const IconSheet = () => (
   <Ico>
@@ -398,6 +479,7 @@ export default function App() {
   const [board, setBoard] = useState(null);
   const [calendar, setCalendar] = useState(null);
   const [orcamentos, setOrcamentos] = useState({ events: [] });
+  const [trilha, setTrilha] = useState({ tarefas: [] });
   const [openCard, setOpenCard] = useState(null);
   const [openDay, setOpenDay] = useState(null);
   const [calFilter, setCalFilter] = useState("todos");
@@ -418,11 +500,12 @@ export default function App() {
     setLoadError(null);
     try {
       // as quatro leituras vão juntas: em série eram 4 idas ao Supabase
-      const [b, cal, tr, orc] = await Promise.all([
+      const [b, cal, tr, orc, tri] = await Promise.all([
         loadKey("estudio:board", DEFAULT_BOARD()),
         loadKey("estudio:calendar", { items: {} }),
         loadKey("estudio:trash", { items: [] }),
         loadKey("estudio:orcamentos", { events: [] }),
+        loadKey("estudio:trilha", { tarefas: [] }),
       ]);
       Object.values(b.cards || {}).forEach((c) => {
         if (c.due === undefined) c.due = "";
@@ -434,6 +517,7 @@ export default function App() {
       setCalendar(cal);
       setTrash(tr);
       setOrcamentos(orc);
+      setTrilha(tri);
     } catch (e) {
       console.error("[Estúdio] falha ao carregar", e);
       setLoadError(e?.message || "Não foi possível falar com o banco de dados.");
@@ -442,6 +526,20 @@ export default function App() {
 
   useEffect(() => {
     carregarTudo();
+  }, []);
+
+  // deep link: ?u=Firmino&tab=trilha&mod=m13 — abre direto num perfil e aba
+  useEffect(() => {
+    try {
+      const q = new URLSearchParams(window.location.search);
+      const u = q.get("u");
+      const t = q.get("tab");
+      if (u) {
+        setCurrentUser(u);
+        setScreen("app");
+      }
+      if (t) setTab(t);
+    } catch { /* sem querystring, segue o fluxo normal */ }
   }, []);
 
   // sincroniza em tempo real: aplica alterações feitas por outras pessoas
@@ -456,6 +554,7 @@ export default function App() {
         else if (row.id === "estudio:calendar" && row.value) setCalendar(row.value);
         else if (row.id === "estudio:trash" && row.value) setTrash(row.value);
         else if (row.id === "estudio:orcamentos" && row.value) setOrcamentos(row.value);
+        else if (row.id === "estudio:trilha" && row.value) setTrilha(row.value);
       })
       .subscribe();
     return () => supabase.removeChannel(ch);
@@ -485,6 +584,13 @@ export default function App() {
       const no = fn(structuredClone(o || { events: [] }));
       persist("estudio:orcamentos", no);
       return no;
+    });
+
+  const updateTrilha = (fn) =>
+    setTrilha((t) => {
+      const nt = fn(structuredClone(t || { tarefas: [] }));
+      persist("estudio:trilha", nt);
+      return nt;
     });
 
   const updateTrash = (fn) =>
@@ -539,11 +645,13 @@ export default function App() {
   // permissão de exclusão: admin + perfis autorizados
   const canDelete = currentUser === "Admin" || DELETE_PROFILES.includes(currentUser);
   const podeVerQuadro = canSeeQuadro(currentUser);
+  const papelTrilha = papelNaTrilha(currentUser);
 
   // trocou para um perfil sem acesso enquanto estava no Quadro: volta pro Hoje
   useEffect(() => {
     if (!podeVerQuadro && tab === "kanban") setTab("hoje");
-  }, [podeVerQuadro, tab]);
+    if (!papelTrilha && tab === "trilha") setTab("hoje");
+  }, [podeVerQuadro, papelTrilha, tab]);
 
   const chooseProfile = (name) => {
     setCurrentUser(name);
@@ -602,8 +710,12 @@ export default function App() {
     ["planilha", "Planilha", IconSheet],
     ["calendario", "Calendário", IconCalendar],
     ["kanban", "Quadro", IconBoard],
+    ["trilha", "Trilha", IconTrilha],
     ["publicados", "Publicados", IconCheck],
-  ].filter(([id]) => id !== "kanban" || podeVerQuadro);
+  ].filter(
+    ([id]) =>
+      (id !== "kanban" || podeVerQuadro) && (id !== "trilha" || Boolean(papelTrilha))
+  );
   const userLabel = currentUser === "Admin" ? "Admin" : currentUser || "visitante";
 
   return (
@@ -707,6 +819,15 @@ export default function App() {
               setOpenDay={setOpenDay}
               filter={calFilter}
               setFilter={setCalFilter}
+            />
+          )}
+          {dadosProntos && tab === "trilha" && papelTrilha && (
+            <Trilha
+              trilha={trilha}
+              updateTrilha={updateTrilha}
+              papel={papelTrilha}
+              askConfirm={askConfirm}
+              canDelete={canDelete}
             />
           )}
           {dadosProntos && tab === "publicados" && (
@@ -1826,6 +1947,1711 @@ function Landing({ onEnter, onProduct }) {
         </div>
       </section>
     </div>
+  );
+}
+
+/* ---------- métricas da trilha ----------
+   As semanas começam na segunda. O que importa aqui é TENDÊNCIA: a queda
+   do retrabalho ao longo das semanas é o sinal honesto de aprendizado.
+   Contagem pura de tarefas mede o que foi atribuído, não o que evoluiu. */
+const chaveSemana = (ts) => {
+  const d = new Date(ts);
+  const dia = (d.getDay() + 6) % 7; // 0 = segunda
+  d.setDate(d.getDate() - dia);
+  return dk(d.getFullYear(), d.getMonth(), d.getDate());
+};
+const semanaAtual = () => chaveSemana(Date.now());
+const diasDaSemana = (chave) => {
+  const [y, m, d] = chave.split("-").map(Number);
+  return Array.from({ length: 7 }, (_, i) => {
+    const dt = new Date(y, m - 1, d + i);
+    return dk(dt.getFullYear(), dt.getMonth(), dt.getDate());
+  });
+};
+const corCompetenciaMarca = (k) => {
+  const i = Object.keys(COMPETENCIAS).indexOf(k);
+  return i < 0 ? COR_NEUTRA : PALETA[i % PALETA.length];
+};
+
+function analisarTrilha(tarefas, totalModulos = 0, modulosFeitos = 0) {
+  const lista = tarefas || [];
+  const revisadas = lista.filter((t) => t.status === "revisada");
+  const entregues = lista.filter((t) => t.entregueEm);
+
+  // autonomia: aprovada sem ter voltado para refazer nenhuma vez
+  const primeiraVez = revisadas.filter(
+    (t) => !(t.revisoes || []).some((r) => r.nivel === "refazer")
+  ).length;
+  const autonomia = revisadas.length ? Math.round((primeiraVez / revisadas.length) * 100) : null;
+
+  // pontualidade: entregue até o prazo
+  const comPrazo = entregues.filter((t) => t.prazo);
+  const noPrazo = comPrazo.filter((t) => chaveDia(t.entregueEm) <= t.prazo).length;
+  const pontualidade = comPrazo.length ? Math.round((noPrazo / comPrazo.length) * 100) : null;
+
+  // retrabalho semana a semana, a partir do log de revisões
+  const porSemana = new Map();
+  lista.forEach((t) =>
+    (t.revisoes || []).forEach((r) => {
+      const k = chaveSemana(r.em);
+      const at = porSemana.get(k) || { semana: k, refazer: 0, aprovadas: 0 };
+      if (r.nivel === "refazer") at.refazer += 1;
+      else at.aprovadas += 1;
+      porSemana.set(k, at);
+    })
+  );
+  const semanas = [...porSemana.values()]
+    .sort((a, b) => (a.semana < b.semana ? -1 : 1))
+    .slice(-8)
+    .map((s) => {
+      const total = s.refazer + s.aprovadas;
+      return { ...s, total, taxa: total ? Math.round((s.refazer / total) * 100) : 0 };
+    });
+
+  // cobertura: quantas vezes cada competência já foi exercitada
+  const cobertura = Object.keys(COMPETENCIAS).map((k) => ({
+    chave: k,
+    label: COMPETENCIAS[k],
+    total: entregues.filter((t) => t.competencia === k).length,
+  }));
+  const maiorCobertura = Math.max(1, ...cobertura.map((c) => c.total));
+
+  return {
+    totalModulos,
+    modulosFeitos,
+    totalTarefas: lista.length,
+    aguardandoRevisao: lista.filter((t) => t.status === "entregue").length,
+    entregues: entregues.length,
+    revisadas: revisadas.length,
+    autonomia,
+    pontualidade,
+    semanas,
+    cobertura,
+    maiorCobertura,
+  };
+}
+const chaveDia = (ts) => {
+  const d = new Date(ts);
+  return dk(d.getFullYear(), d.getMonth(), d.getDate());
+};
+
+/* Conquistas: derivadas do documento, nunca gravadas. As bloqueadas ficam
+   visíveis de propósito — saber o que falta é parte do incentivo. */
+function Conquistas({ trilha, papel }) {
+  const ganhas = calcularConquistas(trilha, chaveSemana);
+  const porId = Object.fromEntries(ganhas.map((g) => [g.id, g]));
+  const total = CONQUISTAS.length;
+
+  return (
+    <div className="cq">
+      <div className="cq-head">
+        <div className="px-label sec" style={{ margin: 0 }}>
+          {papel === "mentor" ? "Conquistas da Clara" : "Suas conquistas"}
+        </div>
+        <span className="cq-conta">{ganhas.length} de {total}</span>
+      </div>
+      <div className="cq-grid">
+        {CONQUISTAS.map((c) => {
+          const g = porId[c.id];
+          const cat = CATEGORIAS[c.categoria] || {};
+          return (
+            <div key={c.id} className={`cq-item ${g ? "ganha" : ""}`} title={c.descricao}>
+              <span
+                className="cq-dot"
+                style={{ background: g ? cat.cor : undefined }}
+              />
+              <div className="cq-txt">
+                <div className="cq-tit">{c.titulo}</div>
+                <div className="cq-desc">{c.descricao}</div>
+                {g?.desde && (
+                  <div className="cq-desde">
+                    conquistada em {new Date(g.desde).toLocaleDateString("pt-BR")}
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/* Painel do mentor: três tendências e a cobertura. Sem "horas
+   trabalhadas" nem contagem pura de tarefas — a primeira mede presença,
+   a segunda mede o que foi atribuído. */
+function PainelMetricas({ m }) {
+  const semDados = m.revisadas === 0 && m.entregues === 0 && m.totalModulos === 0;
+  if (semDados) {
+    return (
+      <div className="empty">
+        As métricas aparecem depois das primeiras entregas revisadas.
+      </div>
+    );
+  }
+  const ultima = m.semanas[m.semanas.length - 1];
+  const anterior = m.semanas[m.semanas.length - 2];
+  const tendencia =
+    ultima && anterior ? ultima.taxa - anterior.taxa : null;
+
+  return (
+    <div className="pm">
+      <div className="pm-tiles">
+        {m.totalModulos > 0 && (
+          <div className="pm-tile destaque">
+            <div className="pm-num">
+              {m.modulosFeitos}<span className="pm-de">/{m.totalModulos}</span>
+            </div>
+            <div className="pm-cap">módulos concluídos</div>
+          </div>
+        )}
+        <div className="pm-tile">
+          <div className="pm-num">{m.autonomia === null ? "—" : `${m.autonomia}%`}</div>
+          <div className="pm-cap">
+            aprovadas de primeira
+            <span className="pm-hint" title="Revisadas sem nenhum retorno de 'refazer'. É a métrica que mais se aproxima de autonomia.">?</span>
+          </div>
+        </div>
+        <div className="pm-tile">
+          <div className="pm-num">{m.pontualidade === null ? "—" : `${m.pontualidade}%`}</div>
+          <div className="pm-cap">entregues no prazo</div>
+        </div>
+        <div className="pm-tile">
+          <div className="pm-num">{m.revisadas}</div>
+          <div className="pm-cap">
+            tarefas concluídas
+            {m.aguardandoRevisao > 0 && (
+              <span className="pm-pend">{m.aguardandoRevisao} a revisar</span>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {m.semanas.length > 0 && (
+        <div className="pm-bloco">
+          <div className="pm-bloco-head">
+            <span className="pm-bloco-titulo">Retrabalho por semana</span>
+            {tendencia !== null && (
+              <span className={`pm-trend ${tendencia <= 0 ? "bom" : "ruim"}`}>
+                {tendencia === 0
+                  ? "estável"
+                  : tendencia < 0
+                  ? `caiu ${Math.abs(tendencia)} pontos`
+                  : `subiu ${tendencia} pontos`}
+              </span>
+            )}
+          </div>
+          <div className="pm-barras">
+            {m.semanas.map((s) => (
+              <div key={s.semana} className="pm-col" title={`${s.refazer} de ${s.total} revisões voltaram para refazer`}>
+                <div className="pm-col-valor">{s.taxa}%</div>
+                <div className="pm-col-trilho">
+                  <div
+                    className="pm-col-fill"
+                    style={{ height: `${Math.max(s.taxa, 2)}%` }}
+                  />
+                </div>
+                <div className="pm-col-label">{fmtShort(s.semana)}</div>
+              </div>
+            ))}
+          </div>
+          <div className="pm-nota">
+            Quanto menor, melhor. A queda ao longo das semanas é o sinal mais
+            honesto de que ela está aprendendo.
+          </div>
+        </div>
+      )}
+
+      <div className="pm-bloco">
+        <div className="pm-bloco-head">
+          <span className="pm-bloco-titulo">Cobertura por competência</span>
+        </div>
+        <ul className="pm-cob">
+          {m.cobertura.map((c) => (
+            <li key={c.chave}>
+              <span className="pm-cob-nome">{c.label}</span>
+              <span className="pm-cob-trilho">
+                <span
+                  className="pm-cob-fill"
+                  style={{
+                    width: `${(c.total / m.maiorCobertura) * 100}%`,
+                    background: corCompetenciaMarca(c.chave),
+                  }}
+                />
+              </span>
+              <span className="pm-cob-num">{c.total}</span>
+            </li>
+          ))}
+        </ul>
+        <div className="pm-nota">
+          Áreas em zero são as que ainda não foram exercitadas.
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* Relatório da semana. Vem pré-preenchido com o que o sistema já sabe —
+   é isso que faz ele ser escrito, em vez de virar folha em branco na
+   sexta às 18h. */
+function RelatorioSemana({ tarefas, relatorios, updateTrilha, papel }) {
+  const semana = semanaAtual();
+  const dias = diasDaSemana(semana);
+  const jaEnviado = (relatorios || []).find((r) => r.semana === semana);
+
+  const daSemana = (tarefas || []).filter(
+    (t) => t.entregueEm && dias.includes(chaveDia(t.entregueEm))
+  );
+  const competencias = [...new Set(daSemana.map((t) => t.competencia))];
+  const aprendizados = daSemana
+    .filter((t) => (t.aprendizado || "").trim())
+    .map((t) => ({ titulo: t.titulo, texto: t.aprendizado }));
+
+  const [form, setForm] = useState({ importante: "", travou: "", proxima: "" });
+  const [coment, setComent] = useState("");
+
+  const enviar = () => {
+    if (!form.importante.trim()) return;
+    updateTrilha((t) => {
+      t.relatorios = [
+        ...(t.relatorios || []),
+        {
+          id: uid(),
+          semana,
+          enviadoEm: Date.now(),
+          resumo: {
+            entregues: daSemana.length,
+            competencias,
+            aprendizados,
+          },
+          ...form,
+          comentario: "",
+        },
+      ];
+      return t;
+    });
+  };
+
+  const comentar = (id) =>
+    updateTrilha((t) => {
+      const r = (t.relatorios || []).find((x) => x.id === id);
+      if (r) {
+        r.comentario = coment.trim();
+        r.comentadoEm = Date.now();
+      }
+      return t;
+    });
+
+  const periodo = `${fmtShort(dias[0])} – ${fmtShort(dias[6])}`;
+
+  return (
+    <div className="rel">
+      <div className="rel-head">
+        <span className="rel-titulo">Relatório da semana</span>
+        <span className="rel-periodo">{periodo}</span>
+      </div>
+
+      {/* o que o sistema já sabe */}
+      <div className="rel-resumo">
+        <div className="rel-linha">
+          <strong>{jaEnviado ? jaEnviado.resumo.entregues : daSemana.length}</strong>{" "}
+          {(jaEnviado ? jaEnviado.resumo.entregues : daSemana.length) === 1
+            ? "entrega"
+            : "entregas"}{" "}
+          nesta semana
+        </div>
+        <div className="rel-comps">
+          {(jaEnviado ? jaEnviado.resumo.competencias : competencias).map((c) => (
+            <span key={c} className="chip small" style={{ color: corCompetencia(c) }}>
+              {COMPETENCIAS[c]}
+            </span>
+          ))}
+          {(jaEnviado ? jaEnviado.resumo.competencias : competencias).length === 0 && (
+            <span className="rel-nada">nenhuma competência registrada ainda</span>
+          )}
+        </div>
+        {(jaEnviado ? jaEnviado.resumo.aprendizados : aprendizados).length > 0 && (
+          <ul className="rel-aprend">
+            {(jaEnviado ? jaEnviado.resumo.aprendizados : aprendizados).map((a, i) => (
+              <li key={i}>
+                <span className="ra-tit">{a.titulo || "sem título"}</span>
+                <span className="ra-txt">{a.texto}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      {jaEnviado ? (
+        <div className="rel-enviado">
+          <Campo titulo="O que aprendi de mais importante" texto={jaEnviado.importante} />
+          <Campo titulo="O que travou" texto={jaEnviado.travou} />
+          <Campo titulo="O que quero aprender na próxima" texto={jaEnviado.proxima} />
+
+          {jaEnviado.comentario ? (
+            <div className="rel-coment">
+              <div className="px-label sec">Retorno do mentor</div>
+              <p className="tr-desc">{jaEnviado.comentario}</p>
+            </div>
+          ) : papel === "mentor" ? (
+            <div className="rel-coment">
+              <Field label="Seu retorno sobre a semana">
+                <textarea
+                  className="input"
+                  rows={3}
+                  value={coment}
+                  onChange={(e) => setComent(e.target.value)}
+                />
+              </Field>
+              <button
+                className="btn"
+                onClick={() => comentar(jaEnviado.id)}
+                disabled={!coment.trim()}
+              >
+                enviar retorno
+              </button>
+            </div>
+          ) : (
+            <div className="rel-aguardando">Enviado. Aguardando o retorno do mentor.</div>
+          )}
+        </div>
+      ) : papel === "aprendiz" ? (
+        <div className="rel-form">
+          <Field label="O que aprendi de mais importante">
+            <textarea
+              className="input"
+              rows={3}
+              value={form.importante}
+              placeholder="Uma coisa concreta que você não sabia na segunda."
+              onChange={(e) => setForm({ ...form, importante: e.target.value })}
+            />
+          </Field>
+          <Field label="O que travou">
+            <textarea
+              className="input"
+              rows={2}
+              value={form.travou}
+              placeholder="Onde você perdeu tempo ou ficou sem saber como seguir."
+              onChange={(e) => setForm({ ...form, travou: e.target.value })}
+            />
+          </Field>
+          <Field label="O que quero aprender na próxima">
+            <textarea
+              className="input"
+              rows={2}
+              value={form.proxima}
+              onChange={(e) => setForm({ ...form, proxima: e.target.value })}
+            />
+          </Field>
+          <button className="btn accent" onClick={enviar} disabled={!form.importante.trim()}>
+            enviar relatório
+          </button>
+          <div className="tr-aviso">
+            Depois de enviar, o relatório congela como registro da semana.
+          </div>
+        </div>
+      ) : (
+        <div className="rel-aguardando">Ela ainda não enviou o relatório desta semana.</div>
+      )}
+    </div>
+  );
+}
+
+function Campo({ titulo, texto }) {
+  if (!(texto || "").trim()) return null;
+  return (
+    <div className="rel-campo">
+      <div className="rel-campo-tit">{titulo}</div>
+      <p className="tr-desc">{texto}</p>
+    </div>
+  );
+}
+
+/* ---------- prova do módulo ----------
+   Múltipla escolha corrige sozinha; questão aberta precisa de gente. Como o
+   objetivo é validar entendimento, o parecer do mentor é obrigatório para
+   fechar — o número de acertos sozinho não diz se ela entendeu. */
+function ProvaModulo({
+  modulo: m,
+  prova,
+  papel,
+  responder,
+  enviar,
+  validar,
+  devolver,
+  addQuestao,
+  patchQuestao,
+  removerQuestao,
+}) {
+  const ehMentor = papel === "mentor";
+  const questoes = m.prova?.questoes || [];
+  const status = prova?.status || "aberta";
+  const respostas = prova?.respostas || {};
+
+  const [validacao, setValidacao] = useState(prova?.validacao || {});
+  const [parecer, setParecer] = useState(prova?.parecer || "");
+
+  const multiplas = questoes.filter((q) => q.tipo === "multipla");
+  const acertos = multiplas.filter((q) => respostas[q.id] === q.correta).length;
+  const abertas = questoes.filter((q) => q.tipo === "aberta");
+  const respondidas = questoes.filter(
+    (q) => respostas[q.id] !== undefined && String(respostas[q.id]).trim() !== ""
+  ).length;
+  const completa = respondidas === questoes.length && questoes.length > 0;
+
+  if (questoes.length === 0 && !ehMentor) return null;
+
+  return (
+    <div className="tl-secao pv">
+      <div className="pv-head">
+        <div className="px-label sec" style={{ margin: 0 }}>Prova do módulo</div>
+        {questoes.length > 0 && (
+          <span className={`pv-status st-${status}`}>
+            {status === "aberta" && `${respondidas}/${questoes.length} respondidas`}
+            {status === "enviada" && "aguardando validação"}
+            {status === "validada" && "validada"}
+          </span>
+        )}
+      </div>
+
+      {questoes.length === 0 && ehMentor && (
+        <div className="tl-vazio-txt">
+          Nenhuma questão ainda. Enquanto não houver, o módulo fecha só com as tarefas.
+        </div>
+      )}
+
+      <ol className="pv-lista">
+        {questoes.map((q, i) => {
+          const resp = respostas[q.id];
+          const marcaMentor = validacao[q.id] || prova?.validacao?.[q.id];
+          return (
+            <li key={q.id} className="pv-q">
+              {ehMentor && status === "aberta" ? (
+                <div className="pv-edit">
+                  <textarea
+                    className="input"
+                    rows={2}
+                    value={q.enunciado}
+                    placeholder={`Enunciado da questão ${i + 1}`}
+                    onChange={(e) => patchQuestao(m, q.id, { enunciado: e.target.value })}
+                  />
+                  {q.tipo === "multipla" && (
+                    <div className="pv-opcoes-edit">
+                      {(q.opcoes || []).map((op, oi) => (
+                        <label key={oi} className="pv-op-edit">
+                          <input
+                            type="radio"
+                            name={`correta-${q.id}`}
+                            checked={q.correta === oi}
+                            onChange={() => patchQuestao(m, q.id, { correta: oi })}
+                            title="Marcar como resposta correta"
+                          />
+                          <input
+                            className="input"
+                            value={op}
+                            placeholder={`Alternativa ${oi + 1}`}
+                            onChange={(e) => {
+                              const opcoes = [...q.opcoes];
+                              opcoes[oi] = e.target.value;
+                              patchQuestao(m, q.id, { opcoes });
+                            }}
+                          />
+                        </label>
+                      ))}
+                      <button
+                        className="add-card"
+                        onClick={() =>
+                          patchQuestao(m, q.id, { opcoes: [...(q.opcoes || []), ""] })
+                        }
+                      >
+                        + alternativa
+                      </button>
+                    </div>
+                  )}
+                  <div className="pv-edit-pe">
+                    <span className="pv-tipo">
+                      {q.tipo === "multipla" ? "múltipla escolha" : "resposta aberta"}
+                    </span>
+                    <button className="icon-btn" onClick={() => removerQuestao(m, q.id)}>×</button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div className="pv-enunciado">{q.enunciado || "questão sem enunciado"}</div>
+
+                  {q.tipo === "multipla" ? (
+                    <div className="pv-opcoes">
+                      {(q.opcoes || []).map((op, oi) => {
+                        const escolhida = resp === oi;
+                        const correta = q.correta === oi;
+                        const revelar = status !== "aberta" || ehMentor;
+                        return (
+                          <label
+                            key={oi}
+                            className={`pv-op ${escolhida ? "escolhida" : ""} ${
+                              revelar && correta ? "correta" : ""
+                            } ${revelar && escolhida && !correta ? "errada" : ""}`}
+                          >
+                            <input
+                              type="radio"
+                              name={`q-${q.id}`}
+                              checked={escolhida}
+                              disabled={ehMentor || status !== "aberta"}
+                              onChange={() => responder(m.id, q.id, oi)}
+                            />
+                            <span>{op || `alternativa ${oi + 1}`}</span>
+                            {revelar && correta && <span className="pv-marca">correta</span>}
+                          </label>
+                        );
+                      })}
+                    </div>
+                  ) : status === "aberta" && !ehMentor ? (
+                    <textarea
+                      className="input"
+                      rows={3}
+                      value={resp || ""}
+                      placeholder="Sua resposta"
+                      onChange={(e) => responder(m.id, q.id, e.target.value)}
+                    />
+                  ) : (
+                    <div className="pv-resposta">
+                      {String(resp || "").trim() || <em>sem resposta</em>}
+                    </div>
+                  )}
+
+                  {/* validação por questão aberta */}
+                  {q.tipo === "aberta" && ehMentor && status === "enviada" && (
+                    <div className="pv-val">
+                      {["ok", "refazer"].map((v) => (
+                        <button
+                          key={v}
+                          className={`chip small ${validacao[q.id] === v ? "sel" : ""}`}
+                          onClick={() => setValidacao({ ...validacao, [q.id]: v })}
+                        >
+                          {v === "ok" ? "aceita" : "refazer"}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {q.tipo === "aberta" && status === "validada" && marcaMentor && (
+                    <div className={`pv-veredito ${marcaMentor}`}>
+                      {marcaMentor === "ok" ? "aceita" : "precisa refazer"}
+                    </div>
+                  )}
+                </>
+              )}
+            </li>
+          );
+        })}
+      </ol>
+
+      {ehMentor && status === "aberta" && (
+        <div className="btn-row">
+          <button className="btn ghost small" onClick={() => addQuestao(m, "multipla")}>
+            + múltipla escolha
+          </button>
+          <button className="btn ghost small" onClick={() => addQuestao(m, "aberta")}>
+            + resposta aberta
+          </button>
+        </div>
+      )}
+
+      {/* placar das múltiplas, quando já dá para saber */}
+      {multiplas.length > 0 && status !== "aberta" && (
+        <div className="pv-placar">
+          {acertos} de {multiplas.length} acertos nas de múltipla escolha
+        </div>
+      )}
+
+      {/* enviar (aprendiz) */}
+      {!ehMentor && status === "aberta" && questoes.length > 0 && (
+        <div className="pv-pe">
+          <button className="btn" onClick={() => enviar(m.id)} disabled={!completa}>
+            enviar para validação
+          </button>
+          {!completa && (
+            <span className="tr-aviso">Responda todas as questões para enviar.</span>
+          )}
+        </div>
+      )}
+      {!ehMentor && status === "enviada" && (
+        <div className="rel-aguardando">Enviada. Aguardando a validação do mentor.</div>
+      )}
+
+      {/* validar (mentor) */}
+      {ehMentor && status === "enviada" && (
+        <div className="pv-pe-mentor">
+          <Field label="Parecer sobre a prova">
+            <textarea
+              className="input"
+              rows={3}
+              value={parecer}
+              placeholder="O que ela entendeu bem e o que ainda está raso."
+              onChange={(e) => setParecer(e.target.value)}
+            />
+          </Field>
+          <div className="btn-row">
+            <button
+              className="btn"
+              onClick={() => validar(m.id, validacao, parecer)}
+              disabled={
+                !parecer.trim() || abertas.some((q) => !validacao[q.id])
+              }
+              title={
+                abertas.some((q) => !validacao[q.id])
+                  ? "Marque cada resposta aberta como aceita ou refazer"
+                  : "Validar a prova"
+              }
+            >
+              validar prova
+            </button>
+            <button
+              className="btn ghost"
+              onClick={() => devolver(m.id, validacao, parecer)}
+              disabled={!parecer.trim()}
+            >
+              devolver para refazer
+            </button>
+          </div>
+        </div>
+      )}
+
+      {status === "validada" && prova?.parecer && (
+        <div className="pv-parecer">
+          <div className="px-label sec">Parecer do mentor</div>
+          <p className="tr-desc">{prova.parecer}</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* Mapa da trilha: nós circulares numerados sobre uma fita que serpenteia,
+   alternando a curva para cima e para baixo. A fita é SVG (só o traço) e os
+   nós são HTML por cima — assim o texto continua selecionável e os nós são
+   botões de verdade, não formas dentro de um desenho. */
+/* soma HH:MM:SS de uma lista de partes, para mostrar o peso do módulo */
+function somaDuracao(itens) {
+  const segs = (itens || []).reduce((tot, c) => {
+    const p = String(c.duracao || "").split(":").map(Number);
+    if (p.length !== 3 || p.some(isNaN)) return tot;
+    return tot + p[0] * 3600 + p[1] * 60 + p[2];
+  }, 0);
+  if (!segs) return "";
+  const h = Math.floor(segs / 3600);
+  const mi = Math.round((segs % 3600) / 60);
+  return h > 0 ? `${h}h${String(mi).padStart(2, "0")}` : `${mi}min`;
+}
+
+const MAPA = { passo: 158, raio: 34, curva: 40, linha: 228, margem: 46, porLinha: 6 };
+
+/* Posição de cada nó: as linhas alternam de direção, como texto em
+   boustrofédon. Com muitos módulos, uma linha só viraria uma rolagem
+   horizontal enorme. */
+function posicoesMapa(n) {
+  const { passo, raio, linha, margem, porLinha } = MAPA;
+  return Array.from({ length: n }, (_, k) => {
+    const fila = Math.floor(k / porLinha);
+    const dentro = k % porLinha;
+    const col = fila % 2 === 0 ? dentro : porLinha - 1 - dentro;
+    return {
+      x: margem + raio + col * passo,
+      y: margem + raio + fila * linha + linha * 0.28,
+      fila,
+    };
+  });
+}
+
+function MapaTrilha({ modulos, statusModulo, progresso, selecionado, onSelecionar }) {
+  const n = modulos.length;
+  const { passo, raio, curva, linha, margem, porLinha } = MAPA;
+  const pos = posicoesMapa(n);
+  const filas = Math.max(1, Math.ceil(n / porLinha));
+  const colsUsadas = Math.min(n, porLinha);
+  const largura = margem * 2 + Math.max(0, colsUsadas - 1) * passo + raio * 2;
+  const altura = margem + filas * linha + raio;
+
+  return (
+    <div className="mp-wrap">
+      <div className="mp" style={{ width: largura, height: altura }}>
+        <svg className="mp-fita" width={largura} height={altura} aria-hidden="true">
+          {modulos.slice(0, -1).map((m, i) => {
+            const a = pos[i];
+            const b = pos[i + 1];
+            let d;
+            if (a.fila === b.fila) {
+              // dentro da mesma linha: curva em S, alternando acima e abaixo
+              const bojo = i % 2 === 0 ? -curva : curva;
+              d = `M ${a.x} ${a.y} C ${a.x + (b.x - a.x) * 0.42} ${a.y + bojo}, ${
+                b.x - (b.x - a.x) * 0.42
+              } ${b.y + bojo} ${b.x} ${b.y}`;
+            } else {
+              // troca de linha: desce pela laterala e volta
+              const meioY = (a.y + b.y) / 2;
+              const fora = a.x > largura / 2 ? curva : -curva;
+              d = `M ${a.x} ${a.y} C ${a.x + fora} ${meioY - 10}, ${
+                b.x + fora
+              } ${meioY + 10} ${b.x} ${b.y}`;
+            }
+            const percorrido = statusModulo(m.id) === "concluido";
+            return <path key={m.id} d={d} className={`mp-seg ${percorrido ? "feito" : ""}`} />;
+          })}
+        </svg>
+
+        {modulos.map((m, i) => {
+          const st = statusModulo(m.id);
+          const pr = progresso(m.id);
+          // com o mapa em várias linhas, alternar o lado do rótulo fazia os
+          // de uma linha baterem nos da linha seguinte. Rótulo sempre abaixo.
+          const acima = false;
+          return (
+            <div
+              key={m.id}
+              className={`mp-no ${st} ${selecionado === m.id ? "sel" : ""} ${
+                acima ? "rot-acima" : "rot-abaixo"
+              }`}
+              style={{
+                left: pos[i].x - raio,
+                top: pos[i].y - raio,
+                width: raio * 2,
+                height: raio * 2,
+              }}
+            >
+              <button
+                className="mp-circulo"
+                onClick={() => onSelecionar(m.id)}
+                aria-label={`Módulo ${i + 1}: ${m.titulo || "sem título"}`}
+                title={m.titulo || "sem título"}
+              >
+                {st === "concluido" ? (
+                  <span className="mp-check">✓</span>
+                ) : pr.total > 0 ? (
+                  <span className="mp-frac">
+                    {pr.feitas}<span className="mp-de">/{pr.total}</span>
+                  </span>
+                ) : (
+                  <span className="mp-vazio">—</span>
+                )}
+              </button>
+              <span className="mp-selo">{i + 1}</span>
+              <span className="mp-rotulo">
+                {m.titulo || "sem título"}
+                <span className="mp-comp" style={{ color: corCompetencia(m.competencia) }}>
+                  {COMPETENCIAS[m.competencia] || ""}
+                </span>
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/* ---------- trilha de desenvolvimento ----------
+   Um caminho, não um quadro. Módulos ordenados: cada um tem um objetivo
+   de aprendizado, material para estudar e as tarefas que provam que o
+   assunto foi absorvido. O módulo fecha quando todas as tarefas dele
+   foram aprovadas. */
+function Trilha({ trilha, updateTrilha, papel, askConfirm, canDelete }) {
+  const tarefas = trilha?.tarefas || [];
+  const todosModulos = [...(trilha?.modulos || [])].sort((a, b) => (a.ordem || 0) - (b.ordem || 0));
+  const materias = [...(trilha?.materias || [])].sort((a, b) => (a.ordem || 0) - (b.ordem || 0));
+  const [aberta, setAberta] = useState(null);
+  const [expandido, setExpandido] = useState(null);
+  const [materiaSel, setMateriaSel] = useState(null);
+  // permite abrir um módulo específico via ?mod=<id>
+  const [modInicial, matInicial] = (() => {
+    try {
+      const q = new URLSearchParams(window.location.search);
+      return [q.get("mod"), q.get("mat")];
+    } catch { return [null, null]; }
+  })();
+  const ehMentor = papel === "mentor";
+
+  // matéria ativa: a escolhida, ou a primeira da lista
+  const materiaAtiva = materiaSel ?? matInicial ?? materias[0]?.id ?? null;
+  // módulos sem matéria caem na primeira, para nada desaparecer
+  const modulos = materias.length
+    ? todosModulos.filter(
+        (m) => (m.materiaId || materias[0].id) === materiaAtiva
+      )
+    : todosModulos;
+
+  const tarefasDo = (modId) => tarefas.filter((t) => (t.moduloId || null) === modId);
+  // órfã é a tarefa sem módulo em nenhuma matéria. Comparar com a lista já
+  // filtrada fazia as tarefas das outras matérias aparecerem como soltas.
+  const semModulo = tarefas.filter(
+    (t) => !t.moduloId || !todosModulos.some((m) => m.id === t.moduloId)
+  );
+
+  const progresso = (modId) => {
+    const lista = tarefasDo(modId);
+    const feitas = lista.filter((t) => t.status === "revisada").length;
+    return { feitas, total: lista.length, pct: lista.length ? (feitas / lista.length) * 100 : 0 };
+  };
+  const provaDe = (modId) => (trilha?.provas || {})[modId] || null;
+  const temProva = (mod) => ((mod?.prova?.questoes || []).length > 0);
+  const provaOk = (mod) => !mod || !temProva(mod) || provaDe(mod.id)?.status === "validada";
+
+  const statusModulo = (modId) => {
+    const mod = todosModulos.find((m) => m.id === modId);
+    const { feitas, total } = progresso(modId);
+    const conteudo = mod?.conteudo || [];
+    const pv = provaDe(modId);
+
+    /* Um módulo pode ter tarefas, prova, conteúdo — ou só alguns deles.
+       Cada um que existe é um portão; o módulo fecha quando todos os
+       portões existentes estão satisfeitos. Exigir tarefa sempre deixava
+       módulos só de leitura impossíveis de concluir. */
+    const portoes = [];
+    if (total > 0) portoes.push(feitas === total);
+    if (temProva(mod)) portoes.push(pv?.status === "validada");
+    if (conteudo.length > 0) portoes.push(conteudo.every((c) => c.visto));
+
+    if (portoes.length > 0 && portoes.every(Boolean)) return "concluido";
+
+    const mexeu =
+      tarefasDo(modId).some((t) => t.status !== "afazer") ||
+      Boolean(pv && pv.status !== "aberta") ||
+      conteudo.some((c) => c.visto);
+    return mexeu ? "emcurso" : "aseguir";
+  };
+
+  // o módulo atual é o primeiro que ainda não fechou: é onde ela está no caminho
+  const atual = modulos.find((m) => statusModulo(m.id) !== "concluido");
+  const concluidos = modulos.filter((m) => statusModulo(m.id) === "concluido").length;
+
+  // abre o módulo atual por padrão
+  const aberto = expandido ?? modInicial ?? atual?.id ?? modulos[0]?.id ?? null;
+
+  const criarMateria = () =>
+    updateTrilha((t) => {
+      const ordem = Math.max(0, ...(t.materias || []).map((x) => x.ordem || 0)) + 1;
+      t.materias = [...(t.materias || []), { ...NOVA_MATERIA(), ordem, nome: "Nova matéria" }];
+      return t;
+    });
+  const patchMateria = (id, campos) =>
+    updateTrilha((t) => {
+      const x = (t.materias || []).find((y) => y.id === id);
+      if (x) Object.assign(x, campos);
+      return t;
+    });
+  const removerMateria = (mt) =>
+    askConfirm(
+      `Excluir a matéria "${mt.nome}"? Os módulos dela ficam sem matéria.`,
+      () =>
+        updateTrilha((t) => {
+          t.materias = t.materias.filter((x) => x.id !== mt.id);
+          (t.modulos || []).forEach((m) => {
+            if (m.materiaId === mt.id) m.materiaId = null;
+          });
+          return t;
+        })
+    );
+
+  const criarModulo = () =>
+    updateTrilha((t) => {
+      const ordem = Math.max(0, ...(t.modulos || []).map((m) => m.ordem || 0)) + 1;
+      t.modulos = [...(t.modulos || []), { ...NOVO_MODULO(), ordem, materiaId: materiaAtiva }];
+      return t;
+    });
+
+  const patchModulo = (id, campos) =>
+    updateTrilha((t) => {
+      const m = (t.modulos || []).find((x) => x.id === id);
+      if (m) Object.assign(m, campos);
+      return t;
+    });
+
+  const removerModulo = (m) =>
+    askConfirm(
+      `Excluir o módulo "${m.titulo || "sem título"}"? As tarefas dele ficam sem módulo.`,
+      () =>
+        updateTrilha((t) => {
+          t.modulos = t.modulos.filter((x) => x.id !== m.id);
+          (t.tarefas || []).forEach((tf) => {
+            if (tf.moduloId === m.id) tf.moduloId = null;
+          });
+          return t;
+        })
+    );
+
+  const criarTarefa = (moduloId, competencia) =>
+    updateTrilha((t) => {
+      t.tarefas = [...(t.tarefas || []), { ...NOVA_TAREFA(), moduloId, competencia }];
+      return t;
+    });
+
+  const patchTarefa = (id, campos) =>
+    updateTrilha((t) => {
+      const tf = (t.tarefas || []).find((x) => x.id === id);
+      if (tf) Object.assign(tf, campos);
+      return t;
+    });
+
+  const removerTarefa = (tf) =>
+    askConfirm(`Excluir a tarefa "${tf.titulo || "sem título"}"?`, () => {
+      updateTrilha((t) => {
+        t.tarefas = t.tarefas.filter((x) => x.id !== tf.id);
+        return t;
+      });
+      setAberta(null);
+    });
+
+  // ---- prova do módulo ----
+  const patchProva = (modId, campos) =>
+    updateTrilha((t) => {
+      t.provas = t.provas || {};
+      t.provas[modId] = { ...(t.provas[modId] || {}), ...campos };
+      return t;
+    });
+
+  const responder = (modId, qid, valor) =>
+    updateTrilha((t) => {
+      t.provas = t.provas || {};
+      const pv = t.provas[modId] || { respostas: {}, status: "aberta" };
+      pv.respostas = { ...(pv.respostas || {}), [qid]: valor };
+      pv.status = pv.status === "validada" ? "validada" : "aberta";
+      t.provas[modId] = pv;
+      return t;
+    });
+
+  const enviarProva = (modId) =>
+    patchProva(modId, { status: "enviada", enviadaEm: Date.now() });
+
+  const validarProva = (modId, validacao, parecer) =>
+    patchProva(modId, {
+      status: "validada",
+      validacao,
+      parecer,
+      validadaEm: Date.now(),
+    });
+
+  const devolverProva = (modId, validacao, parecer) =>
+    patchProva(modId, {
+      status: "aberta",
+      validacao,
+      parecer,
+      devolvidaEm: Date.now(),
+    });
+
+  const addQuestao = (m, tipo) =>
+    patchModulo(m.id, {
+      prova: {
+        questoes: [
+          ...(m.prova?.questoes || []),
+          tipo === "multipla"
+            ? { id: uid(), tipo: "multipla", enunciado: "", opcoes: ["", "", ""], correta: 0 }
+            : { id: uid(), tipo: "aberta", enunciado: "" },
+        ],
+      },
+    });
+  const patchQuestao = (m, qid, campos) =>
+    patchModulo(m.id, {
+      prova: {
+        questoes: (m.prova?.questoes || []).map((q) =>
+          q.id === qid ? { ...q, ...campos } : q
+        ),
+      },
+    });
+  const removerQuestao = (m, qid) =>
+    patchModulo(m.id, {
+      prova: { questoes: (m.prova?.questoes || []).filter((q) => q.id !== qid) },
+    });
+
+  // ---- conteúdo do curso (aulas e partes) ----
+  const addConteudo = (m) =>
+    patchModulo(m.id, {
+      conteudo: [...(m.conteudo || []), { id: uid(), titulo: "", duracao: "", temas: "", visto: false }],
+    });
+  const patchConteudo = (m, cid, campos) =>
+    patchModulo(m.id, {
+      conteudo: (m.conteudo || []).map((c) => (c.id === cid ? { ...c, ...campos } : c)),
+    });
+  const removerConteudo = (m, cid) =>
+    patchModulo(m.id, { conteudo: (m.conteudo || []).filter((c) => c.id !== cid) });
+
+  const addRecurso = (m) =>
+    patchModulo(m.id, { recursos: [...(m.recursos || []), { id: uid(), titulo: "", url: "" }] });
+  const patchRecurso = (m, rid, campos) =>
+    patchModulo(m.id, {
+      recursos: (m.recursos || []).map((r) => (r.id === rid ? { ...r, ...campos } : r)),
+    });
+  const removerRecurso = (m, rid) =>
+    patchModulo(m.id, { recursos: (m.recursos || []).filter((r) => r.id !== rid) });
+
+  const tarefaAberta = tarefas.find((t) => t.id === aberta) || null;
+  const aRevisar = tarefas.filter((t) => t.status === "entregue");
+  const provasEnviadas = modulos.filter((m) => provaDe(m.id)?.status === "enviada");
+
+  return (
+    <div className="view">
+      <div className="tr-top">
+        <div>
+          <div className="tr-titulo">
+            {ehMentor ? `Trilha da ${APRENDIZ}` : "Minha trilha"}
+          </div>
+          <div className="tr-sub">
+            {ehMentor
+              ? "Monte o caminho em módulos: objetivo, material de estudo e as tarefas que comprovam o aprendizado."
+              : "Percorra os módulos na ordem. Estude o material, faça as tarefas e registre o que aprendeu."}
+          </div>
+        </div>
+        {ehMentor && <button className="btn accent" onClick={criarModulo}>+ novo módulo</button>}
+      </div>
+
+      {(materias.length > 0 || ehMentor) && (
+        <div className="mt-abas">
+          {materias.map((mt) => {
+            const doGrupo = todosModulos.filter(
+              (m) => (m.materiaId || materias[0].id) === mt.id
+            );
+            const feitos = doGrupo.filter((m) => statusModulo(m.id) === "concluido").length;
+            return (
+              <button
+                key={mt.id}
+                className={`mt-aba ${materiaAtiva === mt.id ? "sel" : ""}`}
+                onClick={() => { setMateriaSel(mt.id); setExpandido(null); }}
+              >
+                {mt.nome || "sem nome"}
+                {doGrupo.length > 0 && (
+                  <span className="mt-conta">{feitos}/{doGrupo.length}</span>
+                )}
+              </button>
+            );
+          })}
+          {ehMentor && (
+            <button className="mt-add" onClick={criarMateria} title="Nova matéria">
+              + matéria
+            </button>
+          )}
+        </div>
+      )}
+
+      {ehMentor && materiaAtiva && (
+        <div className="mt-edit">
+          <input
+            className="input mt-nome"
+            value={materias.find((x) => x.id === materiaAtiva)?.nome || ""}
+            placeholder="Nome da matéria"
+            onChange={(e) => patchMateria(materiaAtiva, { nome: e.target.value })}
+          />
+          {canDelete && (
+            <button
+              className="link-btn"
+              onClick={() => removerMateria(materias.find((x) => x.id === materiaAtiva))}
+            >
+              excluir matéria
+            </button>
+          )}
+        </div>
+      )}
+
+      {modulos.length > 0 && (
+        <div className="tl-progresso">
+          <div className="tl-prog-barra">
+            <span
+              className="tl-prog-fill"
+              style={{ width: `${(concluidos / modulos.length) * 100}%` }}
+            />
+          </div>
+          <div className="tl-prog-txt">
+            {concluidos} de {modulos.length} módulos concluídos
+            {atual && <> · você está em <strong>{atual.titulo || "módulo sem título"}</strong></>}
+          </div>
+        </div>
+      )}
+
+      <Conquistas trilha={trilha} papel={papel} />
+
+      {ehMentor && (aRevisar.length > 0 || provasEnviadas.length > 0) && (
+        <div className="tr-fila">
+          <div className="px-label sec">Esperando sua validação</div>
+          {provasEnviadas.map((m) => (
+            <button key={m.id} className="row" onClick={() => setExpandido(m.id)}>
+              <span className="prova-selo">prova</span>
+              <span className="row-title">{m.titulo || "módulo sem título"}</span>
+              <span className="row-end">validar →</span>
+            </button>
+          ))}
+          {aRevisar.map((tf) => (
+            <button key={tf.id} className="row" onClick={() => setAberta(tf.id)}>
+              <span className="prova-selo tarefa">tarefa</span>
+              <span className="row-title">{tf.titulo || "sem título"}</span>
+              <span className="row-end">revisar →</span>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {modulos.length === 0 && (
+        <div className="empty">
+          {ehMentor
+            ? "Nenhum módulo ainda. Crie o primeiro para desenhar o caminho dela."
+            : "A trilha ainda está sendo montada."}
+        </div>
+      )}
+
+      {/* ---- o caminho: mapa no desktop, tiras no celular ---- */}
+      {modulos.length > 0 && (
+        <>
+          <MapaTrilha
+            modulos={modulos}
+            statusModulo={statusModulo}
+            progresso={progresso}
+            selecionado={aberto}
+            onSelecionar={(id) => setExpandido(id)}
+          />
+          <div className="mp-tiras">
+            {modulos.map((m, i) => (
+              <button
+                key={m.id}
+                className={`mp-tira ${statusModulo(m.id)} ${aberto === m.id ? "sel" : ""}`}
+                onClick={() => setExpandido(m.id)}
+              >
+                <span className="mp-tira-num">
+                  {statusModulo(m.id) === "concluido" ? "✓" : i + 1}
+                </span>
+                <span className="mp-tira-tit">{m.titulo || "sem título"}</span>
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+
+      <ol className="tl">
+        {modulos.filter((m) => m.id === aberto).map((m) => {
+          const i = modulos.findIndex((x) => x.id === m.id);
+          const st = statusModulo(m.id);
+          const pr = progresso(m.id);
+          const isAberto = true;
+          const lista = tarefasDo(m.id);
+          return (
+            <li key={m.id} className={`tl-item ${st} ${isAberto ? "aberto" : ""}`}>
+              <div className="tl-marco">
+                <span className="tl-num">{st === "concluido" ? "✓" : i + 1}</span>
+              </div>
+
+              <div className="tl-card">
+                <div className="tl-head">
+                  <div className="tl-head-txt">
+                    <div className="tl-mod-titulo">
+                      {m.titulo || <span className="tr-vazio">módulo sem título</span>}
+                    </div>
+                    <div className="tl-meta">
+                      <span
+                        className="tr-comp"
+                        style={{ color: corCompetencia(m.competencia) }}
+                      >
+                        {COMPETENCIAS[m.competencia] || "—"}
+                      </span>
+                      <span className="tl-sep">·</span>
+                      <span className="tl-conta">
+                        {pr.total === 0
+                          ? "sem tarefas"
+                          : `${pr.feitas}/${pr.total} tarefas`}
+                      </span>
+                      {st === "concluido" && <span className="tl-selo">concluído</span>}
+                      {st === "emcurso" && <span className="tl-selo emcurso">em curso</span>}
+                    </div>
+                  </div>
+                </div>
+
+                {pr.total > 0 && (
+                  <div className="tl-barra">
+                    <span className="tl-barra-fill" style={{ width: `${pr.pct}%` }} />
+                  </div>
+                )}
+
+                {isAberto && (
+                  <div className="tl-corpo">
+                    {/* objetivo do módulo */}
+                    {ehMentor ? (
+                      <>
+                        <Field label="Título do módulo">
+                          <input
+                            className="input"
+                            value={m.titulo}
+                            placeholder="Ex.: Fundamentos de layout"
+                            onChange={(e) => patchModulo(m.id, { titulo: e.target.value })}
+                          />
+                        </Field>
+                        <div className="two-col">
+                          <Field label="Competência">
+                            <select
+                              className="input"
+                              value={m.competencia}
+                              onChange={(e) => patchModulo(m.id, { competencia: e.target.value })}
+                            >
+                              {Object.entries(COMPETENCIAS).map(([k, v]) => (
+                                <option key={k} value={k}>{v}</option>
+                              ))}
+                            </select>
+                          </Field>
+                          <Field label="Ordem no caminho">
+                            <input
+                              className="input"
+                              type="number"
+                              min="1"
+                              value={m.ordem || 1}
+                              onChange={(e) =>
+                                patchModulo(m.id, { ordem: Number(e.target.value) || 1 })
+                              }
+                            />
+                          </Field>
+                        </div>
+                        <Field label="O que ela vai aprender aqui">
+                          <textarea
+                            className="input"
+                            rows={3}
+                            value={m.objetivo}
+                            placeholder="O objetivo de aprendizado do módulo, em uma ou duas frases."
+                            onChange={(e) => patchModulo(m.id, { objetivo: e.target.value })}
+                          />
+                        </Field>
+                      </>
+                    ) : (
+                      m.objetivo && (
+                        <div className="tl-objetivo">
+                          <div className="tl-obj-tit">O que você vai aprender</div>
+                          <p className="tr-desc">{m.objetivo}</p>
+                        </div>
+                      )
+                    )}
+
+                    {/* conteúdo do curso: aulas e partes, com timestamps */}
+                    {((m.conteudo || []).length > 0 || ehMentor) && (
+                      <div className="tl-secao">
+                        <div className="ct-head">
+                          <div className="px-label sec" style={{ margin: 0 }}>Conteúdo do curso</div>
+                          {(m.conteudo || []).length > 0 && (
+                            <span className="ct-prog">
+                              {(m.conteudo || []).filter((c) => c.visto).length}/
+                              {(m.conteudo || []).length} vistos
+                              {somaDuracao(m.conteudo) && <> · {somaDuracao(m.conteudo)}</>}
+                            </span>
+                          )}
+                        </div>
+                        {(m.conteudo || []).map((c) =>
+                          ehMentor ? (
+                            <div key={c.id} className="ct-edit">
+                              <input
+                                className="input"
+                                value={c.titulo}
+                                placeholder="Aula 02 · Parte 4"
+                                onChange={(e) => patchConteudo(m, c.id, { titulo: e.target.value })}
+                              />
+                              <input
+                                className="input ct-dur"
+                                value={c.duracao}
+                                placeholder="00:47:07"
+                                onChange={(e) => patchConteudo(m, c.id, { duracao: e.target.value })}
+                              />
+                              <input
+                                className="input"
+                                value={c.temas}
+                                placeholder="Estética (01:36); Princípios (22:17)"
+                                onChange={(e) => patchConteudo(m, c.id, { temas: e.target.value })}
+                              />
+                              <button className="icon-btn" onClick={() => removerConteudo(m, c.id)}>×</button>
+                            </div>
+                          ) : (
+                            <div key={c.id} className={`ct-item ${c.visto ? "visto" : ""}`}>
+                              <button
+                                className="ct-check"
+                                onClick={() => patchConteudo(m, c.id, { visto: !c.visto })}
+                                aria-label={c.visto ? "Marcar como não visto" : "Marcar como visto"}
+                              >
+                                {c.visto ? "✓" : ""}
+                              </button>
+                              <div className="ct-txt">
+                                <div className="ct-tit">
+                                  {c.titulo || "parte sem nome"}
+                                  {c.duracao && <span className="ct-durtxt">{c.duracao}</span>}
+                                </div>
+                                {c.temas && <div className="ct-temas">{c.temas}</div>}
+                              </div>
+                            </div>
+                          )
+                        )}
+                        {ehMentor && (
+                          <button className="add-card" onClick={() => addConteudo(m)}>
+                            + parte da aula
+                          </button>
+                        )}
+                      </div>
+                    )}
+
+                    {/* links de apoio */}
+                    <div className="tl-secao">
+                      <div className="px-label sec">Links de apoio</div>
+                      {(m.recursos || []).length === 0 && !ehMentor && (
+                        <div className="tl-vazio-txt">Nenhum material adicionado.</div>
+                      )}
+                      {(m.recursos || []).map((r) =>
+                        ehMentor ? (
+                          <div key={r.id} className="tl-rec-edit">
+                            <input
+                              className="input"
+                              value={r.titulo}
+                              placeholder="Nome do material"
+                              onChange={(e) => patchRecurso(m, r.id, { titulo: e.target.value })}
+                            />
+                            <input
+                              className="input"
+                              value={r.url}
+                              placeholder="https://…"
+                              onChange={(e) => patchRecurso(m, r.id, { url: e.target.value })}
+                            />
+                            <button className="icon-btn" onClick={() => removerRecurso(m, r.id)}>×</button>
+                          </div>
+                        ) : (
+                          <a
+                            key={r.id}
+                            className="tl-rec"
+                            href={r.url || "#"}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            <span className="tl-rec-ico">↗</span>
+                            {r.titulo || r.url || "material"}
+                          </a>
+                        )
+                      )}
+                      {ehMentor && (
+                        <button className="add-card" onClick={() => addRecurso(m)}>
+                          + material
+                        </button>
+                      )}
+                    </div>
+
+                    <ProvaModulo
+                      modulo={m}
+                      prova={provaDe(m.id)}
+                      papel={papel}
+                      responder={responder}
+                      enviar={enviarProva}
+                      validar={validarProva}
+                      devolver={devolverProva}
+                      addQuestao={addQuestao}
+                      patchQuestao={patchQuestao}
+                      removerQuestao={removerQuestao}
+                    />
+
+                    {/* tarefas do módulo */}
+                    <div className="tl-secao">
+                      <div className="px-label sec">Tarefas</div>
+                      {lista.length === 0 && (
+                        <div className="tl-vazio-txt">
+                          {ehMentor ? "Nenhuma tarefa neste módulo." : "Nenhuma tarefa por aqui ainda."}
+                        </div>
+                      )}
+                      {lista.map((tf) => (
+                        <button key={tf.id} className="tl-tarefa" onClick={() => setAberta(tf.id)}>
+                          <span className={`tl-tag st-${tf.status || "afazer"}`}>
+                            {TRILHA_STATUS[tf.status || "afazer"]}
+                          </span>
+                          <span className="tl-tarefa-tit">
+                            {tf.titulo || <span className="tr-vazio">sem título</span>}
+                          </span>
+                          {tf.prazo && <span className="tr-prazo">{fmtShort(tf.prazo)}</span>}
+                          {tf.avaliacao && (
+                            <span className="tr-nota" style={{ color: AVALIACAO[tf.avaliacao].cor }}>
+                              {AVALIACAO[tf.avaliacao].label}
+                            </span>
+                          )}
+                        </button>
+                      ))}
+                      {ehMentor && (
+                        <button
+                          className="add-card"
+                          onClick={() => criarTarefa(m.id, m.competencia)}
+                        >
+                          + tarefa neste módulo
+                        </button>
+                      )}
+                    </div>
+
+                    {ehMentor && canDelete && (
+                      <div className="modal-foot">
+                        <button className="btn danger small" onClick={() => removerModulo(m)}>
+                          excluir módulo
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </li>
+          );
+        })}
+      </ol>
+
+      {semModulo.length > 0 && (
+        <div className="tl-orfas">
+          <div className="px-label sec">Fora dos módulos</div>
+          {semModulo.map((tf) => (
+            <button key={tf.id} className="tl-tarefa" onClick={() => setAberta(tf.id)}>
+              <span className={`tl-tag st-${tf.status || "afazer"}`}>
+                {TRILHA_STATUS[tf.status || "afazer"]}
+              </span>
+              <span className="tl-tarefa-tit">{tf.titulo || "sem título"}</span>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {ehMentor && <PainelMetricas m={analisarTrilha(tarefas, modulos.length, concluidos)} />}
+
+      {tarefas.length > 0 && (
+        <RelatorioSemana
+          tarefas={tarefas}
+          relatorios={trilha?.relatorios}
+          updateTrilha={updateTrilha}
+          papel={papel}
+        />
+      )}
+
+      {tarefaAberta && (
+        <TarefaModal
+          tarefa={tarefaAberta}
+          papel={papel}
+          patch={(campos) => patchTarefa(tarefaAberta.id, campos)}
+          remover={() => removerTarefa(tarefaAberta)}
+          canDelete={canDelete && ehMentor}
+          close={() => setAberta(null)}
+        />
+      )}
+    </div>
+  );
+}
+function TarefaModal({ tarefa: tf, papel, patch, remover, canDelete, close }) {
+  const ehMentor = papel === "mentor";
+  const ehAprendiz = papel === "aprendiz";
+  const [entrega, setEntrega] = useState({
+    link: tf.link || "",
+    aprendizado: tf.aprendizado || "",
+  });
+  const [fb, setFb] = useState(tf.feedback || "");
+
+  const podeEntregar = ehAprendiz && ["afazer", "fazendo"].includes(tf.status);
+  const jaRevisada = tf.status === "revisada";
+
+  const entregar = () => {
+    if (!entrega.aprendizado.trim()) return; // o registro do aprendizado é o ponto
+    patch({
+      status: "entregue",
+      link: entrega.link.trim(),
+      aprendizado: entrega.aprendizado.trim(),
+      entregueEm: Date.now(),
+    });
+    close();
+  };
+
+  const revisar = (nivel) => {
+    patch({
+      status: nivel === "refazer" ? "fazendo" : "revisada",
+      avaliacao: nivel,
+      feedback: fb.trim(),
+      revisadaEm: Date.now(),
+      // o histórico é acumulado: reavaliar não apaga o retrabalho anterior
+      revisoes: [...(tf.revisoes || []), { nivel, em: Date.now() }],
+    });
+    close();
+  };
+
+  return (
+    <Overlay close={close}>
+      <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-head">
+          {ehMentor && !jaRevisada ? (
+            <input
+              className="input title-input"
+              value={tf.titulo}
+              placeholder="Título da tarefa"
+              onChange={(e) => patch({ titulo: e.target.value })}
+            />
+          ) : (
+            <div className="modal-title">{tf.titulo || "sem título"}</div>
+          )}
+          <button className="icon-btn" onClick={close}>×</button>
+        </div>
+
+        {ehMentor && !jaRevisada ? (
+          <>
+            <div className="two-col">
+              <Field label="Tipo">
+                <select
+                  className="input"
+                  value={tf.tipo}
+                  onChange={(e) => patch({ tipo: e.target.value })}
+                >
+                  {Object.entries(TRILHA_TIPO).map(([k, v]) => (
+                    <option key={k} value={k}>{v}</option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="Competência">
+                <select
+                  className="input"
+                  value={tf.competencia}
+                  onChange={(e) => patch({ competencia: e.target.value })}
+                >
+                  {Object.entries(COMPETENCIAS).map(([k, v]) => (
+                    <option key={k} value={k}>{v}</option>
+                  ))}
+                </select>
+              </Field>
+            </div>
+            <Field label="Prazo">
+              <input
+                className="input"
+                type="date"
+                value={tf.prazo || ""}
+                onChange={(e) => patch({ prazo: e.target.value })}
+              />
+            </Field>
+            <Field label="O que precisa ser feito">
+              <textarea
+                className="input"
+                rows={4}
+                value={tf.descricao}
+                placeholder="Contexto, referências, o que você espera de volta…"
+                onChange={(e) => patch({ descricao: e.target.value })}
+              />
+            </Field>
+          </>
+        ) : (
+          <>
+            <div className="tr-chips">
+              <span className="chip small sel">{TRILHA_TIPO[tf.tipo]}</span>
+              <span
+                className="chip small sel"
+                style={{ color: corCompetencia(tf.competencia) }}
+              >
+                {COMPETENCIAS[tf.competencia]}
+              </span>
+              {tf.prazo && <span className="chip small">até {fmtShort(tf.prazo)}</span>}
+            </div>
+            {tf.descricao && <p className="tr-desc">{tf.descricao}</p>}
+          </>
+        )}
+
+        {/* ---- entrega: a aprendiz preenche ---- */}
+        {podeEntregar && (
+          <div className="tr-bloco">
+            <div className="px-label sec">Entregar</div>
+            <Field label="Link da entrega (opcional)">
+              <input
+                className="input"
+                value={entrega.link}
+                placeholder="Drive, Figma, post…"
+                onChange={(e) => setEntrega({ ...entrega, link: e.target.value })}
+              />
+            </Field>
+            <Field label="O que você aprendeu aqui?">
+              <textarea
+                className="input"
+                rows={4}
+                value={entrega.aprendizado}
+                placeholder="O que você não sabia antes e sabe agora. Vale o que deu errado também."
+                onChange={(e) => setEntrega({ ...entrega, aprendizado: e.target.value })}
+              />
+            </Field>
+            <div className="btn-row">
+              {tf.status === "afazer" && (
+                <button className="btn ghost" onClick={() => patch({ status: "fazendo" })}>
+                  comecei a fazer
+                </button>
+              )}
+              <button
+                className="btn"
+                onClick={entregar}
+                disabled={!entrega.aprendizado.trim()}
+                title={
+                  entrega.aprendizado.trim()
+                    ? "Enviar para revisão"
+                    : "Registre o que aprendeu antes de entregar"
+                }
+              >
+                entregar para revisão →
+              </button>
+            </div>
+            {!entrega.aprendizado.trim() && (
+              <div className="tr-aviso">
+                O registro do aprendizado é obrigatório — é o que vai alimentar seu
+                relatório no fim da semana.
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ---- o que foi entregue ---- */}
+        {["entregue", "revisada"].includes(tf.status) && (
+          <div className="tr-bloco">
+            <div className="px-label sec">Entrega</div>
+            {tf.link && (
+              <a className="tr-link" href={tf.link} target="_blank" rel="noreferrer">
+                {tf.link}
+              </a>
+            )}
+            <p className="tr-desc">{tf.aprendizado || "—"}</p>
+          </div>
+        )}
+
+        {/* ---- revisão: o mentor avalia ---- */}
+        {ehMentor && tf.status === "entregue" && (
+          <div className="tr-bloco">
+            <div className="px-label sec">Revisar</div>
+            <Field label="Retorno para ela">
+              <textarea
+                className="input"
+                rows={3}
+                value={fb}
+                placeholder="O que ficou bom, o que ajustar e por quê."
+                onChange={(e) => setFb(e.target.value)}
+              />
+            </Field>
+            <div className="btn-row">
+              {Object.entries(AVALIACAO).map(([k, v]) => (
+                <button
+                  key={k}
+                  className="btn ghost tr-aval"
+                  style={{ borderColor: v.cor, color: v.cor }}
+                  onClick={() => revisar(k)}
+                >
+                  {v.label}
+                </button>
+              ))}
+            </div>
+            <div className="tr-aviso">
+              "Refazer" devolve a tarefa para Fazendo e conta como retrabalho.
+            </div>
+          </div>
+        )}
+
+        {jaRevisada && (
+          <div className="tr-bloco">
+            <div className="px-label sec">Revisão</div>
+            <div
+              className="tr-nota grande"
+              style={{ color: AVALIACAO[tf.avaliacao]?.cor }}
+            >
+              {AVALIACAO[tf.avaliacao]?.label}
+            </div>
+            {tf.feedback && <p className="tr-desc">{tf.feedback}</p>}
+          </div>
+        )}
+
+        <div className="modal-foot">
+          {canDelete && (
+            <button className="btn danger" onClick={remover}>excluir</button>
+          )}
+          <button className="btn ghost" onClick={close}>fechar</button>
+        </div>
+      </div>
+    </Overlay>
   );
 }
 
@@ -3216,6 +5042,815 @@ function GlobalStyle() {
       .chip.sel { border-color: ${T.ink}; color: ${T.ink}; font-weight: 600; background: #fff; }
       .chip.small { font-size: 12px; padding: 3px 10px; }
       .chip-row { display: flex; gap: 6px; flex-wrap: wrap; }
+
+
+
+
+      /* ---------- conquistas ---------- */
+      .cq { margin: 18px 0 22px; }
+      .cq-head {
+        display: flex; align-items: center; justify-content: space-between;
+        gap: 10px; flex-wrap: wrap; margin-bottom: 10px;
+      }
+      .cq-conta {
+        font-size: 11.5px; font-weight: 600;
+        background: ${T.accent}; color: ${T.accentInk};
+        border-radius: 999px; padding: 3px 11px;
+      }
+      .cq-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(215px, 1fr));
+        gap: 8px;
+      }
+      .cq-item {
+        display: flex; align-items: flex-start; gap: 9px;
+        border: 1px solid ${T.line};
+        border-radius: 12px;
+        padding: 10px 12px;
+        background: ${T.paper};
+      }
+      /* bloqueada fica visível, mas apagada: saber o que falta faz parte */
+      .cq-item:not(.ganha) { background: ${T.holoSoft}; }
+      .cq-item:not(.ganha) .cq-tit { color: ${T.muted}; }
+      .cq-dot {
+        width: 10px; height: 10px; border-radius: 50%;
+        background: ${T.line};
+        flex-shrink: 0; margin-top: 4px;
+      }
+      .cq-txt { min-width: 0; }
+      .cq-tit { font-size: 13px; font-weight: 600; line-height: 1.3; }
+      .cq-desc { font-size: 11.5px; color: ${T.muted}; line-height: 1.45; margin-top: 2px; }
+      .cq-desde {
+        font-size: 10.5px; font-weight: 600; color: #2C6B27; margin-top: 4px;
+      }
+
+      /* ---------- painel de métricas da trilha ---------- */
+      .pm { margin-bottom: 22px; }
+      .pm-tiles { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+      .pm-tile {
+        flex: 1 1 150px; min-width: 0;
+        border: 1px solid ${T.line};
+        border-radius: 16px;
+        padding: 14px 16px;
+        background: ${T.paper};
+      }
+      .pm-tile.destaque {
+        background: ${T.accent};
+        border-color: ${T.accent};
+        color: ${T.accentInk};
+      }
+      .pm-num {
+        font-size: 26px; font-weight: 700; letter-spacing: -1px;
+        font-variant-numeric: tabular-nums; line-height: 1.1;
+      }
+      .pm-cap {
+        font-size: 11px; text-transform: uppercase; letter-spacing: 1px;
+        color: ${T.muted}; margin-top: 5px;
+        display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+      }
+      .pm-tile.destaque .pm-cap { color: rgba(20,22,8,.7); }
+      .pm-hint {
+        width: 14px; height: 14px; border-radius: 50%;
+        border: 1px solid currentColor;
+        display: inline-flex; align-items: center; justify-content: center;
+        font-size: 9px; cursor: help; flex-shrink: 0;
+      }
+      .pm-pend {
+        background: ${T.accent}; color: ${T.accentInk};
+        border-radius: 999px; padding: 2px 8px;
+        font-size: 10px; letter-spacing: .6px;
+      }
+
+      .pm-bloco {
+        border: 1px solid ${T.line};
+        border-radius: 16px;
+        padding: 14px 16px;
+        margin-bottom: 12px;
+        background: ${T.paper};
+      }
+      .pm-bloco-head {
+        display: flex; align-items: center; justify-content: space-between;
+        gap: 10px; flex-wrap: wrap; margin-bottom: 12px;
+      }
+      .pm-bloco-titulo {
+        font-size: 11.5px; text-transform: uppercase; letter-spacing: 1.1px;
+        font-weight: 600; color: ${T.muted};
+      }
+      .pm-trend { font-size: 12px; font-weight: 600; }
+      .pm-trend.bom { color: #2C6B27; }
+      .pm-trend.ruim { color: #A83228; }
+
+      /* barras do retrabalho: finas, base ancorada, ponta arredondada */
+      .pm-barras {
+        display: flex; align-items: flex-end; gap: 10px;
+        height: 118px;
+      }
+      .pm-col {
+        flex: 1; min-width: 0;
+        display: flex; flex-direction: column; align-items: center;
+        height: 100%;
+      }
+      .pm-col-valor {
+        font-size: 11px; color: ${T.muted};
+        font-variant-numeric: tabular-nums; margin-bottom: 4px;
+      }
+      .pm-col-trilho {
+        flex: 1; width: 100%; max-width: 26px;
+        display: flex; align-items: flex-end;
+        background: ${T.bg};
+        border-radius: 5px;
+        overflow: hidden;
+      }
+      .pm-col-fill {
+        width: 100%;
+        background: #eb6834;
+        border-radius: 4px 4px 0 0;
+      }
+      .pm-col-label {
+        font-size: 10px; color: ${T.muted}; margin-top: 6px;
+        white-space: nowrap;
+      }
+      .pm-nota {
+        font-size: 11.5px; color: ${T.muted}; line-height: 1.5;
+        margin-top: 10px;
+      }
+
+      .pm-cob { list-style: none; margin: 0; padding: 0; }
+      .pm-cob li {
+        display: flex; align-items: center; gap: 10px;
+        padding: 5px 0;
+        font-size: 13px;
+      }
+      .pm-cob-nome { width: 92px; flex-shrink: 0; }
+      .pm-cob-trilho {
+        flex: 1; min-width: 0; height: 8px;
+        background: ${T.bg};
+        border-radius: 999px;
+        overflow: hidden;
+      }
+      .pm-cob-fill { display: block; height: 100%; border-radius: 999px; }
+      .pm-cob-num {
+        width: 24px; text-align: right; flex-shrink: 0;
+        font-variant-numeric: tabular-nums; font-weight: 600;
+      }
+
+      /* ---------- relatório da semana ---------- */
+      .rel {
+        border: 1px solid ${T.line};
+        border-radius: 18px;
+        padding: 16px 18px;
+        margin-bottom: 22px;
+        background: ${T.paper};
+      }
+      .rel-head {
+        display: flex; align-items: baseline; justify-content: space-between;
+        gap: 10px; flex-wrap: wrap; margin-bottom: 12px;
+      }
+      .rel-titulo {
+        font-family: 'Instrument Serif', Georgia, serif;
+        font-size: 21px; letter-spacing: -.4px;
+      }
+      .rel-periodo { font-size: 12px; color: ${T.muted}; }
+
+      .rel-resumo {
+        background: ${T.holoSoft};
+        border-radius: 12px;
+        padding: 12px 14px;
+        margin-bottom: 14px;
+      }
+      .rel-linha { font-size: 13.5px; }
+      .rel-comps { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+      .rel-nada { font-size: 12px; color: ${T.muted}; font-style: italic; }
+      .rel-aprend { list-style: none; margin: 12px 0 0; padding: 0; }
+      .rel-aprend li {
+        border-top: 1px solid ${T.line};
+        padding: 9px 0 0; margin-top: 9px;
+      }
+      .ra-tit {
+        display: block; font-size: 12px; font-weight: 600;
+        color: ${T.muted}; margin-bottom: 3px;
+      }
+      .ra-txt { font-size: 13px; line-height: 1.55; white-space: pre-wrap; }
+
+      .rel-campo { margin-top: 14px; }
+      .rel-campo-tit {
+        font-size: 11px; text-transform: uppercase; letter-spacing: 1px;
+        color: ${T.muted};
+      }
+      .rel-coment { margin-top: 18px; border-top: 1px solid ${T.line}; padding-top: 6px; }
+      .rel-aguardando {
+        font-size: 13px; color: ${T.muted}; font-style: italic;
+        padding: 6px 0;
+      }
+      .rel-form .btn { margin-top: 16px; }
+
+      @media (max-width: 560px) {
+        .pm-cob-nome { width: 74px; font-size: 12px; }
+        .pm-barras { gap: 6px; height: 100px; }
+        .pm-col-label { font-size: 9px; }
+      }
+
+
+
+
+
+      /* ---------- matérias: nível acima dos módulos ---------- */
+      .mt-abas {
+        display: flex; gap: 6px; flex-wrap: wrap; align-items: center;
+        margin-bottom: 14px;
+      }
+      .mt-aba {
+        display: inline-flex; align-items: center; gap: 8px;
+        background: ${T.paper};
+        border: 1px solid ${T.line};
+        border-radius: 999px;
+        padding: 9px 16px;
+        font-family: 'Inter', sans-serif;
+        font-size: 13.5px;
+        color: ${T.muted};
+        cursor: pointer;
+        transition: border-color .16s ease, color .16s ease;
+      }
+      .mt-aba:hover { color: ${T.ink}; }
+      .mt-aba.sel {
+        background: ${T.ink}; border-color: ${T.ink}; color: #fff; font-weight: 600;
+      }
+      .mt-conta {
+        font-size: 11px;
+        background: ${T.bg}; color: ${T.muted};
+        border-radius: 999px; padding: 1px 7px;
+      }
+      .mt-aba.sel .mt-conta { background: rgba(255,255,255,.2); color: #fff; }
+      .mt-add {
+        background: transparent;
+        border: 1px dashed ${T.line};
+        border-radius: 999px;
+        padding: 9px 14px;
+        font-family: 'Inter', sans-serif;
+        font-size: 12.5px;
+        color: ${T.muted};
+        cursor: pointer;
+      }
+      .mt-add:hover { border-color: ${T.ink}; color: ${T.ink}; }
+      .mt-edit {
+        display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+        margin-bottom: 16px;
+      }
+      .mt-nome { max-width: 280px; font-weight: 600; }
+
+      /* ---------- conteúdo do curso: aulas e partes ---------- */
+      .ct-head {
+        display: flex; align-items: center; justify-content: space-between;
+        gap: 10px; flex-wrap: wrap; margin: 16px 0 8px;
+      }
+      .ct-prog {
+        font-size: 11.5px; color: ${T.muted};
+        background: ${T.bg}; border-radius: 999px; padding: 3px 10px;
+      }
+      .ct-item {
+        display: flex; align-items: flex-start; gap: 10px;
+        border: 1px solid ${T.line};
+        border-radius: 11px;
+        padding: 10px 12px;
+        margin-bottom: 7px;
+      }
+      .ct-item.visto { background: ${T.holoSoft}; border-color: ${T.line}; }
+      .ct-check {
+        width: 20px; height: 20px; flex-shrink: 0;
+        border: 1px solid ${T.line};
+        border-radius: 6px;
+        background: ${T.paper};
+        color: ${T.accentInk};
+        font-size: 12px; font-weight: 700;
+        cursor: pointer; padding: 0;
+        display: flex; align-items: center; justify-content: center;
+        margin-top: 1px;
+      }
+      .ct-item.visto .ct-check { background: ${T.accent}; border-color: ${T.accent}; }
+      .ct-txt { min-width: 0; flex: 1; }
+      .ct-tit {
+        font-size: 13.5px; font-weight: 600;
+        display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;
+      }
+      .ct-item.visto .ct-tit { color: ${T.muted}; }
+      .ct-durtxt {
+        font-size: 11px; font-weight: 500; color: ${T.muted};
+        font-variant-numeric: tabular-nums;
+      }
+      .ct-temas {
+        font-size: 12px; color: ${T.muted}; line-height: 1.5;
+        margin-top: 3px;
+      }
+      .ct-edit {
+        display: grid;
+        grid-template-columns: 150px 96px 1fr 28px;
+        gap: 6px; align-items: center;
+        margin-bottom: 7px;
+      }
+      .ct-dur { font-variant-numeric: tabular-nums; }
+      @media (max-width: 700px) {
+        .ct-edit { grid-template-columns: 1fr 1fr; }
+      }
+
+      /* ---------- prova do módulo ---------- */
+      .pv-head {
+        display: flex; align-items: center; justify-content: space-between;
+        gap: 10px; flex-wrap: wrap; margin: 16px 0 4px;
+      }
+      .pv-status {
+        font-size: 11px; text-transform: uppercase; letter-spacing: .8px;
+        border-radius: 999px; padding: 3px 10px;
+        background: ${T.bg}; color: ${T.muted};
+      }
+      .pv-status.st-enviada { background: ${T.accent}; color: ${T.accentInk}; font-weight: 600; }
+      .pv-status.st-validada { background: #E4F7DC; color: #2C6B27; font-weight: 600; }
+
+      .pv-lista { list-style: none; margin: 8px 0 0; padding: 0; counter-reset: q; }
+      .pv-q {
+        counter-increment: q;
+        border: 1px solid ${T.line};
+        border-radius: 12px;
+        padding: 12px 14px;
+        margin-bottom: 9px;
+      }
+      .pv-enunciado {
+        font-size: 14px; font-weight: 500; line-height: 1.45;
+        margin-bottom: 9px;
+      }
+      .pv-enunciado::before {
+        content: counter(q) ". ";
+        color: ${T.muted}; font-weight: 600;
+      }
+      .pv-opcoes { display: flex; flex-direction: column; gap: 6px; }
+      .pv-op {
+        display: flex; align-items: center; gap: 9px;
+        border: 1px solid ${T.line};
+        border-radius: 10px;
+        padding: 8px 11px;
+        font-size: 13.5px;
+        cursor: pointer;
+      }
+      .pv-op input { accent-color: ${T.ink}; flex-shrink: 0; }
+      .pv-op:hover { border-color: ${T.ink}; }
+      .pv-op.escolhida { border-color: ${T.ink}; background: ${T.holoSoft}; }
+      /* depois de enviada, a correta e o erro ficam explícitos */
+      .pv-op.correta { border-color: #BFE6B0; background: #E4F7DC; }
+      .pv-op.errada { border-color: #F2BDB8; background: #FCE4E2; }
+      .pv-marca {
+        margin-left: auto; font-size: 10px; text-transform: uppercase;
+        letter-spacing: .7px; color: #2C6B27; font-weight: 600;
+      }
+
+      .pv-resposta {
+        font-size: 13.5px; line-height: 1.6;
+        background: ${T.holoSoft};
+        border-radius: 10px;
+        padding: 10px 12px;
+        white-space: pre-wrap;
+      }
+      .pv-resposta em { color: ${T.muted}; }
+
+      .pv-val { display: flex; gap: 6px; margin-top: 9px; }
+      .pv-veredito {
+        margin-top: 8px; font-size: 12px; font-weight: 600;
+      }
+      .pv-veredito.ok { color: #2C6B27; }
+      .pv-veredito.refazer { color: #A83228; }
+
+      .pv-edit { display: flex; flex-direction: column; gap: 8px; }
+      .pv-opcoes-edit { display: flex; flex-direction: column; gap: 6px; }
+      .pv-op-edit { display: flex; align-items: center; gap: 9px; }
+      .pv-op-edit input[type="radio"] { accent-color: #2C6B27; flex-shrink: 0; }
+      .pv-edit-pe {
+        display: flex; align-items: center; justify-content: space-between;
+        gap: 8px;
+      }
+      .pv-tipo {
+        font-size: 10.5px; text-transform: uppercase; letter-spacing: .8px;
+        color: ${T.muted};
+      }
+
+      .pv-placar {
+        font-size: 13px; font-weight: 600;
+        background: ${T.bg};
+        border-radius: 10px;
+        padding: 9px 12px;
+        margin-top: 10px;
+      }
+      .pv-pe { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 12px; }
+      .pv-pe .tr-aviso { margin-top: 0; }
+      .pv-pe-mentor { margin-top: 12px; }
+      .pv-parecer { margin-top: 14px; border-top: 1px solid ${T.line}; padding-top: 4px; }
+
+      .prova-selo {
+        font-size: 10px; text-transform: uppercase; letter-spacing: .8px;
+        font-weight: 600;
+        background: ${T.accent}; color: ${T.accentInk};
+        border-radius: 999px; padding: 3px 9px;
+        flex-shrink: 0;
+      }
+      .prova-selo.tarefa { background: ${T.bg}; color: ${T.muted}; }
+
+      /* ---------- mapa da trilha: fita serpenteante com nós ---------- */
+      .mp-wrap {
+        overflow-x: auto;
+        overflow-y: hidden;
+        padding: 4px 0 6px;
+        margin-bottom: 8px;
+      }
+      .mp { position: relative; margin: 0 auto; }
+      .mp-fita { position: absolute; inset: 0; }
+      .mp-seg {
+        fill: none;
+        stroke: ${T.line};
+        stroke-width: 14;
+        stroke-linecap: round;
+      }
+      .mp-seg.feito { stroke: ${T.accent}; }
+
+      .mp-no { position: absolute; }
+      .mp-circulo {
+        width: 100%; height: 100%;
+        border-radius: 50%;
+        background: ${T.paper};
+        border: 2px solid ${T.line};
+        cursor: pointer;
+        display: flex; align-items: center; justify-content: center;
+        font-family: 'Inter', sans-serif;
+        color: ${T.muted};
+        padding: 0;
+        transition: transform .2s cubic-bezier(.34,1.4,.5,1), box-shadow .2s ease;
+        box-shadow: 0 2px 10px rgba(17,17,20,.06);
+      }
+      .mp-circulo:hover { transform: scale(1.07); }
+      .mp-no.emcurso .mp-circulo {
+        border-color: ${T.ink};
+        color: ${T.ink};
+      }
+      .mp-no.concluido .mp-circulo {
+        background: ${T.accent};
+        border-color: ${T.accent};
+        color: ${T.accentInk};
+      }
+      .mp-no.sel .mp-circulo {
+        box-shadow: 0 0 0 4px rgba(17,17,20,.1), 0 4px 14px rgba(17,17,20,.12);
+      }
+      .mp-check { font-size: 22px; font-weight: 700; }
+      .mp-frac { font-size: 15px; font-weight: 600; }
+      .mp-de { font-size: 11px; font-weight: 500; opacity: .55; }
+      .mp-vazio { font-size: 16px; opacity: .5; }
+
+      /* o selo com o número do passo, alternando de lado */
+      .mp-selo {
+        position: absolute;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 26px; height: 26px;
+        border-radius: 50%;
+        background: ${T.ink};
+        color: #fff;
+        font-size: 12px; font-weight: 600;
+        display: flex; align-items: center; justify-content: center;
+        border: 2px solid ${T.paper};
+      }
+      .mp-no.rot-acima .mp-selo { bottom: -13px; }
+      .mp-no.rot-abaixo .mp-selo { top: -13px; left: auto; right: -6px; transform: none; }
+      .mp-no.concluido .mp-selo { background: #2C6B27; }
+
+      /* o rótulo fica do lado oposto ao selo */
+      .mp-rotulo {
+        position: absolute;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 142px;
+        text-align: center;
+        font-size: 12.5px;
+        font-weight: 600;
+        line-height: 1.35;
+        color: ${T.ink};
+      }
+      .mp-no.rot-acima .mp-rotulo { bottom: calc(100% + 22px); }
+      .mp-no.rot-abaixo .mp-rotulo { top: calc(100% + 22px); }
+      .mp-no.aseguir .mp-rotulo { color: ${T.muted}; font-weight: 500; }
+      .mp-comp {
+        display: block;
+        font-size: 10.5px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: .7px;
+        margin-top: 3px;
+      }
+
+      /* no celular a fita não cabe: vira uma tira de passos rolável */
+      .mp-tiras { display: none; }
+      @media (max-width: 780px) {
+        .mp-wrap { display: none; }
+        .mp-tiras {
+          display: flex; gap: 8px;
+          overflow-x: auto;
+          padding: 2px 0 10px;
+          margin-bottom: 6px;
+        }
+        .mp-tira {
+          display: flex; align-items: center; gap: 8px;
+          flex-shrink: 0;
+          background: ${T.paper};
+          border: 1px solid ${T.line};
+          border-radius: 999px;
+          padding: 8px 14px 8px 8px;
+          font-family: 'Inter', sans-serif;
+          font-size: 13px;
+          color: ${T.ink};
+          cursor: pointer;
+          max-width: 74vw;
+        }
+        .mp-tira-num {
+          width: 22px; height: 22px; border-radius: 50%;
+          background: ${T.bg}; color: ${T.muted};
+          font-size: 11px; font-weight: 600;
+          display: flex; align-items: center; justify-content: center;
+          flex-shrink: 0;
+        }
+        .mp-tira-tit {
+          overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        }
+        .mp-tira.emcurso { border-color: ${T.ink}; }
+        .mp-tira.emcurso .mp-tira-num { background: ${T.ink}; color: #fff; }
+        .mp-tira.concluido .mp-tira-num { background: ${T.accent}; color: ${T.accentInk}; }
+        .mp-tira.sel { box-shadow: 0 0 0 3px rgba(17,17,20,.09); }
+      }
+
+      /* ---------- o caminho: módulos ligados por uma linha ---------- */
+      .tl-progresso { margin-bottom: 20px; }
+      .tl-prog-barra {
+        height: 8px; border-radius: 999px;
+        background: ${T.bg};
+        overflow: hidden;
+      }
+      .tl-prog-fill {
+        display: block; height: 100%;
+        background: ${T.accent};
+        border-radius: 999px;
+        transition: width .35s ease;
+      }
+      .tl-prog-txt { font-size: 12.5px; color: ${T.muted}; margin-top: 7px; }
+      .tl-prog-txt strong { color: ${T.ink}; }
+
+      .tr-fila { margin-bottom: 18px; }
+
+      .tl { list-style: none; margin: 0; padding: 0; }
+      .tl-item {
+        display: grid;
+        grid-template-columns: 34px 1fr;
+        gap: 14px;
+        position: relative;
+        padding-bottom: 14px;
+      }
+      /* a linha que liga os marcos — é o que faz virar caminho */
+      .tl-item:not(:last-child) .tl-marco::after {
+        content: "";
+        position: absolute;
+        top: 34px; bottom: -14px; left: 50%;
+        width: 2px;
+        transform: translateX(-50%);
+        background: ${T.line};
+      }
+      .tl-item.concluido:not(:last-child) .tl-marco::after { background: ${T.accent}; }
+
+      .tl-marco { position: relative; display: flex; justify-content: center; }
+      .tl-num {
+        width: 30px; height: 30px; border-radius: 50%;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 13px; font-weight: 600;
+        background: ${T.paper};
+        border: 1px solid ${T.line};
+        color: ${T.muted};
+        z-index: 1;
+      }
+      .tl-item.emcurso .tl-num {
+        background: ${T.ink}; border-color: ${T.ink}; color: #fff;
+      }
+      .tl-item.concluido .tl-num {
+        background: ${T.accent}; border-color: ${T.accent}; color: ${T.accentInk};
+      }
+
+      .tl-card {
+        border: 1px solid ${T.line};
+        border-radius: 16px;
+        background: ${T.paper};
+        overflow: hidden;
+      }
+      .tl-item.emcurso .tl-card { border-color: ${T.ink}; }
+      /* módulos ainda não iniciados ficam recuados: dá a leitura de "à frente" */
+      .tl-item.aseguir .tl-card { background: ${T.holoSoft}; }
+      .tl-item.aseguir .tl-mod-titulo { color: ${T.muted}; }
+
+      .tl-head {
+        display: flex; align-items: flex-start; justify-content: space-between;
+        gap: 12px; width: 100%;
+        background: transparent; border: 0;
+        padding: 13px 15px;
+        cursor: pointer;
+        text-align: left;
+        font-family: 'Inter', sans-serif;
+        color: ${T.ink};
+      }
+      .tl-head-txt { min-width: 0; }
+      .tl-mod-titulo { font-size: 15.5px; font-weight: 600; line-height: 1.3; }
+      .tl-meta {
+        display: flex; align-items: center; gap: 7px; flex-wrap: wrap;
+        margin-top: 5px; font-size: 11.5px; color: ${T.muted};
+      }
+      .tl-sep { opacity: .5; }
+      .tl-selo {
+        background: ${T.accent}; color: ${T.accentInk};
+        border-radius: 999px; padding: 2px 9px;
+        font-size: 10px; font-weight: 600;
+        text-transform: uppercase; letter-spacing: .7px;
+      }
+      .tl-selo.emcurso { background: ${T.ink}; color: #fff; }
+      .tl-chevron {
+        font-size: 18px; color: ${T.muted}; flex-shrink: 0;
+        width: 20px; text-align: center;
+      }
+
+      .tl-barra { height: 3px; background: ${T.bg}; }
+      .tl-barra-fill {
+        display: block; height: 100%;
+        background: ${T.accent};
+        transition: width .35s ease;
+      }
+
+      .tl-corpo { padding: 4px 15px 15px; }
+      .tl-objetivo { margin-top: 10px; }
+      .tl-obj-tit {
+        font-size: 11px; text-transform: uppercase; letter-spacing: 1px;
+        color: ${T.muted};
+      }
+      .tl-secao { margin-top: 16px; }
+      .tl-vazio-txt { font-size: 13px; color: ${T.muted}; font-style: italic; }
+
+      .tl-rec {
+        display: flex; align-items: center; gap: 8px;
+        border: 1px solid ${T.line};
+        border-radius: 10px;
+        padding: 9px 12px;
+        margin-bottom: 7px;
+        font-size: 13.5px;
+        color: ${T.ink};
+        text-decoration: none;
+      }
+      .tl-rec:hover { border-color: ${T.ink}; }
+      .tl-rec-ico { color: ${T.muted}; font-size: 12px; }
+      .tl-rec-edit {
+        display: flex; gap: 6px; align-items: center; margin-bottom: 7px;
+      }
+      .tl-rec-edit .input:first-child { flex: 0 0 38%; }
+
+      .tl-tarefa {
+        display: flex; align-items: center; gap: 10px;
+        width: 100%; text-align: left;
+        border: 1px solid ${T.line};
+        border-radius: 10px;
+        background: ${T.paper};
+        padding: 9px 12px;
+        margin-bottom: 7px;
+        font-family: 'Inter', sans-serif;
+        font-size: 13.5px;
+        color: ${T.ink};
+        cursor: pointer;
+      }
+      .tl-tarefa:hover { border-color: ${T.ink}; }
+      .tl-tarefa-tit { flex: 1; min-width: 0; }
+      .tl-tag {
+        font-size: 10px; text-transform: uppercase; letter-spacing: .7px;
+        border-radius: 999px; padding: 3px 9px;
+        flex-shrink: 0;
+        background: ${T.bg}; color: ${T.muted};
+      }
+      .tl-tag.st-fazendo { background: ${T.ink}; color: #fff; }
+      .tl-tag.st-entregue { background: ${T.accent}; color: ${T.accentInk}; }
+      .tl-tag.st-revisada { background: #E4F7DC; color: #2C6B27; }
+
+      .tl-orfas { margin-top: 20px; }
+      .pm-de { font-size: 16px; font-weight: 500; opacity: .55; }
+
+      @media (max-width: 560px) {
+        .tl-item { grid-template-columns: 26px 1fr; gap: 10px; }
+        .tl-num { width: 24px; height: 24px; font-size: 11px; }
+        .tl-item:not(:last-child) .tl-marco::after { top: 28px; }
+        .tl-rec-edit { flex-wrap: wrap; }
+        .tl-rec-edit .input:first-child { flex: 1 1 100%; }
+      }
+
+      /* ---------- trilha de desenvolvimento ---------- */
+      .tr-top {
+        display: flex; align-items: flex-start; justify-content: space-between;
+        gap: 14px; flex-wrap: wrap;
+        margin: 18px 0 20px;
+      }
+      .tr-titulo {
+        font-family: 'Instrument Serif', Georgia, serif;
+        font-size: 26px; letter-spacing: -.6px;
+      }
+      .tr-sub { font-size: 13px; color: ${T.muted}; margin-top: 3px; max-width: 520px; line-height: 1.5; }
+
+      .tr-colunas {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 12px;
+        align-items: start;
+      }
+      .tr-coluna {
+        background: ${T.bg};
+        border-radius: 16px;
+        padding: 12px;
+        min-width: 0;
+      }
+      .tr-col-head {
+        display: flex; align-items: center; justify-content: space-between;
+        gap: 8px; margin-bottom: 10px;
+      }
+      .tr-col-nome {
+        font-size: 11px; text-transform: uppercase; letter-spacing: 1.2px;
+        font-weight: 600; color: ${T.muted};
+      }
+      .tr-lista { display: flex; flex-direction: column; gap: 8px; }
+      .tr-vazio-col { text-align: center; color: ${T.line}; font-size: 18px; padding: 6px 0; }
+
+      .tr-card {
+        display: block; width: 100%; text-align: left;
+        background: ${T.paper};
+        border: 1px solid ${T.line};
+        border-radius: 12px;
+        padding: 10px 11px;
+        cursor: pointer;
+        font-family: 'Inter', sans-serif;
+        color: ${T.ink};
+        transition: transform .14s ease, box-shadow .14s ease;
+      }
+      .tr-card:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 6px 16px rgba(17,17,20,.08);
+      }
+      .tr-card.atrasada { border-color: #F2BDB8; }
+      .tr-card-top {
+        display: flex; align-items: center; gap: 7px; flex-wrap: wrap;
+        margin-bottom: 5px;
+      }
+      .tr-tipo {
+        font-size: 10px; text-transform: uppercase; letter-spacing: .9px;
+        background: ${T.bg}; border-radius: 999px; padding: 2px 8px;
+        color: ${T.muted};
+      }
+      .tr-comp { font-size: 11px; font-weight: 600; }
+      .tr-card-titulo { font-size: 14px; font-weight: 500; line-height: 1.35; }
+      .tr-vazio { color: ${T.muted}; font-style: italic; font-weight: 400; }
+      .tr-card-pe {
+        display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+        margin-top: 7px; font-size: 11.5px;
+      }
+      .tr-prazo { color: ${T.muted}; }
+      .tr-prazo.atraso { color: #A83228; font-weight: 600; }
+      .tr-pendente {
+        background: ${T.accent}; color: ${T.accentInk};
+        border-radius: 999px; padding: 2px 9px;
+        font-size: 10.5px; font-weight: 600;
+        text-transform: uppercase; letter-spacing: .7px;
+      }
+      .tr-nota { font-weight: 600; }
+      .tr-nota.grande { font-size: 16px; }
+
+      .tr-bloco {
+        margin-top: 18px;
+        border-top: 1px solid ${T.line};
+        padding-top: 6px;
+      }
+      .tr-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 12px; }
+      .tr-desc {
+        font-size: 14px; line-height: 1.6; color: ${T.ink};
+        white-space: pre-wrap;
+        margin: 10px 0 0;
+      }
+      .tr-link {
+        display: inline-block; font-size: 13px; color: #1c5cab;
+        word-break: break-all; margin-top: 6px;
+      }
+      .tr-aviso {
+        font-size: 12px; color: ${T.muted}; line-height: 1.5;
+        margin-top: 8px;
+      }
+      .tr-aval { border-width: 1px; font-weight: 600; }
+      .btn:disabled { opacity: .45; cursor: not-allowed; }
+      .btn:disabled:hover { transform: none; }
+
+      @media (max-width: 900px) {
+        .tr-colunas { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      }
+      @media (max-width: 560px) {
+        .tr-colunas { grid-template-columns: 1fr; }
+        .tr-titulo { font-size: 22px; }
+      }
 
       /* ---------- planilha de orçamentos ---------- */
 
