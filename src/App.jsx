@@ -894,6 +894,24 @@ export default function App() {
 }
 
 // ---------- utilidades ----------
+/* O quadro é um funil que termina em Publicado, então concluir é mover
+   para a última coluna. Não inventei um campo "done" em paralelo: haveria
+   duas verdades sobre o mesmo cartão, e dueState já trata a coluna de
+   publicado como fora de prazo. */
+function colunaFinal(board) {
+  return (
+    board.columns.find((c) => /publicad|conclu|final/i.test(c.title)) ||
+    board.columns[board.columns.length - 1]
+  );
+}
+function colunaDoCard(board, cardId) {
+  return board.columns.find((c) => c.cardIds.includes(cardId));
+}
+function estaConcluido(board, cardId) {
+  const fim = colunaFinal(board);
+  return Boolean(fim && fim.cardIds.includes(cardId));
+}
+
 function dueState(card, board) {
   if (!card.due) return null;
   const col = board.columns.find((c) => c.cardIds.includes(card.id));
@@ -1319,8 +1337,29 @@ function Column({ col, board, updateBoard, setOpenCard, drag, setDrag, isOver, s
                 )}
                 {ds === "atrasado" && <span className="due-flag danger">● atrasado</span>}
                 {ds === "hoje" && <span className="due-flag">hoje</span>}
+                <button
+                  className={`card-ok ${estaConcluido(board, id) ? "feito" : ""}`}
+                  title={estaConcluido(board, id) ? "Reabrir" : "Concluir"}
+                  aria-label={estaConcluido(board, id) ? "Reabrir tarefa" : "Concluir tarefa"}
+                  onClick={(e) => {
+                    e.stopPropagation(); // não abre o cartão
+                    const fim = colunaFinal(board);
+                    if (!fim) return;
+                    if (estaConcluido(board, id)) {
+                      const anterior =
+                        board.columns[Math.max(0, board.columns.indexOf(fim) - 1)];
+                      moveCard(id, fim.id, anterior.id);
+                    } else {
+                      moveCard(id, col.id, fim.id);
+                    }
+                  }}
+                >
+                  ✓
+                </button>
               </div>
-              <div className="card-title">{card.title}</div>
+              <div className={`card-title ${estaConcluido(board, id) ? "riscado" : ""}`}>
+                {card.title}
+              </div>
               {card.due && ds === "futuro" && (
                 <div className="card-due">→ {card.due.split("-").reverse().join("/")}</div>
               )}
@@ -1367,6 +1406,22 @@ function CardModal({ card, board, updateBoard, updateCalendar, askConfirm, sendT
   const [schedNet, setSchedNet] = useState("Instagram");
   const [schedMsg, setSchedMsg] = useState("");
   const colOf = board.columns.find((c) => c.cardIds.includes(card.id));
+  const concluido = estaConcluido(board, card.id);
+
+  // concluir move para a coluna final; reabrir devolve para a anterior
+  const alternarConclusao = () =>
+    updateBoard((b) => {
+      const fim = colunaFinal(b);
+      const atual = colunaDoCard(b, card.id);
+      if (!fim || !atual) return b;
+      const destino = concluido
+        ? b.columns[Math.max(0, b.columns.indexOf(fim) - 1)]
+        : fim;
+      if (destino.id === atual.id) return b;
+      atual.cardIds = atual.cardIds.filter((id) => id !== card.id);
+      destino.cardIds.push(card.id);
+      return b;
+    });
 
   const patch = (fields) =>
     updateBoard((b) => {
@@ -1609,6 +1664,9 @@ function CardModal({ card, board, updateBoard, updateCalendar, askConfirm, sendT
         </Field>
 
         <div className="modal-foot">
+          <button className="btn accent" onClick={alternarConclusao}>
+            {concluido ? "↩ reabrir" : "✓ concluir tarefa"}
+          </button>
           <button className="btn ghost" onClick={duplicateCard}>⧉ duplicar</button>
           {canDelete && <button className="btn danger" onClick={deleteCard}>✕ excluir</button>}
         </div>
@@ -4917,6 +4975,37 @@ function GlobalStyle() {
       }
       .fill { height: 100%; background: ${T.holo}; }
       .progress-num { font-size: 12px; color: ${T.muted}; font-weight: 500; }
+
+
+      /* botão de concluir no cartão do quadro */
+      .card-ok {
+        margin-left: auto;
+        width: 22px; height: 22px;
+        flex-shrink: 0;
+        border: 1px solid ${T.line};
+        border-radius: 50%;
+        background: ${T.paper};
+        color: ${T.muted};
+        font-size: 11px; font-weight: 700;
+        cursor: pointer; padding: 0;
+        display: flex; align-items: center; justify-content: center;
+        transition: background .16s ease, color .16s ease, border-color .16s ease;
+      }
+      .card-ok:hover { border-color: ${T.ink}; color: ${T.ink}; }
+      .card-ok.feito {
+        background: ${T.accent};
+        border-color: ${T.accent};
+        color: ${T.accentInk};
+      }
+      /* nos cartões coloridos por prioridade o botão herda o contraste */
+      .card[class*="p-"] .card-ok {
+        border-color: currentColor;
+        background: rgba(255,255,255,.35);
+        color: inherit;
+      }
+      .card-title.riscado { text-decoration: line-through; opacity: .6; }
+      /* o due-flag deixa de empurrar o botão para fora */
+      .card-top .due-flag { margin-left: 0; }
 
       /* ---------- prioridades: o cartão assume a cor da tag ---------- */
       /* Urgente: fundo vermelho escuro -> texto claro */
