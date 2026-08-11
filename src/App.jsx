@@ -1327,7 +1327,9 @@ function Column({ col, board, updateBoard, setOpenCard, drag, setDrag, isOver, s
               onDragStart={() => setDrag({ cardId: id, fromCol: col.id })}
               onDragEnd={() => setDrag(null)}
               onClick={() => setOpenCard(id)}
-              className={`card ${card.priority && card.priority !== "nenhuma" ? `p-${card.priority}` : ""}`}
+              className={`card ${
+                card.priority && card.priority !== "nenhuma" ? `p-${card.priority}` : ""
+              } ${estaConcluido(board, id) ? "concluido" : ""}`}
             >
               <div className="card-top">
                 <ProdTag k={card.product} />
@@ -5043,6 +5045,39 @@ function GlobalStyle() {
         color: #142B1C;
       }
       .card.p-baixa:hover { box-shadow: 0 1px 2px rgba(17,17,20,.04), 0 6px 16px rgba(17,17,20,.06); }
+
+      /* concluído vence a cor de prioridade: o cartão inteiro fica verde.
+         Precisa vir depois das regras .card.p-* para ganhar no empate de
+         especificidade — as duas têm duas classes. */
+      .card.concluido {
+        background: #E4F7DC;
+        border-color: #BFE6B0;
+        color: #245C21;
+      }
+      .card.concluido:hover {
+        box-shadow: 0 1px 2px rgba(17,17,20,.04), 0 6px 16px rgba(36,92,33,.14);
+      }
+      .card.concluido .card-prod,
+      .card.concluido .card-due,
+      .card.concluido .progress-num { color: #245C21; opacity: .75; }
+      .card.concluido .prio-flag,
+      .card.concluido .prod-tag {
+        border-color: currentColor !important;
+        color: currentColor !important;
+      }
+      .card.concluido .due-flag,
+      .card.concluido .due-flag.danger { color: #245C21; opacity: .7; }
+      .card.concluido .track {
+        border-color: #BFE6B0;
+        background: rgba(255,255,255,.6);
+      }
+      .card.concluido .fill { background: #2C6B27; }
+      .card.concluido .card-ok,
+      .card.concluido .card-ok.feito {
+        background: #2C6B27;
+        border-color: #2C6B27;
+        color: #fff;
+      }
 
       /* elementos internos herdam a cor de contraste do fundo */
       .card[class*="p-"] .card-prod,
