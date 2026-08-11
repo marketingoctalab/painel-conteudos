@@ -179,9 +179,11 @@ const PROFILES = [
 // o Quadro (tarefas) é privado destes perfis; os demais nem veem a aba
 // nem os cartões vazando pelas outras telas
 const QUADRO_PROFILES = ["Firmino", "Clara"];
-const canSeeQuadro = (user) => user === "Admin" || QUADRO_PROFILES.includes(user);
+// o Quadro é privado destes perfis. O Admin fica de fora de propósito:
+// é conta de manutenção, não de trabalho no quadro de tarefas.
+const canSeeQuadro = (user) => QUADRO_PROFILES.includes(user);
 const profileByName = (name) => PROFILES.find((p) => p.name === name) || null;
-const DELETE_PROFILES = ["Marcos", "Silvio"]; // além do admin
+const DELETE_PROFILES = ["Marcos", "Silvio", "Firmino"]; // além do admin
 
 /* ---------- ícones do menu (SVG inline, sem dependência) ---------- */
 function Ico({ children }) {
@@ -2972,8 +2974,15 @@ function Trilha({ trilha, updateTrilha, papel, askConfirm, canDelete }) {
   const removerConteudo = (m, cid) =>
     patchModulo(m.id, { conteudo: (m.conteudo || []).filter((c) => c.id !== cid) });
 
-  const addRecurso = (m) =>
-    patchModulo(m.id, { recursos: [...(m.recursos || []), { id: uid(), titulo: "", url: "" }] });
+  const addRecurso = (m, comTexto = false) =>
+    patchModulo(m.id, {
+      recursos: [
+        ...(m.recursos || []),
+        comTexto
+          ? { id: uid(), titulo: "", texto: "" }
+          : { id: uid(), titulo: "", url: "" },
+      ],
+    });
   const patchRecurso = (m, rid, campos) =>
     patchModulo(m.id, {
       recursos: (m.recursos || []).map((r) => (r.id === rid ? { ...r, ...campos } : r)),
@@ -3283,46 +3292,68 @@ function Trilha({ trilha, updateTrilha, papel, askConfirm, canDelete }) {
                       </div>
                     )}
 
-                    {/* links de apoio */}
+                    {/* material de apoio: link externo ou texto lido no painel */}
                     <div className="tl-secao">
-                      <div className="px-label sec">Links de apoio</div>
+                      <div className="px-label sec">Material de apoio</div>
                       {(m.recursos || []).length === 0 && !ehMentor && (
                         <div className="tl-vazio-txt">Nenhum material adicionado.</div>
                       )}
-                      {(m.recursos || []).map((r) =>
-                        ehMentor ? (
-                          <div key={r.id} className="tl-rec-edit">
-                            <input
-                              className="input"
-                              value={r.titulo}
-                              placeholder="Nome do material"
-                              onChange={(e) => patchRecurso(m, r.id, { titulo: e.target.value })}
-                            />
-                            <input
-                              className="input"
-                              value={r.url}
-                              placeholder="https://…"
-                              onChange={(e) => patchRecurso(m, r.id, { url: e.target.value })}
-                            />
-                            <button className="icon-btn" onClick={() => removerRecurso(m, r.id)}>×</button>
-                          </div>
+                      {(m.recursos || []).map((r) => {
+                        const ehTexto = r.texto !== undefined;
+                        if (ehMentor) {
+                          return (
+                            <div key={r.id} className={ehTexto ? "tl-rec-txt-edit" : "tl-rec-edit"}>
+                              <input
+                                className="input"
+                                value={r.titulo}
+                                placeholder={ehTexto ? "Título do material" : "Nome do material"}
+                                onChange={(e) => patchRecurso(m, r.id, { titulo: e.target.value })}
+                              />
+                              {ehTexto ? (
+                                <textarea
+                                  className="input"
+                                  rows={6}
+                                  value={r.texto}
+                                  placeholder="O conteúdo que ela vai ler aqui dentro"
+                                  onChange={(e) => patchRecurso(m, r.id, { texto: e.target.value })}
+                                />
+                              ) : (
+                                <input
+                                  className="input"
+                                  value={r.url}
+                                  placeholder="https://…"
+                                  onChange={(e) => patchRecurso(m, r.id, { url: e.target.value })}
+                                />
+                              )}
+                              <button className="icon-btn" onClick={() => removerRecurso(m, r.id)}>×</button>
+                            </div>
+                          );
+                        }
+                        // material em texto abre no próprio painel, sem download
+                        return ehTexto ? (
+                          <details key={r.id} className="tl-leitura">
+                            <summary>
+                              <span className="tl-rec-ico">▸</span>
+                              {r.titulo || "material de leitura"}
+                            </summary>
+                            <div className="tl-leitura-corpo">{r.texto}</div>
+                          </details>
                         ) : (
-                          <a
-                            key={r.id}
-                            className="tl-rec"
-                            href={r.url || "#"}
-                            target="_blank"
-                            rel="noreferrer"
-                          >
+                          <a key={r.id} className="tl-rec" href={r.url || "#"} target="_blank" rel="noreferrer">
                             <span className="tl-rec-ico">↗</span>
                             {r.titulo || r.url || "material"}
                           </a>
-                        )
-                      )}
+                        );
+                      })}
                       {ehMentor && (
-                        <button className="add-card" onClick={() => addRecurso(m)}>
-                          + material
-                        </button>
+                        <div className="btn-row">
+                          <button className="btn ghost small" onClick={() => addRecurso(m, true)}>
+                            + material de leitura
+                          </button>
+                          <button className="btn ghost small" onClick={() => addRecurso(m)}>
+                            + link externo
+                          </button>
+                        </div>
                       )}
                     </div>
 
@@ -5706,6 +5737,43 @@ function GlobalStyle() {
         display: flex; gap: 6px; align-items: center; margin-bottom: 7px;
       }
       .tl-rec-edit .input:first-child { flex: 0 0 38%; }
+
+
+      /* material de leitura: abre dentro do painel, sem baixar nada */
+      .tl-leitura {
+        border: 1px solid ${T.line};
+        border-radius: 11px;
+        margin-bottom: 7px;
+        background: ${T.paper};
+      }
+      .tl-leitura > summary {
+        display: flex; align-items: center; gap: 8px;
+        padding: 10px 12px;
+        cursor: pointer;
+        font-size: 13.5px; font-weight: 600;
+        list-style: none;
+      }
+      .tl-leitura > summary::-webkit-details-marker { display: none; }
+      .tl-leitura[open] > summary {
+        border-bottom: 1px solid ${T.line};
+        color: ${T.ink};
+      }
+      .tl-leitura[open] .tl-rec-ico { transform: rotate(90deg); }
+      .tl-leitura .tl-rec-ico { transition: transform .16s ease; }
+      .tl-leitura-corpo {
+        padding: 12px 14px 14px;
+        font-size: 13.5px;
+        line-height: 1.65;
+        color: ${T.ink};
+        white-space: pre-wrap;
+      }
+      .tl-rec-txt-edit {
+        display: grid;
+        grid-template-columns: 1fr 28px;
+        gap: 6px;
+        margin-bottom: 9px;
+      }
+      .tl-rec-txt-edit .input:first-child { grid-column: 1 / -1; font-weight: 600; }
 
       .tl-tarefa {
         display: flex; align-items: center; gap: 10px;
