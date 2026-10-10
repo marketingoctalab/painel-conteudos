@@ -1,0 +1,14 @@
+[
+  { "nome": "Prancha da coleção", "descricao": "Camisetas e regatas, frente e verso", "miniatura": "prancha-colecao-octagym.png",
+    "arquivos": [ { "rotulo": "Abrir PNG", "arquivo": "prancha-colecao-octagym.png", "abrir": true }, { "rotulo": "Baixar PNG", "arquivo": "prancha-colecao-octagym.png" }, { "rotulo": "Baixar SVG", "arquivo": "prancha-colecao-octagym.svg" } ] },
+  { "nome": "01 · Camiseta institucional", "descricao": "Frente: peito esquerdo, 8 cm · Verso: costas, 8 cm da gola, 26 cm",
+    "arquivos": [ { "rotulo": "Frente · preto", "arquivo": "01-camiseta-frente-tecido-preta.svg" }, { "rotulo": "Frente · branco", "arquivo": "01-camiseta-frente-tecido-branca.svg" }, { "rotulo": "Verso · preto", "arquivo": "01-camiseta-verso-tecido-preta.svg" }, { "rotulo": "Verso · branco", "arquivo": "01-camiseta-verso-tecido-branca.svg" } ] },
+  { "nome": "02 · Camiseta institucional", "descricao": "Frente: peito centralizado, 22 cm · Verso: costas, 10 cm da gola, 12 cm",
+    "arquivos": [ { "rotulo": "Frente · preto", "arquivo": "02-camiseta-frente-tecido-preta.svg" }, { "rotulo": "Frente · branco", "arquivo": "02-camiseta-frente-tecido-branca.svg" }, { "rotulo": "Verso · preto", "arquivo": "02-camiseta-verso-tecido-preta.svg" }, { "rotulo": "Verso · branco", "arquivo": "02-camiseta-verso-tecido-branca.svg" } ] },
+  { "nome": "03 · Regata gravação externa", "descricao": "Frente: peito centralizado, 20 cm · Verso: altura das escápulas, 24 cm",
+    "arquivos": [ { "rotulo": "Frente · preto", "arquivo": "03-regata-frente-tecido-preta.svg" }, { "rotulo": "Frente · branco", "arquivo": "03-regata-frente-tecido-branca.svg" }, { "rotulo": "Verso · preto", "arquivo": "03-regata-verso-tecido-preta.svg" }, { "rotulo": "Verso · branco", "arquivo": "03-regata-verso-tecido-branca.svg" } ] },
+  { "nome": "04 · Regata gravação externa", "descricao": "Frente: peito centralizado, 18 cm · Verso: costas centralizado, 23 cm",
+    "arquivos": [ { "rotulo": "Frente · preto", "arquivo": "04-regata-frente-tecido-preta.svg" }, { "rotulo": "Frente · branco", "arquivo": "04-regata-frente-tecido-branca.svg" }, { "rotulo": "Verso · preto", "arquivo": "04-regata-verso-tecido-preta.svg" }, { "rotulo": "Verso · branco", "arquivo": "04-regata-verso-tecido-branca.svg" } ] },
+  { "nome": "Logo vetorizado", "descricao": "Para aplicação nas peças",
+    "arquivos": [ { "rotulo": "Fundo claro", "arquivo": "logo-vetorizado/octagym-logo-fundo-claro.svg" }, { "rotulo": "Fundo escuro", "arquivo": "logo-vetorizado/octagym-logo-fundo-escuro.svg" }, { "rotulo": "Símbolo", "arquivo": "logo-vetorizado/octagym-simbolo.svg" } ] }
+]

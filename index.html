@@ -1,21 +1,1377 @@
 <!doctype html>
 <html lang="pt-BR">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Estúdio · Octalab</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap">
-    <style>
-      html, body, #root { margin: 0; padding: 0; min-height: 100%; }
-      body { background: #F2F2F0; }
-      * { box-sizing: border-box; }
-    </style>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
-  </body>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Octalab — Marcas</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <meta name="description" content="Octalab, casa de produtos nativos de IA: manifesto, identidade visual e arquivos das marcas Octalab, JusPilot, OctaGym, Ecosys AUTO, OctaBuild, OctaLife e Octalk.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400..800;1,400..800&family=IBM+Plex+Mono:wght@400;500&family=Geist:wght@200..800&family=Sora:wght@200..700&display=swap" rel="stylesheet">
+<style>
+/* ------------------------------------------------------------------
+   TOKENS
+   ------------------------------------------------------------------ */
+:root{
+  --color-off-white:#f0f1fa;
+  --color-white:#fff;
+  --color-dark-white:#e4e6ef;
+  --color-black:#000;
+  --color-grey-blue:#0F0F13;
+  --color-blue:#0F0F13;
+  --header-color:#0F0F13;
+  --ink:#0F0F13;
+  --line:rgba(15,15,19,.045);
+
+  /* paleta da página do projeto (trocar por projeto) */
+  --project-bg:#E3E3F8;
+  --project-highlight:#756ACC;
+  --project-text:#000;
+  --project-btn-text:#192743;
+  --project-btn-text-hover:#000;
+
+  /* paleta do "próximo projeto" */
+  --next-bg:#EFD5D3;
+
+  --grid-gap:2vw;
+  --global-border-radius:20px;
+  --base-padding-x:max(5vw,40px);
+  --base-padding-y:clamp(30px,4vw,50px);
+  --header-size:clamp(1rem,1vw,2rem);
+  --cross-size:clamp(.875rem,1vw,2rem);
+  --vh:1vh;
+}
+@media (max-width:812px){:root{--grid-gap:4vw;--global-border-radius:15px}}
+@media (min-width:1600px){:root{--base-padding-x:max(6vw,60px)}}
+
+*,*:before,*:after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%;-webkit-font-smoothing:antialiased;line-height:1.15}
+html,body,h1,h2,h3,h4,button,input{font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;font-weight:400;font-style:normal}
+body{margin:0;width:100%;background:var(--color-white);color:var(--color-black);overscroll-behavior:none}
+a{color:inherit;text-decoration:none}
+button{color:inherit}
+p{margin:0}
+::selection{background:var(--project-highlight);color:#fff}
+
+/* fundo fixo que troca de cor conforme a região da página */
+#bg{position:fixed;inset:0;background:var(--project-bg);z-index:0;transition:none}
+
+/* ------------------------------------------------------------------
+   PRELOADER
+   ------------------------------------------------------------------ */
+#preloader{position:fixed;inset:0;z-index:200;background:var(--color-black);transition:opacity .6s cubic-bezier(.35,0,0,1)}
+#preloader.--done{opacity:0;pointer-events:none}
+#preloader-bar{position:absolute;left:50%;top:50%;width:13.0625em;height:2.5em;transform:translate(-50%,-50%);background:#333;overflow:hidden}
+#preloader-bar-inner{position:absolute;inset:0;background:#fff;transform-origin:left;transform:scaleX(0)}
+#preloader-percent-digits{position:absolute;display:flex;justify-content:center;bottom:0;left:0;font-size:clamp(7em,8vw,20em);height:.75em;line-height:.75em;color:var(--color-white);overflow:hidden}
+@media (max-width:812px){#preloader-percent-digits{font-size:13vw}}
+.preloader-percent-digit{position:relative;height:.75em;width:.6em;overflow:hidden}
+.preloader-percent-digit-strip{position:absolute;left:0;top:0;transition:transform .35s cubic-bezier(.35,0,0,1);will-change:transform}
+.preloader-percent-digit-num{height:.75em;line-height:.75em;text-align:center}
+#preloader.--leaving #preloader-percent-digits{transition:transform .6s cubic-bezier(.35,0,0,1);transform:translate3d(0,100%,0)}
+#preloader.--leaving #preloader-bar{transition:transform .5s cubic-bezier(.35,0,0,1);transform:translate(-50%,-50%) scaleX(0)}
+
+/* ------------------------------------------------------------------
+   HEADER
+   ------------------------------------------------------------------ */
+#header{position:fixed;left:0;top:0;z-index:52;width:100%;color:var(--color-black);padding:var(--base-padding-y) var(--base-padding-x);font-size:clamp(1rem,1vw,1.5rem);transition:color .25s;pointer-events:none}
+@media (max-width:380px){#header{font-size:clamp(.75rem,1vw,2rem)}}
+html.is-black-bg #header{color:var(--color-white)}
+#header-container{display:flex;justify-content:space-between;align-items:center;overflow:hidden;padding-bottom:.1em}
+#header-logo{position:relative;z-index:1;pointer-events:auto;transition:color .5s;font-weight:500;letter-spacing:-.02em;font-size:1.5em;line-height:1;display:flex;align-items:center;gap:.35em}
+#header-logo svg{width:auto;height:1em}
+html.is-project-details-active #header-logo{color:var(--project-highlight)}
+html:not(.is-leaving) #header-logo{background:var(--project-bg);padding:.3em .45em;margin:-.3em -.45em}
+html.is-black-bg #header-logo{color:var(--color-white)}
+
+#header-center{position:relative;flex:1;display:flex;align-items:center;padding-left:3em;pointer-events:none}
+#header-center-project-back-btn{position:relative;left:auto;top:auto;padding:0 1.5em 0 1em;height:3.2em;font-size:.875em;background:#fff;color:var(--color-black);font-weight:500;border-radius:100px;border:none;text-transform:uppercase;width:fit-content;pointer-events:auto;cursor:pointer;display:flex;align-items:center;gap:.625em;overflow:hidden;transform:scale(0);transition:transform .5s cubic-bezier(.35,0,0,1)}
+html.is-ready #header-center-project-back-btn{transform:scale(1)}
+html.is-ready[data-page=home] #header-center-project-back-btn{transform:scale(0);pointer-events:none}
+#header-center-project-back-btn{box-shadow:inset 0 0 0 1px currentColor;background:var(--project-bg)}
+html.is-black-bg #header-center-project-back-btn,html.is-white-bg #header-center-project-back-btn{transform:scale(0)}
+@media (max-width:812px){#header-center{padding-left:1em}#header-center-project-back-btn{width:3.2em;padding:0;justify-content:center}}
+#header-center-project-back-btn svg{height:1.2em;width:1.2em;transition:color .5s,transform .4s cubic-bezier(.4,0,.1,1);z-index:1}
+#header-center-project-back-btn-svg2{position:absolute;right:0;z-index:1;transform:translate3d(1em,0,0)}
+#header-center-project-back-btn-text{transition:color .5s,transform .4s cubic-bezier(.4,0,.1,1);margin:0;z-index:1}
+@media (max-width:812px){#header-center-project-back-btn-text{display:none}}
+#project-details-header-back-background{position:absolute;inset:0;background:var(--project-highlight);transform:scaleY(0);transform-origin:bottom;transition:transform .3s cubic-bezier(.16,1,.3,1)}
+@media (hover:hover){
+  #header-center-project-back-btn:hover{color:var(--project-btn-text-hover)}
+  #header-center-project-back-btn:hover #project-details-header-back-background{transform:scaleY(1)}
+  #header-center-project-back-btn:hover #header-center-project-back-btn-svg{transform:translate3d(-2em,0,0)}
+  #header-center-project-back-btn:hover #header-center-project-back-btn-text{transform:translate3d(-1.3em,0,0)}
+  #header-center-project-back-btn:hover #header-center-project-back-btn-svg2{transform:translate3d(-1em,0,0)}
+}
+
+#header-right{position:relative;z-index:2;display:flex;align-items:center;gap:.75em;will-change:transform;pointer-events:auto}
+#header-right-sound-btn{position:relative;font-size:.875em;height:3.2em;width:3.2em;border:none;padding:0;background:transparent;overflow:hidden;z-index:1;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:.2em}
+@media (max-width:812px){#header-right-sound-btn{display:none}}
+#header-right-sound-btn i{display:block;width:.2em;height:1.4em;background:currentColor;border-radius:2px;transform-origin:center;animation:sound-bar 1s ease-in-out infinite;transform:scaleY(.35)}
+#header-right-sound-btn.--off i{animation-play-state:paused;transform:scaleY(.12)}
+#header-right-sound-btn i:nth-child(2){animation-delay:.15s}
+#header-right-sound-btn i:nth-child(3){animation-delay:.3s}
+#header-right-sound-btn i:nth-child(4){animation-delay:.45s}
+@keyframes sound-bar{0%,100%{transform:scaleY(.35)}50%{transform:scaleY(1)}}
+
+#header-right-menu-btn{font-size:.875em;border-radius:6.25em;padding:0 1.125em 0 1.625em;font-weight:500;text-transform:uppercase;border:none;transform:scale(0);transition:color .4s,background-color .4s,transform .5s cubic-bezier(.35,0,0,1);height:3.2em;cursor:pointer}
+html.is-ready #header-right-menu-btn{transform:scale(1)}
+@media (max-width:812px){#header-right-menu-btn{position:relative;width:3.2em;padding:0;transform:none}}
+#header-right-menu-btn{background:transparent;color:var(--color-black);position:relative;z-index:2;box-shadow:inset 0 0 0 1px currentColor}
+@media (hover:hover){
+  #header-right-menu-btn:hover{background:var(--color-black);color:var(--color-white)}
+  #header-right-menu-btn:hover #header-right-menu-btn-dots{transform:translateY(-.1em) rotate(270deg)}
+}
+#header-right-menu-btn.--opened{color:var(--color-black);background:var(--color-white)}
+#header-right-menu-btn.--opened #header-right-menu-btn-dots{transform:translateY(-.1em) rotate(270deg)}
+#header-right-menu-btn.--opened #header-right-menu-btn-text{transform:translate3d(0,-100%,0)}
+#header-right-menu-btn.--opened #header-right-menu-btn-text-close{transform:translateZ(0)}
+#header-right-menu-btn-inner{display:flex;justify-content:center;align-items:center;position:relative;overflow:hidden;gap:.625em}
+#header-right-menu-btn-text{transition:transform .3s cubic-bezier(.4,0,.1,1);line-height:1.2em}
+#header-right-menu-btn-text-close{position:absolute;transform:translate3d(0,100%,0);left:0;transition:transform .3s cubic-bezier(.4,0,.1,1)}
+@media (max-width:812px){#header-right-menu-btn-text,#header-right-menu-btn-text-close{display:none}}
+#header-right-menu-btn-dots{position:relative;transition:transform .4s cubic-bezier(.4,0,.1,1);transform:rotate(180deg);width:1.15em;height:1.15em}
+@media (max-width:812px){#header-right-menu-btn-dots{font-size:1.4em}}
+.header-right-menu-btn-dot{position:absolute;display:inline-block;width:.3125em;height:.3125em;background:currentColor;border-radius:100%;transform:translateY(-50%);top:50%}
+.header-right-menu-btn-dot:first-child{left:.1em}
+.header-right-menu-btn-dot:last-child{right:.1em}
+
+/* ---- menu ---- */
+/* véu sobre a página + painel de vidro (liquid glass) */
+#header-background{position:fixed;inset:0;background:rgba(15,15,19,.10);opacity:0;transition:opacity .4s .2s;pointer-events:none}
+#header-background.--opened{opacity:1;transition:opacity .4s;pointer-events:auto}
+#header-menu{position:fixed;top:0;right:0;bottom:0;width:min(50vw,44em);padding:calc(var(--base-padding-y) + 6em) var(--base-padding-x) var(--base-padding-y);pointer-events:none;color:var(--ink);display:flex;flex-direction:column;justify-content:flex-start;z-index:1;isolation:isolate}
+@media (max-width:812px){#header-menu{width:100vw}}
+#header-menu.--opened{pointer-events:auto}
+#header-menu-glass{position:absolute;inset:0;z-index:-1;overflow:hidden;background:rgba(255,255,255,.7);-webkit-backdrop-filter:blur(26px) saturate(1.6) brightness(1.04);backdrop-filter:blur(26px) saturate(1.6) brightness(1.04);box-shadow:inset 1px 0 0 rgba(255,255,255,.85),-1px 0 0 rgba(15,15,19,.10),-48px 0 96px -48px rgba(15,15,19,.22);opacity:0;transform:translate3d(5%,0,0) scale(.985);transform-origin:right center;transition:opacity .3s .15s,transform .55s cubic-bezier(.35,0,0,1)}
+#header-menu-glass:before{content:"";position:absolute;inset:0;background:linear-gradient(118deg,rgba(255,255,255,.85) 0%,rgba(255,255,255,.25) 32%,rgba(255,255,255,0) 52%,rgba(255,255,255,.45) 100%);pointer-events:none}
+#header-menu-glass:after{content:"";position:absolute;inset:-30%;background:radial-gradient(42% 38% at 28% 30%,rgba(255,255,255,.95),rgba(255,255,255,0) 70%),radial-gradient(36% 34% at 78% 76%,rgba(15,15,19,.10),rgba(15,15,19,0) 70%),radial-gradient(30% 30% at 70% 20%,rgba(255,255,255,.7),rgba(255,255,255,0) 70%);filter:blur(18px);animation:glass-drift 16s ease-in-out infinite alternate;pointer-events:none}
+@keyframes glass-drift{0%{transform:translate3d(-4%,-3%,0) rotate(0deg)}50%{transform:translate3d(3%,4%,0) rotate(6deg)}100%{transform:translate3d(-2%,5%,0) rotate(-4deg)}}
+#header-menu.--opened #header-menu-glass{opacity:1;transform:none;transition:opacity .35s,transform .7s cubic-bezier(.2,.8,.2,1)}
+#header-menu-links:before{content:"Navegação";display:block;font-family:"IBM Plex Mono",monospace;font-size:.75em;letter-spacing:.14em;text-transform:uppercase;padding-bottom:.9em;margin-bottom:.6em;border-bottom:1px solid rgba(15,15,19,.18);opacity:0;transition:opacity .4s .1s}
+#header-menu.--opened #header-menu-links:before{opacity:1}
+html.is-menu-open #header-right-sound-btn{opacity:0;pointer-events:none}
+html.is-menu-open #header-logo,html.is-menu-open #header-center-project-back-btn{z-index:2}
+#header-menu-links{display:flex;flex-direction:column;gap:.5em}
+.header-menu-link{position:relative;display:block;width:100%;border:none;background:transparent;padding:0;text-align:left;font-size:clamp(2rem,4.5vw,5rem);line-height:1.1;overflow:hidden;cursor:pointer;color:inherit;font-family:inherit;opacity:0;transform:translate3d(2em,0,0);transition:opacity .5s cubic-bezier(.35,0,0,1),transform .6s cubic-bezier(.35,0,0,1)}
+#header-menu.--opened .header-menu-link{opacity:1;transform:translateZ(0)}
+#header-menu.--opened .header-menu-link:nth-child(2){transition-delay:.05s}
+#header-menu.--opened .header-menu-link:nth-child(3){transition-delay:.1s}
+#header-menu.--opened .header-menu-link:nth-child(4){transition-delay:.15s}
+.header-menu-link-inner{position:relative;display:flex;align-items:center;gap:.4em;padding:.15em .4em}
+.header-menu-link-background{position:absolute;inset:0;background:var(--ink);border-radius:.3em;transform:scaleX(0);transform-origin:left;transition:transform .4s cubic-bezier(.35,0,0,1)}
+.header-menu-link-text-clone{display:none}
+.header-menu-link-svg{width:.6em;height:.6em;transform:translate3d(-1em,0,0);opacity:0;transition:transform .4s cubic-bezier(.35,0,0,1),opacity .3s}
+@media (hover:hover){
+  .header-menu-link:hover .header-menu-link-background{transform:scaleX(1)}
+  .header-menu-link:hover .header-menu-link-inner{color:var(--color-white)}
+  .header-menu-link:hover .header-menu-link-svg{transform:translateZ(0);opacity:1}
+}
+
+/* ------------------------------------------------------------------
+   PÁGINA (scroll suave: container fixo + espaçador)
+   ------------------------------------------------------------------ */
+#scroll-spacer{width:100%;height:100vh;pointer-events:none}
+#page-container{position:fixed;left:0;top:0;width:100%;z-index:1;will-change:transform}
+html.is-mobile #page-container{position:relative;will-change:auto}
+html.is-mobile #scroll-spacer{display:none}
+.section{position:relative;width:100%;display:grid;grid-template-columns:repeat(12,minmax(0,1fr));column-gap:var(--grid-gap);padding:var(--base-padding-y) var(--base-padding-x)}
+@media (max-width:812px){.section{grid-template-columns:repeat(6,minmax(0,1fr))}}
+
+/* ------------------------------------------------------------------
+   PROJETO
+   ------------------------------------------------------------------ */
+#project-wrapper{position:relative;width:100%}
+#project-details{position:absolute;left:0;top:0;display:block;width:100%;height:calc(var(--vh) * 100);z-index:10;padding:var(--base-padding-y) var(--base-padding-x);color:var(--project-text);font-size:clamp(1rem,1vw,1.5rem);overflow:hidden}
+@media (max-width:380px){#project-details{font-size:clamp(.75rem,1vw,2rem)}}
+@media (min-aspect-ratio:21/9){#project-details{font-size:clamp(.75rem,1vw,2.5rem)}}
+html.is-mobile #project-details{position:relative;height:auto;overflow:visible}
+
+#project-details-header-info{position:absolute;align-items:center;display:flex;gap:.75em;font-size:.7em;font-family:"IBM Plex Mono",monospace;text-transform:uppercase;overflow:hidden;z-index:1;color:var(--project-highlight);right:var(--base-padding-x);top:calc(var(--base-padding-y) + 1.2em);font-weight:400;letter-spacing:.1em;transition:opacity .4s}
+#project-details-header-info:before{content:"";width:4em;height:1px;background:currentColor;opacity:.5}
+#project-details-header-info svg{width:1em;height:1em;animation:chev 2.4s cubic-bezier(.35,0,0,1) infinite}
+@keyframes chev{0%,100%{transform:translateX(0)}50%{transform:translateX(.3em)}}
+@media (max-width:812px){#project-details-header-info{display:none}}
+
+/* área que se move com o scroll: meta + galeria juntos */
+#project-details-move{position:absolute;left:var(--base-padding-x);top:0;height:100%;will-change:transform}
+html.is-mobile #project-details-move{position:relative;left:0;height:auto}
+
+#project-details-meta{position:absolute;top:50%;width:34em;transform:translate3d(0,-50%,0);left:0}
+@media (max-width:812px){#project-details-meta{position:relative;top:0;width:100%;padding-top:calc(var(--vh) * 10);padding-bottom:50px;transform:none}}
+#project-details-meta:after{content:"";display:block;clear:both}
+#project-details-title,#project-details-preview-title{font-size:4.5em;line-height:.95;margin:0;font-weight:400;letter-spacing:-.01em}
+#project-details-left{float:left;width:60%}
+#project-details-right{float:right;width:40%;padding-left:20%;margin-top:3em}
+@media (max-width:812px){#project-details-left{width:100%}#project-details-right{width:100%;padding-left:0;margin-top:0}}
+#project-details-desc{font-size:.75em;line-height:1.5em;margin:4em 0}
+@media (max-width:812px){#project-details-desc{max-width:30em;font-size:clamp(1rem,1.5vw,3rem)}}
+#project-details-desc p:not(:first-child){margin-top:1em}
+
+#project-details-side-list{position:relative;font-size:.75em}
+@media (max-width:812px){#project-details-side-list{font-size:clamp(1rem,1.5vw,3rem);display:grid;grid-template-columns:1fr 1fr;width:100%}}
+.project-details-side-list-title{color:var(--project-highlight);text-transform:uppercase;margin:0 0 1em;font-weight:400;font-size:1em}
+.project-details-side-list-item{color:var(--project-text);line-height:1.4;display:block;white-space:nowrap}
+#project-details-side-list-links{margin-top:4em}
+@media (max-width:812px){#project-details-side-list-links{margin-top:0}}
+#project-details-side-list a{position:relative;display:inline-block}
+#project-details-side-list a:after{position:absolute;content:"";left:0;top:100%;width:100%;height:1px;background:var(--project-text);transition:transform .3s cubic-bezier(.16,1,.3,1);transform-origin:0 0;transform:scaleX(0)}
+@media (hover:hover){#project-details-side-list a:hover:after{transform:scaleX(1)}}
+
+/* botão "ver projeto" */
+.launch-cta{position:relative;display:flex;height:3.375em;padding:1em 1.5em 1em 1.125em;align-items:center;gap:1.125em;width:fit-content;overflow:hidden;background:#fff;border-radius:100px;text-transform:uppercase;font-weight:500;color:var(--project-btn-text);transition:background cubic-bezier(.35,0,0,1) .5s}
+.launch-cta-dot{width:.5em;height:.5em;background:var(--project-btn-text);border-radius:100px;z-index:1;transition:background cubic-bezier(.35,0,0,1) .5s,transform cubic-bezier(.35,0,0,1) .4s}
+.launch-cta-text{font-size:.875em;position:relative;margin:0;z-index:1;font-weight:500;transition:color cubic-bezier(.35,0,0,1) .5s .1s,transform cubic-bezier(.35,0,0,1) .4s .1s}
+.launch-cta-arrow{position:absolute;display:flex;justify-content:center;align-items:center;top:calc(50% - .75em);right:.75em;height:1.5em;width:1.5em;background:var(--color-white);border-radius:100%;transform:scale(0);transition:transform cubic-bezier(.35,0,0,1) .4s;z-index:1}
+.launch-cta-arrow svg{width:90%;height:90%;color:var(--project-btn-text)}
+@media (hover:hover){
+  .launch-cta:hover{color:var(--project-btn-text-hover);background:var(--project-highlight);transition:background cubic-bezier(.35,0,0,1) .5s .1s}
+  .launch-cta:hover .launch-cta-text{transform:translate3d(-20%,0,0)}
+  .launch-cta:hover .launch-cta-dot{transform:translate3d(5em,0,0) scale(26);background:var(--project-highlight)}
+  .launch-cta:hover .launch-cta-arrow{transform:scale(1);transition:transform cubic-bezier(.35,0,0,1) .4s .1s}
+}
+#project-details-launch-cta-mobile{display:none;margin-top:4em;font-size:1em}
+@media (max-width:812px){#project-details-launch-cta{display:none}#project-details-launch-cta-mobile{display:flex}}
+
+/* galeria */
+#project-details-items-wrapper{position:absolute;left:0;height:calc(100% - var(--base-padding-y) * 4 - var(--header-size) * 3.9);top:calc(var(--base-padding-y) * 2 + var(--header-size) * 2.8)}
+#project-details-items-move-container{position:absolute;padding-left:48em;padding-right:0;height:100%;white-space:nowrap}
+/* a faixa dos cartões começa com recuo sobre o texto: só os cartões recebem clique */
+#project-details-items-wrapper,#project-details-items-move-container{pointer-events:none}
+.project-details-item{pointer-events:auto}
+html.is-mobile #project-details-items-wrapper{position:relative;height:auto;top:0;width:100%}
+html.is-mobile #project-details-items-move-container{position:relative;padding-left:0;width:100%;height:auto;white-space:normal}
+.project-details-item{position:relative;display:inline-block;vertical-align:top;margin-left:5em;height:100%;border-radius:var(--global-border-radius);overflow:hidden;background:transparent;will-change:transform;transform-origin:center center;isolation:isolate}
+.project-details-item:first-child{margin-left:0}
+.project-details-item:last-child{margin-right:10vw}
+html.is-mobile .project-details-item{display:block;margin:0 0 var(--base-padding-x);width:100%!important;height:auto!important;aspect-ratio:var(--ar)}
+html.is-mobile .project-details-item:last-child{margin-bottom:50px;margin-right:0}
+.project-details-item.--fullscreen{z-index:5}
+.project-details-item img,.project-details-item video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
+.project-details-item .ph{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:"IBM Plex Mono",monospace;font-size:.75em;letter-spacing:.08em;text-transform:uppercase;color:rgba(0,0,0,.55)}
+.project-details-item .ph:before{content:"";position:absolute;inset:0;background:radial-gradient(120% 90% at 20% 15%,#f6f4ff 0%,#d9d6f5 40%,#a99fe6 100%)}
+.project-details-item:nth-child(3n) .ph:before{background:radial-gradient(120% 90% at 80% 20%,#efd5d3 0%,#dcc4ec 45%,#8e83d6 100%)}
+.project-details-item:nth-child(3n+2) .ph:before{background:radial-gradient(120% 90% at 50% 100%,#e3e3f8 0%,#bfb6ee 50%,#756acc 100%)}
+.project-details-item .ph span{position:relative;background:rgba(255,255,255,.55);padding:.5em .9em;border-radius:100px;backdrop-filter:blur(6px)}
+.project-details-item.is-video .ph span:before{content:"▶";margin-right:.6em;font-size:.9em}
+
+/* preview do próximo projeto */
+#project-details-preview{position:absolute;left:var(--base-padding-x);top:0;width:calc(100% - var(--base-padding-x) * 2);height:100%;pointer-events:none;opacity:0}
+html.is-mobile #project-details-preview{position:relative;height:auto;opacity:1;padding:calc(var(--vh) * 6) 0;left:0;width:100%}
+#project-details-preview-inner{position:absolute;left:0;top:0;width:100%;height:100%}
+html.is-mobile #project-details-preview-inner{position:relative;height:auto}
+#project-details-preview-title{position:absolute;left:0;top:50%;transform:translate3d(0,-50%,0);will-change:transform}
+html.is-mobile #project-details-preview-title{position:relative;top:auto;transform:none}
+#project-details-preview-footer{display:flex;align-items:center;gap:1em;position:absolute;left:0;bottom:var(--base-padding-y);width:14em}
+@media (min-aspect-ratio:21/9){#project-details-preview-footer{width:16em;gap:2em}}
+html.is-mobile #project-details-preview-footer{position:relative;bottom:auto;margin-top:calc(var(--vh) * 5);width:100%}
+#project-details-preview-footer-text{font-size:.875em;color:var(--color-black);white-space:nowrap}
+#project-details-preview-footer-bar{position:relative;border-radius:16px;height:4px;flex-grow:1}
+#project-details-preview-footer-bar-background{position:absolute;background:var(--color-black);height:3px;width:100%;opacity:.2}
+#project-details-preview-footer-bar-inner{width:100%;height:3px;background:var(--project-highlight);transform-origin:0 50%;transform:scaleX(0)}
+#project-details-preview-footer-arrow{width:1em;height:1em;flex-shrink:0}
+html.is-mobile #project-details-preview-footer-arrow{transform:rotate(90deg)}
+
+
+/* ------------------------------------------------------------------
+   INDICADOR DE SCROLL
+   ------------------------------------------------------------------ */
+#scroll-indicator{position:fixed;width:6px;height:calc(var(--vh) * 20);top:calc(var(--vh) * 40);background:#0000001a;border-radius:3px;right:16px;z-index:51}
+html.is-black-bg #scroll-indicator{background:#ffffff1a}
+@media (max-width:812px){#scroll-indicator{width:2px;border-radius:1px;right:6px}}
+#scroll-indicator-bar{position:absolute;width:100%;height:100%;background:var(--color-black);transform-origin:0 0;border-radius:3px;transform:scaleY(0)}
+/* lightbox */
+#lightbox{position:fixed;inset:0;z-index:70;display:flex;align-items:center;justify-content:center;padding:calc(var(--base-padding-y) + 5em) var(--base-padding-x) calc(var(--base-padding-y) + 4em);font-size:clamp(1rem,1vw,1.5rem)}
+#lightbox[hidden]{display:none}
+#lightbox-backdrop{position:absolute;inset:0;background:rgba(255,255,255,.72);-webkit-backdrop-filter:blur(22px) saturate(1.4);backdrop-filter:blur(22px) saturate(1.4);opacity:0;transition:opacity .35s}
+#lightbox-figure{position:relative;margin:0;max-width:100%;max-height:100%;display:flex;flex-direction:column;align-items:center;gap:1em;opacity:0;transform:scale(.96);transition:opacity .4s .05s,transform .6s cubic-bezier(.2,.8,.2,1) .05s}
+#lightbox-img{display:block;max-width:100%;max-height:calc(100vh - var(--base-padding-y) * 2 - 10em);box-shadow:0 0 0 1px var(--ink),0 30px 80px -30px rgba(15,15,19,.35);background:#fff}
+#lightbox-caption{font-family:"IBM Plex Mono",monospace;font-size:.72em;letter-spacing:.1em;text-transform:uppercase;color:var(--ink);opacity:.7}
+#lightbox-close{position:absolute;top:var(--base-padding-y);right:var(--base-padding-x);display:flex;align-items:center;gap:.7em;height:3.2em;padding:0 1.2em 0 1.5em;font-size:.875em;font-weight:500;text-transform:uppercase;border:0;border-radius:100px;background:var(--ink);color:#fff;cursor:pointer;font-family:inherit;transition:background .25s,color .25s;opacity:0;transform:scale(.8);transition:opacity .3s .1s,transform .5s cubic-bezier(.35,0,0,1) .1s,background .25s,color .25s}
+#lightbox-close:focus{outline:none}
+#lightbox-close:focus-visible{outline:2px solid var(--ink);outline-offset:3px}
+#lightbox-close i{position:relative;width:1.1em;height:1.1em;display:block}
+#lightbox-close i:before,#lightbox-close i:after{content:"";position:absolute;left:0;top:50%;width:100%;height:1.5px;background:currentColor;transform:rotate(45deg)}
+#lightbox-close i:after{transform:rotate(-45deg)}
+@media (hover:hover){#lightbox-close:hover{background:#fff;color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink)}}
+@media (max-width:812px){#lightbox-close span{display:none}#lightbox-close{width:3.2em;padding:0;justify-content:center}}
+#lightbox-dl{position:absolute;left:var(--base-padding-x);bottom:var(--base-padding-y);font-family:"IBM Plex Mono",monospace;font-size:.8em;letter-spacing:.06em;padding:.7em 1.2em;border-radius:100px;box-shadow:inset 0 0 0 1px var(--ink);color:var(--ink);background:#fff;opacity:0;transition:opacity .3s .15s,background .25s,color .25s}
+@media (hover:hover){#lightbox-dl:hover{background:var(--ink);color:#fff}}
+#lightbox.is-open #lightbox-backdrop,#lightbox.is-open #lightbox-close,#lightbox.is-open #lightbox-dl{opacity:1;transform:none}
+#lightbox.is-open #lightbox-figure{opacity:1;transform:none}
+html.is-lightbox{overflow:hidden}
+/* controles explícitos da galeria horizontal */
+#gallery-nav{position:absolute;right:var(--base-padding-x);bottom:var(--base-padding-y);z-index:3;display:flex;align-items:center;gap:.6em;font-family:"IBM Plex Mono",monospace;font-size:.8em;letter-spacing:.08em;color:var(--ink);opacity:0;transform:translate3d(0,.6em,0);transition:opacity .6s 1s,transform .8s cubic-bezier(.35,0,0,1) 1s}
+html.is-ready #gallery-nav{opacity:1;transform:none}
+.gn-btn{width:2.9em;height:2.9em;border-radius:100px;border:0;background:transparent;color:inherit;box-shadow:inset 0 0 0 1px currentColor;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;transition:background .25s,color .25s,opacity .25s}
+.gn-btn svg{width:1.1em;height:1.1em}
+.gn-btn[disabled]{opacity:.3;cursor:default}
+@media (hover:hover){.gn-btn:not([disabled]):hover{background:var(--ink);color:#fff}}
+.gn-count{min-width:5em;text-align:center;opacity:.75}
+.gn-count b{font-weight:500;color:var(--ink);opacity:1}
+html.is-mobile #gallery-nav{display:none}
+/* atalhos da página de marca */
+.hh-jump{display:flex;flex-wrap:wrap;gap:.4em 0;margin:.9em 0 1.6em;font-family:"IBM Plex Mono",monospace;font-size:.76em;letter-spacing:.1em;text-transform:uppercase}
+.hh-jump button{border:0;background:#fff;color:var(--ink);font:inherit;letter-spacing:inherit;text-transform:inherit;padding:.3em .5em;cursor:pointer;opacity:.75;transition:opacity .25s,background .25s,color .25s}
+.hh-jump button+button:before{content:"·";margin-right:1em;opacity:.5}
+@media (hover:hover){.hh-jump button:hover{opacity:1;background:var(--ink);color:#fff}}
+.hh-jump button:hover:before{color:var(--ink);background:#fff}
+html.is-black-bg #scroll-indicator-bar{background:var(--color-white)}
+
+
+/* ------------------------------------------------------------------
+   AJUSTES DA CASA DE MARCAS
+   ------------------------------------------------------------------ */
+#header-logo svg{height:.82em}
+html.is-mobile #header-logo svg{height:.7em}
+#page-container{transition:opacity .4s cubic-bezier(.35,0,0,1)}
+html.is-switching #page-container{opacity:0}
+#project-details-preview{cursor:pointer}
+#project-details-desc p.lead-note{opacity:.6}
+.project-details-side-list-item.is-current{color:var(--project-highlight)}
+#project-details-side-list .side-row{display:block}
+#project-details-header-info{top:auto;bottom:calc(var(--base-padding-y) + 3.6em)}
+.header-menu-link{font-size:clamp(1.5rem,2.8vw,3.2rem)}
+#header-menu.--opened .header-menu-link{transition-delay:calc(var(--i,0) * .04s)}
+.header-menu-link.is-current .header-menu-link-text{font-weight:600}
+.header-menu-link.is-current .header-menu-link-text:after{content:" ●";font-size:.35em;vertical-align:middle}
+
+/* cartões da galeria: todo o texto escala com a altura do cartão (cqh) */
+.card{position:absolute;inset:0;container-type:size;display:flex;flex-direction:column;overflow:hidden;white-space:normal;color:var(--c-light,#F4EFE5);background:var(--c-black,#0F0F13)}
+.card-label{font-family:"IBM Plex Mono",monospace;text-transform:uppercase;letter-spacing:.08em;font-size:2.1cqh;color:var(--c-accent-on-dark,var(--c-accent))}
+.card-pill{position:absolute;left:5cqh;bottom:5cqh;display:inline-flex;align-items:center;gap:.6em;font-family:"IBM Plex Mono",monospace;text-transform:uppercase;letter-spacing:.06em;font-size:2cqh;padding:.8em 1.2em;border-radius:100px;background:rgba(255,255,255,.9);color:#000;backdrop-filter:blur(6px)}
+a.card{cursor:pointer}
+@media (hover:hover){a.card .card-pill{transition:background .3s,color .3s}a.card:hover .card-pill{background:var(--c-accent);color:#fff}}
+
+/* manifesto */
+.card-manifesto{padding:7cqh 7cqh 6cqh;justify-content:space-between;font-family:Inter,sans-serif;background:#fff;color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink)}
+.card-manifesto .card-label,.card-kit .card-label{color:var(--c-hl)}
+.card-manifesto-body{font-size:2.85cqh;line-height:1.5;font-weight:400;opacity:.85}
+.card-manifesto-body p+p{margin-top:.9em}
+.card-manifesto-closing{font-size:4.2cqh;line-height:1.18;font-weight:600;font-style:italic;letter-spacing:-.015em;color:var(--c-hl);margin-top:4cqh}
+.card-manifesto.is-pending .card-manifesto-body{font-size:3.4cqh;line-height:1.35;opacity:.7}
+
+/* logo */
+.card-logo{align-items:center;justify-content:center}
+.project-details-item .card-logo img{position:relative;inset:auto;width:52%;height:auto;object-fit:contain}
+.card-logo .card-label{position:absolute;left:5cqh;top:5cqh}
+.card-logo{box-shadow:inset 0 0 0 1px var(--ink)}
+.card-label{transition:opacity .3s}
+.--fullscreen .card-label{opacity:0}
+
+/* paleta */
+.card-palette{flex-direction:row;background:var(--c-black)}
+.swatch{flex:1;display:flex;flex-direction:column;justify-content:flex-end;padding:5cqh 4cqh;font-family:"IBM Plex Mono",monospace;text-transform:uppercase;letter-spacing:.06em;font-size:2.2cqh;line-height:1.5}
+.swatch b{display:block;font-family:var(--c-font),Inter,sans-serif;text-transform:none;letter-spacing:-.01em;font-weight:500;font-size:4.2cqh;margin-bottom:.4em}
+.card-palette .card-label{position:absolute;left:4cqh;top:5cqh;mix-blend-mode:difference;color:#fff}
+.card-palette{box-shadow:inset 0 0 0 1px var(--ink)}
+
+/* tipografia */
+.card-type{background:#fff;color:var(--ink);padding:6cqh;font-family:var(--c-font),Inter,sans-serif;justify-content:space-between;box-shadow:inset 0 0 0 1px var(--ink)}
+.card-type .card-label{color:var(--c-hl)}
+.card-type-name{font-size:21cqh;line-height:.9;letter-spacing:-.03em;font-weight:300}
+.card-type-row{display:flex;align-items:flex-end;justify-content:space-between;gap:4cqh}
+.card-type-weights{font-size:3cqh;line-height:1.35}
+.card-type-weights span{display:block}
+.card-type-aa{font-size:30cqh;line-height:.8;color:var(--c-hl);font-weight:600;letter-spacing:-.04em}
+
+/* manual (MIV) */
+.card-miv img{object-position:top center}
+.card-miv{box-shadow:inset 0 0 0 1px var(--ink)}
+
+/* kit de arquivos */
+.card-kit{padding:6cqh;justify-content:space-between;background:#fff;color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink)}
+.card-kit-title{font-family:Geist,Inter,sans-serif;font-weight:600;font-size:7cqh;line-height:1;letter-spacing:-.03em;margin-top:3cqh}
+.kit-list{display:flex;flex-direction:column}
+.kit-row{display:flex;align-items:center;justify-content:space-between;gap:2cqh;padding:2.2cqh 0;border-top:1px solid rgba(0,0,0,.1);font-size:2.7cqh}
+.kit-row:last-child{border-bottom:1px solid rgba(0,0,0,.1)}
+.kit-btns{display:flex;gap:1cqh}
+/* espaço especial (camisetas, onboarding…): arquivos listados em <pasta>/arquivos.json */
+.card-extra .kit-list{overflow:auto;max-height:66cqh;margin-top:1.5cqh}
+.card-extra-blurb{font-size:2.5cqh;line-height:1.45;max-width:52ch;margin:2cqh 0 0;opacity:.75}
+.card-extra .kit-row{gap:2.5cqh;justify-content:flex-start}
+.card-extra .kit-row .kit-btns{margin-left:auto;display:grid;grid-template-columns:repeat(2,max-content);gap:.8cqh;justify-content:end}
+.card-extra .kit-row{padding:1.3cqh 0;font-size:2.4cqh}
+.card-extra .kit-btn{font-size:1.7cqh;padding:.45em .9em;white-space:nowrap}
+.card-extra .kit-name small{font-size:1.6cqh}
+.project-details-item .kit-thumb{position:relative;inset:auto;width:9cqh;height:9cqh;object-fit:cover;background:#f2f2f4;box-shadow:inset 0 0 0 1px rgba(15,15,19,.12);flex:0 0 auto}
+.kit-name{display:flex;flex-direction:column;gap:.5cqh;min-width:0}
+.kit-name small{font-family:"IBM Plex Mono",monospace;font-size:1.8cqh;letter-spacing:.06em;text-transform:uppercase;opacity:.55}
+.kit-empty{font-family:"IBM Plex Mono",monospace;font-size:2cqh;letter-spacing:.06em;text-transform:uppercase;opacity:.55;padding:3cqh 0;border-top:1px solid rgba(0,0,0,.1);border-bottom:1px solid rgba(0,0,0,.1)}
+.kit-btn{font-family:"IBM Plex Mono",monospace;font-size:1.9cqh;letter-spacing:.06em;padding:.55em 1em;border-radius:100px;box-shadow:inset 0 0 0 1px var(--ink);transition:background .25s,color .25s}
+@media (hover:hover){.kit-btn:hover{background:var(--c-black);color:var(--c-light)}}
+
+/* ------------------------------------------------------------------
+   PÁGINA INICIAL — composição tipográfica
+   ------------------------------------------------------------------ */
+html[data-page=home]{--global-border-radius:4px}
+html[data-page=brand]{--global-border-radius:4px}
+#grain{position:fixed;inset:0;z-index:60;pointer-events:none;opacity:.05;mix-blend-mode:multiply;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .6 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+
+/* arte de fundo: grade, octógono radial e palavra monumental */
+#home-art{position:absolute;inset:0;overflow:hidden;pointer-events:none;color:var(--ink)}
+#home-grid{position:absolute;top:0;bottom:0;left:var(--base-padding-x);right:var(--base-padding-x);background:linear-gradient(90deg,var(--line) 1px,transparent 1px) 0 0/calc(100%/12) 100% no-repeat,linear-gradient(90deg,var(--line) 1px,transparent 1px) 0 0/calc(100%/12) 100%;background-position:0 0,0 0}
+#home-grid:after{content:"";position:absolute;top:0;bottom:0;right:0;width:1px;background:var(--line)}
+#home-radial{position:absolute;left:calc(var(--base-padding-x) + 9em);top:36%;width:70vh;height:70vh;transform:translate(-50%,-50%);will-change:transform}
+#home-radial svg{width:100%;height:100%;display:block;opacity:0;transform:scale(.92);transition:opacity 1.4s .3s,transform 1.6s cubic-bezier(.35,0,0,1) .3s}
+html.is-ready #home-radial svg{opacity:1;transform:none}
+#home-word{position:absolute;left:-.06em;top:calc(50% - 150px - .84em);font-family:Geist,Inter,sans-serif;font-weight:700;font-size:var(--word-size,22vw);line-height:1;letter-spacing:-.055em;white-space:nowrap;color:transparent;-webkit-text-stroke:max(1.25px,.0045em) rgba(15,15,19,.42);will-change:transform}
+#home-word span{display:block;opacity:0;transform:translate3d(-2%,0,0);transition:opacity 1.1s .15s,transform 1.4s cubic-bezier(.35,0,0,1) .15s}
+html.is-ready #home-word span{opacity:1;transform:none}
+#home-word b{color:var(--ink);-webkit-text-stroke:0;font-weight:inherit}
+
+/* bloco de abertura */
+#project-details-meta{width:47em}
+#home-hero{position:relative;font-family:Inter,sans-serif;color:var(--ink)}
+.hh-eyebrow{display:flex;align-items:center;gap:1em;font-family:"IBM Plex Mono",monospace;font-size:.76em;letter-spacing:.1em;text-transform:uppercase;margin-bottom:1.2em}
+.hh-eyebrow .hh-num{padding:.35em .6em;background:var(--ink);color:#fff}
+.hh-eyebrow .hh-txt{background:#fff;padding:.35em .5em;margin-left:-.6em}
+.hh-eyebrow:after{content:"";flex:0 0 4em;height:1px;background:currentColor;opacity:.4}
+.hh-title{font-family:Geist,Inter,sans-serif;font-weight:600;font-size:clamp(3.4rem,8vw,9.6rem);line-height:.9;letter-spacing:-.045em;margin:0 0 .6em;position:relative}
+.hh-line{display:block;overflow:hidden;padding-bottom:.06em;margin-bottom:-.06em}
+.hh-line>span{display:block;transform:translate3d(0,110%,0);transition:transform 1.1s cubic-bezier(.35,0,0,1) .25s}
+.hh-line-2{padding-left:.95em}
+.hh-line-2>span{transition-delay:.35s}
+html.is-ready .hh-line>span{transform:none}
+.hh-line-2.hh-sub{font-size:.4em;font-weight:400;font-style:italic;letter-spacing:-.01em;padding-left:2.4em;margin-top:.25em}
+.hh-closing{font-family:Inter,sans-serif;font-style:italic;font-weight:600;font-size:1.05em;line-height:1.35;margin:1.3em 0 0;max-width:26em;padding-left:.8em;border-left:3px solid var(--project-highlight)}
+.hh-title .hh-oct{display:inline-block;width:.42em;height:.42em;margin-left:.12em;vertical-align:-.02em;background:var(--ink);clip-path:polygon(29.3% 0,70.7% 0,100% 29.3%,100% 70.7%,70.7% 100%,29.3% 100%,0 70.7%,0 29.3%)}
+.hh-cols{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);column-gap:3em;align-items:start}
+.hh-lead{font-size:1.02em;line-height:1.5;font-weight:400;max-width:30em;margin:0}
+.hh-lead mark{background:var(--ink);color:#fff;padding:.05em .3em;box-decoration-break:clone;-webkit-box-decoration-break:clone;font-weight:500}
+.hh-lead b{font-weight:500}
+.hh-lead em{font-style:italic;font-weight:500}
+.hh-note{font-size:.9em;line-height:1.5;margin:1.4em 0 0;opacity:.6;max-width:30em}
+.hh-tags{position:relative;display:flex;flex-wrap:wrap;gap:.5em .8em;margin-top:1.6em}
+.hh-tag{display:inline-flex;align-items:center;gap:.5em;font-family:"IBM Plex Mono",monospace;font-size:.74em;letter-spacing:.06em;text-transform:uppercase;padding:.55em .9em;background:#fff;color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink);transform:rotate(var(--r,0deg)) scale(0);transition:transform .7s cubic-bezier(.3,1.4,.5,1) var(--d,.9s)}
+.hh-tag:before{content:"";width:.5em;height:.5em;background:var(--ink);clip-path:polygon(29.3% 0,70.7% 0,100% 29.3%,100% 70.7%,70.7% 100%,29.3% 100%,0 70.7%,0 29.3%)}
+.hh-tag.is-dark{background:var(--ink);color:#fff}
+.hh-tag.is-dark:before{background:#fff}
+html.is-ready .hh-tag{transform:rotate(var(--r,0deg)) scale(1)}
+.hh-cta{margin-top:2em;background:var(--ink);color:#fff;box-shadow:none}
+.hh-cta .launch-cta-dot{background:#fff}
+@media (hover:hover){.hh-cta:hover{background:#fff;color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink)}.hh-cta:hover .launch-cta-dot{background:var(--ink)}}
+
+/* índice de marcas */
+.hh-index{font-size:.9em;margin:-.4em -.8em 0;padding:.6em .8em .8em;background:#fff}
+.hh-index-head{display:flex;justify-content:space-between;align-items:baseline;font-family:"IBM Plex Mono",monospace;font-size:.78em;letter-spacing:.1em;text-transform:uppercase;padding-bottom:.9em;border-bottom:1px solid var(--ink)}
+.hh-index>a{display:grid;grid-template-columns:2.6em minmax(0,1fr) minmax(0,auto);align-items:baseline;column-gap:.8em;padding:.62em .4em .62em 0;border-bottom:1px solid var(--line);font-weight:500;line-height:1.2;transition:background .25s,color .25s,padding .25s;position:relative}
+.hh-index>a .n{font-family:"IBM Plex Mono",monospace;font-size:.8em;letter-spacing:.06em;opacity:.55}
+.hh-index>a .k{font-family:"IBM Plex Mono",monospace;font-size:.74em;letter-spacing:.06em;text-transform:uppercase;opacity:.55;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hh-index>a .arrow{position:absolute;right:.5em;top:50%;transform:translate(-.6em,-50%);opacity:0;transition:transform .3s,opacity .3s}
+@media (hover:hover){
+  .hh-index>a:hover,.hh-index>a.is-linked{background:var(--ink);color:#fff;padding-left:.6em}
+  .hh-index>a:hover .n,.hh-index>a.is-linked .n{opacity:.7}
+  .hh-index>a:hover .k,.hh-index>a.is-linked .k{opacity:0}
+  .hh-index>a:hover .arrow,.hh-index>a.is-linked .arrow{opacity:1;transform:translate(0,-50%)}
+}
+.hh-contact{display:flex;flex-wrap:wrap;gap:.6em 1.4em;margin-top:1.4em;font-family:"IBM Plex Mono",monospace;font-size:.84em;letter-spacing:.04em}
+.hh-contact a{border-bottom:1px solid var(--line);padding-bottom:.15em}
+@media (hover:hover){.hh-contact a:hover{border-color:var(--ink)}}
+
+/* cartões de marca: peças de portfólio em preto e branco */
+.card-brand{padding:5cqh 5.5cqh;justify-content:space-between;background:#fff;color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink);transition:background .35s,color .35s;font-family:Inter,sans-serif}
+.card-brand-top{display:flex;justify-content:space-between;align-items:baseline}
+.card-brand-top .n{font-family:Geist,Inter,sans-serif;font-weight:600;font-size:5.2cqh;letter-spacing:-.04em;line-height:1}
+.card-brand-top .k{font-family:"IBM Plex Mono",monospace;text-transform:uppercase;letter-spacing:.08em;font-size:2.1cqh;opacity:.6;max-width:55%;text-align:right;line-height:1.4}
+.card-brand-mid{flex:1;display:flex;align-items:center;position:relative}
+.card-brand-mid:before{content:"";position:absolute;left:-5.5cqh;right:-5.5cqh;top:50%;height:1px;background:currentColor;opacity:.12}
+.card-brand-logo-wrap{position:relative;height:9.5cqh;max-width:86%;transition:transform .5s cubic-bezier(.35,0,0,1);z-index:1;background:#fff;padding:0 1.2cqh 0 0;transition:background .35s,transform .5s cubic-bezier(.35,0,0,1)}
+.project-details-item .card-brand-logo{position:relative;inset:auto;width:auto;height:9.5cqh;object-fit:contain;object-position:left;display:block;transition:opacity .35s}
+.project-details-item .card-brand-logo.alt{position:absolute;left:0;top:0;opacity:0}
+.card-brand-line{font-family:Inter,sans-serif;font-size:3.4cqh;line-height:1.22;letter-spacing:-.015em;font-weight:500;max-width:22ch;margin-bottom:4cqh}
+.card-brand-line em{font-style:italic;font-weight:700}
+.card-brand-foot{display:flex;align-items:center;justify-content:space-between;padding-top:3cqh;border-top:1px solid currentColor}
+.card-brand-dots{display:flex}
+.card-brand-dots i{width:2.8cqh;height:2.8cqh;border-radius:50%;margin-right:-.8cqh;box-shadow:0 0 0 .3cqh #fff,0 0 0 .4cqh rgba(15,15,19,.15)}
+.card-brand-cta{display:inline-flex;align-items:center;gap:.7em;font-family:"IBM Plex Mono",monospace;text-transform:uppercase;letter-spacing:.08em;font-size:2.2cqh;font-weight:500;padding:1.1cqh 1.9cqh;border-radius:100px;background:var(--ink);color:#fff;transition:background .35s,color .35s}
+.card-brand.is-primary .card-brand-cta{background:#fff;color:var(--ink)}
+.card-brand-cta:after{content:"→";transition:transform .3s}
+.card-brand.is-primary{background:var(--ink);color:#fff}
+.card-brand.is-primary .card-brand-logo-wrap{background:var(--ink)}
+.card-brand.is-primary .card-brand-dots i{box-shadow:0 0 0 .3cqh var(--ink),0 0 0 .4cqh rgba(255,255,255,.25)}
+.card-brand.is-primary .card-brand-logo{opacity:0}
+.card-brand.is-primary .card-brand-logo.alt{opacity:1}
+@media (hover:hover){
+  a.card-brand:hover,a.card-brand.is-linked{background:var(--ink);color:#fff}
+  a.card-brand:hover .card-brand-logo-wrap,a.card-brand.is-linked .card-brand-logo-wrap{background:var(--ink);transform:translate3d(1cqh,0,0)}
+  a.card-brand:hover .card-brand-logo,a.card-brand.is-linked .card-brand-logo{opacity:0}
+  a.card-brand:hover .card-brand-logo.alt,a.card-brand.is-linked .card-brand-logo.alt{opacity:1}
+  a.card-brand:hover .card-brand-dots i,a.card-brand.is-linked .card-brand-dots i{box-shadow:0 0 0 .3cqh var(--ink),0 0 0 .4cqh rgba(255,255,255,.25)}
+  a.card-brand:hover .card-brand-cta:after{transform:translate3d(.4em,0,0)}
+  a.card-brand:hover .card-brand-cta,a.card-brand.is-linked .card-brand-cta{background:#fff;color:var(--ink)}
+  a.card-brand.is-primary:hover .card-brand-cta,a.card-brand.is-primary.is-linked .card-brand-cta{background:var(--ink);color:#fff}
+  a.card-brand.is-primary:hover{background:#fff;color:var(--ink)}
+  a.card-brand.is-primary:hover .card-brand-logo-wrap{background:#fff}
+  a.card-brand.is-primary:hover .card-brand-logo{opacity:1}
+  a.card-brand.is-primary:hover .card-brand-logo.alt{opacity:0}
+  a.card-brand.is-primary:hover .card-brand-dots i{box-shadow:0 0 0 .3cqh #fff,0 0 0 .4cqh rgba(15,15,19,.15)}
+}
+
+/* ?still: sem transições (para conferir o layout em capturas) */
+html.is-still *,html.is-still *:before,html.is-still *:after{transition:none!important;animation:none!important}
+html.is-fullscreen #header-logo{background:transparent}
+
+/* movimento reduzido */
+@media (prefers-reduced-motion:reduce){
+  #home-radial svg,#home-word span,.hh-line>span,.hh-tag{transition:none!important;opacity:1!important;transform:rotate(var(--r,0deg))!important}
+  .hh-line>span{transform:none!important}
+  #header-right-sound-btn i{animation:none}
+  #header-menu-glass:after{animation:none}
+  #header-menu-glass{transition:opacity .2s;transform:none}
+  #project-details-header-info svg{animation:none}
+}
+
+/* celular: cartões de texto crescem com o conteúdo */
+html.is-mobile .project-details-item.is-text{aspect-ratio:auto}
+html.is-mobile .project-details-item.is-brand{aspect-ratio:auto;min-height:0}
+html.is-mobile .is-text .card{position:relative;inset:auto;container-type:normal}
+html.is-mobile .card-manifesto,html.is-mobile .card-kit{padding:28px 24px}
+html.is-mobile .card-brand{padding:22px 22px 24px}
+html.is-mobile .card-label{font-size:11px}
+html.is-mobile .card-manifesto .card-label{margin-bottom:18px}
+html.is-mobile .card-manifesto-body{font-size:15px}
+html.is-mobile .card-manifesto.is-pending .card-manifesto-body{font-size:18px}
+html.is-mobile .card-manifesto-closing{font-size:21px;margin-top:24px}
+html.is-mobile .card-kit-title{font-size:30px;margin:14px 0 24px}
+html.is-mobile .kit-row{font-size:15px;padding:12px 0}
+html.is-mobile .kit-btn{font-size:11px}
+html.is-mobile .project-details-item .card-brand-logo{height:28px}
+html.is-mobile .card-brand-logo-wrap{height:28px}
+html.is-mobile .card-brand-mid{padding:40px 0}
+html.is-mobile .card-brand-mid:before{left:-22px;right:-22px}
+html.is-mobile .card-brand-top .n{font-size:28px}
+html.is-mobile .card-brand-top .k,html.is-mobile .card-brand-cta{font-size:10px}
+html.is-mobile .card-brand-dots i{width:14px;height:14px;margin-right:-4px;box-shadow:0 0 0 2px #fff,0 0 0 3px rgba(15,15,19,.15)}
+html.is-mobile .card-brand-line{font-size:18px;margin:0 0 20px}
+html.is-mobile .card-brand-foot{padding-top:14px}
+/* abertura no celular: camadas gráficas menores, conteúdo sempre legível */
+html.is-mobile #home-art{height:calc(var(--vh) * 100);bottom:auto}
+html.is-mobile #home-grid{background-size:calc(100%/6) 100%,calc(100%/6) 100%}
+html.is-mobile #home-radial{left:84%;top:30%;width:110vw;height:110vw;opacity:.7}
+html.is-mobile #home-word{font-size:calc(var(--word-size,22vw) * 1.8);top:calc(var(--base-padding-y) + 64px);left:-.04em}
+html.is-mobile #project-details-meta{width:100%;padding-top:15.5em}
+html.is-mobile .hh-title{font-size:clamp(3rem,17vw,5.4rem)}
+html.is-mobile .hh-line-2{padding-left:.5em}
+html.is-mobile .hh-line-2.hh-sub{padding-left:1.3em}
+html.is-mobile .hh-cols{grid-template-columns:minmax(0,1fr);row-gap:2.4em}
+html.is-mobile .hh-index>a .k{font-size:.6em}
+html.is-mobile .hh-lead{font-size:1.05em}
+html.is-mobile .hh-index{font-size:.95em;margin:0;padding:0}
+html.is-mobile .hh-tag{transform:rotate(var(--r,0deg)) scale(1)}
+</style>
+</head>
+<body>
+
+<div id="bg"></div>
+<div id="grain" aria-hidden="true"></div>
+
+<!-- ============================ PRELOADER ============================ -->
+<div id="preloader">
+  <div id="preloader-bar"><div id="preloader-bar-inner"></div></div>
+  <div id="preloader-percent-digits">
+    <div class="preloader-percent-digit"><div class="preloader-percent-digit-strip"></div></div>
+    <div class="preloader-percent-digit"><div class="preloader-percent-digit-strip"></div></div>
+    <div class="preloader-percent-digit"><div class="preloader-percent-digit-strip"></div></div>
+  </div>
+</div>
+
+<!-- ============================ HEADER ============================ -->
+<header id="header">
+  <div id="header-container">
+    <div id="header-background"></div>
+
+    <a id="header-logo" aria-label="Octalab — todas as marcas" href="./" data-go="casa">
+      <svg viewBox="0 0 4820 1018" fill="none" xmlns="http://www.w3.org/2000/svg"><g opacity="0.6"><path d="M4370.54 1011.66V942.086H4441.73V1011.66H4370.54Z" fill="currentColor"/><path d="M4561.48 1011.6C4530.94 1011.6 4506.55 1004.78 4488.35 991.08C4470.16 977.385 4461.02 958.127 4461.02 933.264C4461.02 908.401 4468.64 889.059 4483.93 875.194C4499.18 861.33 4522.85 851.343 4554.87 845.233L4655.88 826.312C4655.88 803.977 4650.53 787.332 4639.87 776.333C4629.22 765.335 4613.38 759.857 4592.4 759.857C4573.61 759.857 4558.91 763.902 4548.25 771.993C4537.6 780.084 4530.23 792.094 4526.18 807.939L4466.03 804.146C4471.55 775.322 4485.24 752.65 4507.14 736.089C4529.05 719.528 4557.44 711.227 4592.4 711.227C4632.12 711.227 4662.41 721.593 4683.18 742.284C4703.99 763.017 4714.35 792.094 4714.35 829.514V941.355C4714.35 948.181 4715.53 952.985 4717.93 955.682C4720.33 958.379 4724.29 959.728 4729.81 959.728H4740.3V1009.33C4738.44 1009.66 4735.49 1010.04 4731.45 1010.42C4727.41 1010.76 4723.19 1010.97 4718.77 1010.97C4706.26 1010.97 4695.48 1008.99 4686.51 1005.03C4677.49 1001.07 4670.79 994.494 4666.37 985.307C4661.95 976.121 4659.76 959.559 4659.76 944.094L4665.82 946.791C4662.87 959.391 4656.51 970.558 4646.78 980.292C4637.01 990.027 4624.71 997.654 4609.8 1003.26C4594.89 1008.86 4578.79 1011.64 4561.48 1011.64V1011.6ZM4570.87 966.26C4588.52 966.26 4603.6 962.931 4616.12 956.272C4628.63 949.614 4638.36 940.343 4645.39 928.46C4652.38 916.576 4655.88 903.049 4655.88 887.921V869.548L4569.78 885.772C4552.13 889.016 4539.7 894.158 4532.5 901.153C4525.3 908.148 4521.76 917.082 4521.76 927.912C4521.76 940.175 4526.1 949.614 4534.73 956.272C4543.37 962.931 4555.42 966.26 4570.87 966.26Z" fill="currentColor"/><path d="M4758.52 675.384V616.852H4819.26V675.384H4758.52ZM4759.61 1011.66V717.904H4818.12V1011.66H4759.61Z" fill="currentColor"/></g><path d="M1500.94 1017.38C1435.1 1017.38 1378.53 1003.14 1331.23 974.691C1283.92 946.247 1247.48 905.497 1221.91 852.4C1196.34 799.345 1183.54 736.009 1183.54 662.474C1183.54 588.939 1196.3 525.476 1221.91 472.084C1247.48 418.692 1283.92 377.605 1331.23 348.824C1378.53 320.042 1435.1 305.672 1500.94 305.672C1566.78 305.672 1624.45 320.042 1672.09 348.824C1719.69 377.605 1756.13 418.692 1781.4 472.084C1806.64 525.476 1819.27 588.939 1819.27 662.474C1819.27 736.009 1806.64 799.303 1781.4 852.4C1756.17 905.497 1719.86 946.247 1672.6 974.691C1625.29 1003.14 1568.09 1017.38 1500.99 1017.38H1500.94ZM1500.94 922.437C1545.05 922.437 1582.75 912.239 1614.09 891.759C1645.39 871.321 1669.52 841.739 1686.5 803.054C1703.43 764.369 1711.9 717.551 1711.9 662.558C1711.9 607.565 1703.6 560.579 1686.96 521.557C1670.32 482.577 1646.23 452.657 1614.59 431.882C1582.96 411.107 1545.09 400.698 1500.99 400.698C1456.88 400.698 1420.11 411.107 1388.81 431.882C1357.47 452.657 1333.33 482.577 1316.44 521.557C1299.51 560.579 1291.04 607.565 1291.04 662.558C1291.04 717.551 1299.34 764.411 1315.98 803.054C1332.62 841.739 1356.71 871.321 1388.39 891.759C1420.02 912.239 1457.56 922.437 1501.03 922.437H1500.94Z" fill="currentColor"/><path d="M2107.88 1013.53C2059.31 1013.53 2016.81 1002.66 1980.37 980.911C1943.93 959.167 1915.8 928.151 1896 887.865C1876.2 847.579 1866.26 800.593 1866.26 746.864C1866.26 693.135 1876.16 646.317 1896 606.368C1915.8 566.419 1943.93 535.404 1980.37 513.322C2016.81 491.241 2059.31 480.242 2107.88 480.242C2149.41 480.242 2186.32 487.448 2218.62 501.818C2250.89 516.188 2277.09 537.174 2297.23 564.649C2317.36 592.167 2330.3 625.71 2336.07 665.364L2229.66 671.138C2224.52 637.889 2211.13 612.478 2189.39 594.864C2167.65 577.291 2140.48 568.484 2107.88 568.484C2065.04 568.484 2031.64 584.329 2007.67 615.976C1983.7 647.623 1971.69 691.281 1971.69 746.906C1971.69 802.531 1983.7 846.189 2007.67 877.836C2031.64 909.483 2065.04 925.328 2107.88 925.328C2140.48 925.328 2167.61 916.226 2189.39 897.979C2211.13 879.732 2224.52 852.088 2229.66 815.005L2336.07 820.778C2330.3 859.8 2317.36 893.681 2297.23 922.462C2277.09 951.244 2250.89 973.621 2218.62 989.592C2186.36 1005.56 2149.41 1013.57 2107.88 1013.57V1013.53Z" fill="currentColor"/><path d="M2653.43 575.21V491.772H2518.25V371.883H2416.61V491.772H2338.93V575.21H2416.61V863.913C2416.61 911.236 2428.11 946.087 2451.11 968.463C2474.11 990.84 2509.91 1002.05 2558.48 1002.05H2653.38V918.611H2580.51C2559.41 918.611 2543.74 914.144 2533.54 905.168C2523.31 896.235 2518.21 879.926 2518.21 856.243V575.21H2653.38H2653.43Z" fill="currentColor"/><path d="M2843.21 1013.55C2790.14 1013.55 2747.8 1001.41 2716.17 977.097C2684.53 952.824 2668.7 918.606 2668.7 874.485C2668.7 830.364 2681.96 796.02 2708.5 771.368C2735 746.758 2776.07 729.017 2831.71 718.145L3007.16 684.559C3007.16 644.905 2997.89 615.364 2979.36 595.853C2960.82 576.342 2933.36 566.608 2896.92 566.608C2864.32 566.608 2838.75 573.814 2820.21 588.184C2801.68 602.554 2788.87 623.835 2781.88 651.984L2677.37 645.284C2686.93 594.126 2710.78 553.839 2748.81 524.426C2786.85 495.012 2836.22 480.305 2896.96 480.305C2966.01 480.305 3018.58 498.678 3054.68 535.466C3090.78 572.255 3108.85 623.877 3108.85 690.374V888.897C3108.85 901.033 3110.91 909.504 3115.08 914.308C3119.25 919.112 3126.12 921.514 3135.68 921.514H3153.92V1002.09C3150.72 1002.72 3145.62 1003.35 3138.59 1004.02C3131.55 1004.66 3124.22 1004.99 3116.56 1004.99C3094.82 1004.99 3076.12 1001.5 3060.45 994.458C3044.78 987.421 3033.11 975.748 3025.44 959.44C3017.78 943.132 3013.94 921.219 3013.94 893.743L3024.47 898.547C3019.33 920.924 3008.34 940.772 2991.41 958.007C2974.47 975.285 2953.07 988.854 2927.17 998.757C2901.26 1008.66 2873.33 1013.63 2843.26 1013.63L2843.21 1013.55ZM2859.52 932.976C2890.18 932.976 2916.43 927.076 2938.12 915.235C2959.86 903.393 2976.79 886.959 2988.92 865.846C3001.05 844.734 3007.12 820.756 3007.12 793.913V761.296L2857.58 790.078C2826.87 795.851 2805.3 804.954 2792.88 817.427C2780.41 829.901 2774.17 845.703 2774.17 864.919C2774.17 886.664 2781.67 903.435 2796.71 915.277C2811.71 927.118 2832.68 933.018 2859.52 933.018V932.976Z" fill="currentColor"/><path d="M3296.72 1002.07C3263.48 1002.07 3236.6 993.43 3216.17 976.152C3195.7 958.875 3185.51 931.399 3185.51 893.684V321.039H3287.15V884.076C3287.15 895.58 3290.19 904.219 3296.25 909.992C3302.32 915.765 3311.12 918.631 3322.62 918.631H3362.89V1002.07H3296.76H3296.72Z" fill="currentColor"/><path d="M3550.81 1013.55C3497.73 1013.55 3455.4 1001.41 3423.76 977.097C3392.13 952.824 3376.29 918.606 3376.29 874.485C3376.29 830.364 3389.56 796.02 3416.05 771.368C3442.59 746.758 3483.66 729.017 3539.27 718.145L3714.71 684.559C3714.71 644.905 3705.45 615.364 3686.91 595.853C3668.38 576.342 3640.91 566.608 3604.47 566.608C3571.87 566.608 3546.3 573.814 3527.77 588.184C3509.23 602.554 3496.43 623.835 3489.43 651.984L3384.92 645.284C3394.49 594.126 3418.33 553.839 3456.37 524.426C3494.4 495.012 3543.77 480.305 3604.52 480.305C3673.56 480.305 3726.13 498.678 3762.23 535.466C3798.33 572.255 3816.4 623.877 3816.4 690.374V888.897C3816.4 901.033 3818.46 909.504 3822.63 914.308C3826.8 919.112 3833.67 921.514 3843.23 921.514H3861.43V1002.09C3858.23 1002.72 3853.13 1003.35 3846.1 1004.02C3839.06 1004.66 3831.73 1004.99 3824.07 1004.99C3802.33 1004.99 3783.63 1001.5 3768 994.458C3752.33 987.421 3740.66 975.748 3732.99 959.44C3725.33 943.132 3721.49 921.219 3721.49 893.743L3732.03 898.547C3726.89 920.924 3715.89 940.772 3698.96 958.007C3682.02 975.285 3660.63 988.854 3634.72 998.757C3608.81 1008.66 3580.84 1013.63 3550.81 1013.63V1013.55ZM3567.11 932.976C3597.78 932.976 3624.02 927.076 3645.71 915.235C3667.45 903.393 3684.38 886.959 3696.56 865.846C3708.69 844.734 3714.75 820.756 3714.75 793.913V761.296L3565.17 790.078C3534.46 795.851 3512.94 804.954 3500.47 817.427C3488 829.901 3481.77 845.703 3481.77 864.919C3481.77 886.664 3489.27 903.435 3504.3 915.277C3519.3 927.118 3540.28 933.018 3567.11 933.018V932.976Z" fill="currentColor"/><path d="M4149.12 1013.57C4113.95 1013.57 4082.82 1005.73 4055.65 990.058C4028.48 974.382 4007.54 952.806 3992.84 925.331L3989.98 1002.07H3895.07V321.039H3996.72V563.725C4010.15 541.349 4030.12 521.838 4056.66 505.234C4083.15 488.631 4114.03 480.287 4149.16 480.287C4193.27 480.287 4231.64 491.159 4264.2 512.904C4296.81 534.648 4321.87 565.495 4339.48 605.444C4357.04 645.435 4365.85 692.59 4365.85 746.909C4365.85 801.228 4357.04 848.425 4339.48 888.374C4321.87 928.323 4296.81 959.212 4264.2 980.914C4231.6 1002.66 4193.27 1013.53 4149.16 1013.53L4149.12 1013.57ZM4132.78 925.331C4171.74 925.331 4202.79 909.486 4225.79 877.839C4248.79 846.191 4260.28 802.534 4260.28 746.909C4260.28 691.284 4248.79 647.626 4225.79 615.979C4202.79 584.332 4172.08 568.487 4133.74 568.487C4104.97 568.487 4080.37 575.524 4059.9 589.599C4039.43 603.674 4023.76 623.986 4012.93 650.492C4002.07 677.04 3996.63 709.151 3996.63 746.909C3996.63 784.667 4002.07 815.008 4012.93 841.851C4023.8 868.694 4039.47 889.343 4059.9 903.713C4080.33 918.083 4104.64 925.289 4132.78 925.289V925.331Z" fill="currentColor"/><path d="M610.613 828.279H371.307C357.491 828.279 344.516 822.885 334.744 813.108L165.532 643.831C155.759 634.054 150.367 621.075 150.367 607.253V367.854C150.367 354.032 155.759 341.053 165.532 331.276L334.744 161.999C344.516 152.222 357.491 146.828 371.307 146.828H610.613C624.43 146.828 637.404 152.222 647.177 161.999L816.389 331.276C826.161 341.053 831.553 354.032 831.553 367.854V607.253C831.553 621.075 826.161 634.054 816.389 643.831L647.177 813.108C637.404 822.885 624.43 828.279 610.613 828.279ZM371.307 178.265C365.873 178.265 360.776 180.372 356.943 184.207L187.731 353.484C183.898 357.319 181.792 362.418 181.792 367.854V607.253C181.792 612.689 183.898 617.788 187.731 621.623L356.943 790.9C360.776 794.735 365.873 796.842 371.307 796.842H610.613C616.047 796.842 621.144 794.735 624.978 790.9L794.189 621.623C798.023 617.788 800.129 612.689 800.129 607.253V367.854C800.129 362.418 798.023 357.319 794.189 353.484L624.978 184.207C621.144 180.372 616.047 178.265 610.613 178.265H371.307Z" fill="currentColor"/><path d="M660.166 982.248H321.658C299.67 982.248 278.987 973.694 263.443 958.102L24.0949 718.661C8.55116 703.111 0 682.42 0 660.423V321.783C0 299.786 8.55116 279.095 24.0949 263.545L263.443 24.1042C278.987 8.55448 299.67 0 321.658 0H660.166C682.155 0 702.838 8.55448 718.382 24.1042L957.73 263.545C973.273 279.095 981.825 299.786 981.825 321.783V660.423C981.825 682.42 973.273 703.111 957.73 718.661L718.382 958.102C702.838 973.652 682.155 982.206 660.166 982.206V982.248ZM321.658 62.789C316.435 62.789 311.506 64.8118 307.842 68.5201L68.4935 307.961C64.7866 311.67 62.7647 316.558 62.7647 321.783V660.423C62.7647 665.648 64.7866 670.579 68.4935 674.245L307.842 913.686C311.549 917.394 316.435 919.417 321.658 919.417H660.166C665.39 919.417 670.318 917.394 673.983 913.686L913.331 674.245C917.038 670.536 919.06 665.648 919.06 660.423V321.783C919.06 316.558 917.038 311.628 913.331 307.961L673.983 68.5201C670.276 64.8118 665.39 62.789 660.166 62.789H321.658Z" fill="currentColor"/></svg>
+    </a>
+
+    <div id="header-center">
+      <button id="header-center-project-back-btn" aria-label="Todas as marcas">
+        <svg id="header-center-project-back-btn-svg" viewBox="0 0 16 16" fill="none"><path stroke="currentColor" stroke-linecap="round" stroke-width="1.5" d="M8 12.243 3.757 8m0 0L8 3.757M3.757 8h8.486"/></svg>
+        <p id="header-center-project-back-btn-text">Todas as marcas</p>
+        <svg id="header-center-project-back-btn-svg2" viewBox="0 0 16 16" fill="none"><path stroke="currentColor" stroke-linecap="round" stroke-width="1.5" d="M8 12.243 3.757 8m0 0L8 3.757M3.757 8h8.486"/></svg>
+        <div id="project-details-header-back-background"></div>
+      </button>
+    </div>
+
+    <div id="header-right">
+      <button id="header-right-sound-btn" aria-label="Som"><i></i><i></i><i></i><i></i></button>
+      <button id="header-right-menu-btn" aria-label="Menu">
+        <div id="header-right-menu-btn-inner">
+          <span id="header-right-menu-btn-text">Menu</span>
+          <span id="header-right-menu-btn-text-close">Fechar</span>
+          <div id="header-right-menu-btn-dots"><span class="header-right-menu-btn-dot"></span><span class="header-right-menu-btn-dot"></span></div>
+        </div>
+      </button>
+    </div>
+  </div>
+
+  <div id="header-menu">
+    <div id="header-menu-glass" aria-hidden="true"></div>
+    <!-- preenchido pelo script com Início + uma linha por marca -->
+    <div id="header-menu-links"></div>
+  </div>
+</header>
+
+<!-- espaçador que dá altura real ao documento (scroll nativo) -->
+<div id="scroll-spacer"></div>
+
+<!-- ============================ PÁGINA ============================ -->
+<div id="page-container">
+  <div id="page-container-inner">
+    <div id="project-wrapper">
+      <div id="project-details" class="section">
+        <div id="gallery-nav" aria-label="Navegar pela galeria">
+          <button class="gn-btn" data-nav="-1" aria-label="Anterior"><svg viewBox="0 0 16 16" fill="none"><path stroke="currentColor" stroke-linecap="round" stroke-width="1.5" d="M8 12.243 3.757 8m0 0L8 3.757M3.757 8h8.486"/></svg></button>
+          <span class="gn-count"><b id="gn-cur">01</b> / <span id="gn-total">07</span></span>
+          <button class="gn-btn" data-nav="1" aria-label="Próximo"><svg viewBox="0 0 16 16" fill="none"><path stroke="currentColor" stroke-linecap="round" stroke-width="1.5" d="m8 3.757 4.243 4.243m0 0L8 12.243M12.243 8H3.757"/></svg></button>
+        </div>
+        <div id="project-details-header-info">
+          <span>Role para navegar pelas marcas</span>
+          <svg viewBox="0 0 16 16" fill="currentColor"><path fill-rule="evenodd" clip-rule="evenodd" d="M11.4855 8.36453L8.65707 5.53612C8.26655 5.14559 8.26655 4.51243 8.65707 4.1219C9.04759 3.73138 9.68076 3.73138 10.0713 4.1219L13.596 7.64661C13.9585 8.00898 13.9935 8.55734 13.7119 8.94816C13.6808 8.99141 13.6457 9.03274 13.6068 9.07165L10.0714 12.6071C9.68083 12.9976 9.04766 12.9976 8.65714 12.6071C8.26661 12.2166 8.26661 11.5834 8.65714 11.1929L11.4855 8.36453Z"/><path fill-rule="evenodd" clip-rule="evenodd" d="M5.48548 8.36477L2.65707 5.53636C2.26655 5.14584 2.26655 4.51267 2.65707 4.12215C3.04759 3.73162 3.68076 3.73162 4.07128 4.12215L7.596 7.64686C7.95852 8.00922 7.99354 8.55759 7.71193 8.9484C7.68077 8.99166 7.64573 9.03298 7.60682 9.07189L4.07135 12.6073C3.68083 12.9979 3.04766 12.9979 2.65714 12.6073C2.26661 12.2168 2.26661 11.5836 2.65714 11.1931L5.48548 8.36477Z"/></svg>
+        </div>
+
+        <!-- arte de fundo da página inicial: grade, octógono radial e palavra monumental -->
+        <div id="home-art" aria-hidden="true">
+          <div id="home-grid"></div>
+          <div id="home-radial"></div>
+          <div id="home-word"><span>OCTALAB</span></div>
+        </div>
+
+        <div id="project-details-move">
+          <!-- texto da página (preenchido pelo script: abertura ou marca) -->
+          <div id="project-details-meta"></div>
+
+          <!-- galeria (cartões gerados pelo script) -->
+          <div id="project-details-items-wrapper">
+            <div id="project-details-items-move-container"></div>
+          </div>
+        </div>
+
+        <!-- próxima marca -->
+        <div id="project-details-preview" role="link" tabindex="0">
+          <div id="project-details-preview-inner">
+            <h2 id="project-details-preview-title"></h2>
+            <div id="project-details-preview-footer">
+              <div id="project-details-preview-footer-text">PRÓXIMA MARCA</div>
+              <div id="project-details-preview-footer-bar">
+                <div id="project-details-preview-footer-bar-background"></div>
+                <div id="project-details-preview-footer-bar-inner"></div>
+              </div>
+              <svg id="project-details-preview-footer-arrow" viewBox="0 0 16 16" fill="none"><path stroke="#000" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M2 8h12m0 0-5.865 6M14 8 8.135 2"/></svg>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="scroll-indicator"><div id="scroll-indicator-bar"></div></div>
+
+<!-- visualização de imagem (prancha das camisetas etc.) -->
+<div id="lightbox" hidden role="dialog" aria-modal="true" aria-label="Visualização">
+  <div id="lightbox-backdrop"></div>
+  <button id="lightbox-close" aria-label="Fechar"><span>Fechar</span><i></i></button>
+  <figure id="lightbox-figure"><img id="lightbox-img" alt=""><figcaption id="lightbox-caption"></figcaption></figure>
+  <a id="lightbox-dl" class="kit-btn" href="#" download>Baixar</a>
+</div>
+
+<script>
+/* ==================================================================
+   MARCAS DA CASA
+   Para editar textos, cores ou arquivos, mexa só aqui.
+   Arquivos ficam em ./marcas/<slug>/ (copiados de Desktop/MARCAS/LOGOMARCAS - PRODUTOS).
+   ================================================================== */
+// página inicial: não é uma marca, é a vitrine de todas elas
+const CASA = {
+  slug: 'casa', name: 'Nossas marcas', bg: '#FFFFFF', hl: '#0F0F13',
+  lead: [
+    'A Octalab é uma casa de produtos nativos de IA. Construímos ferramentas que complementam o trabalho humano, encurtam distâncias entre ideia e execução e tratam tecnologia como ofício, não como promessa.',
+    'Aqui ficam o manifesto, a identidade e os arquivos de marca de cada produto da casa.',
+  ],
+};
+
+const BRANDS = [
+  {
+    slug: 'octalab', name: 'Octalab', kicker: 'A casa',
+    extra: { slug: 'onboarding', label: 'Onboarding', title: 'Onboarding da marca', kicker: 'Material para quem chega na Octalab', blurb: 'Apresentação da casa, cultura, ferramentas e primeiros passos. Tudo que uma pessoa nova precisa para começar.' },
+    bg: '#FFFFFF', hl: '#0F0F13', font: 'Geist',
+    black: '#0F0F13', accent: '#0F0F13', light: '#F4EFE5', accentOnDark: '#F4EFE5',
+    lead: ['A Octalab é uma casa de produtos nativos de IA. Construímos ferramentas que complementam o trabalho humano, encurtam distâncias entre ideia e execução e tratam tecnologia como ofício, não como promessa.'],
+    closing: 'We build tomorrow’s tech.',
+    palette: [['Preto', '#0F0F13'], ['Off-white', '#F4EFE5']],
+    logoLight: 'logo-preta.svg', logoDark: 'logo-branca.svg', logoAccent: 'logo-preta.svg', accentBg: '#F4EFE5',
+    logos: [['Logo preta', 'logo-preta'], ['Logo branca', 'logo-branca']],
+  },
+  {
+    slug: 'juspilot', name: 'JusPilot', kicker: 'IA para o jurídico',
+    bg: '#FFFFFF', hl: '#B4532E', font: 'Geist',
+    black: '#101010', accent: '#D97757', light: '#FFFEEE',
+    manifesto: [
+      'Acreditamos que a inteligência artificial deve acelerar o trabalho jurídico, e não substituir aqueles que tomam as decisões.',
+      'A advocacia brasileira já possui sua própria complexidade, e a tecnologia precisa compreender essa realidade. Por isso, criamos uma inteligência que acompanha a rotina dos escritórios, proporciona mais clareza às informações e reduz o tempo dedicado a tarefas que podem ser realizadas com o auxílio da IA.',
+      'Da banca solo aos grandes escritórios e departamentos jurídicos, queremos colocar a tecnologia a serviço e ao alcance de quem vive o Direito todos os dias.',
+    ],
+    closing: 'A IA pesquisa, organiza e acelera. Mas o advogado continua decidindo.',
+    palette: [['Preto', '#101010'], ['Terracota', '#D97757'], ['Off-white', '#FFFEEE']],
+    logoLight: 'logo-02.svg', logoDark: 'logo-01.svg', logoAccent: 'logo-03.svg',
+    logos: [['Logo cor', 'logo-01'], ['Logo escura', 'logo-02'], ['Logo clara', 'logo-03']],
+  },
+  {
+    slug: 'octagym', name: 'OctaGym', kicker: 'Gestão de academias',
+    extra: { slug: 'camisetas', label: 'Camisetas', title: 'Camisetas da marca', kicker: 'Coleção de camisetas e regatas', cover: 'prancha-colecao-octagym.png', blurb: 'Coleção de camisetas e regatas OctaGym, frente e verso: prancha geral, artes de aplicação por peça (tecido preto e branco) e logo vetorizado.' },
+    bg: '#FFFFFF', hl: '#C8072C', font: 'Geist',
+    black: '#0F0F13', accent: '#EF0A36', light: '#F4EFE5',
+    manifesto: [
+      'Uma academia não cresce apenas conquistando muitos alunos. Ela cresce de verdade quando consegue cuidar de cada detalhe da operação sem perder o controle.',
+      'Acreditamos que a tecnologia deve simplificar e facilitar essa rotina, e não torná-la ainda mais complexa.',
+      'Por isso, criamos uma plataforma que conecta gestão, vendas e relacionamento em um só lugar. A IA assume tarefas, organiza informações e acompanha processos para facilitar o trabalho da equipe, permitindo que ela se dedique ao que a tecnologia não pode fazer: criar experiências e cuidar dos alunos.',
+      'Queremos que o gestor tenha mais clareza para tomar decisões, que a equipe tenha mais tempo para se dedicar ao que realmente importa e que a academia tenha mais espaço para crescer.',
+    ],
+    closing: 'Porque crescer é importante, mas crescer com controle é ainda melhor.',
+    palette: [['Preto', '#0F0F13'], ['Vermelho', '#EF0A36'], ['Off-white', '#F4EFE5']],
+    logoLight: 'logo-preta.svg', logoDark: 'logo-original.svg', logoAccent: 'logo-branca.svg',
+    logos: [['Logo original', 'logo-original'], ['Logo branca', 'logo-branca'], ['Logo preta', 'logo-preta']],
+  },
+  {
+    slug: 'ecosys', name: 'Ecosys AUTO', kicker: 'Vendas para concessionárias',
+    bg: '#FFFFFF', hl: '#1D6CD0', font: 'Sora',
+    black: '#060A0E', accent: '#3592FB', light: '#FFFFFF',
+    manifesto: [
+      'Acreditamos que vender automóveis pode ser mais simples quando tudo e todos trabalham juntos.',
+      'Estoque, atendimento, clientes, contratos e vendas não deveriam estar separados em diferentes ferramentas e processos. Tudo o que sua equipe precisa para transformar um lead em uma venda deve estar integrado e conectado.',
+      'Usamos IA para atender, organizar e acompanhar cada oportunidade, enquanto sua equipe se concentra no que realmente importa: vender.',
+    ],
+    closing: 'A tecnologia cuida da operação, mas sua marca continua no centro de tudo.',
+    palette: [['Navy', '#060A0E'], ['Azul elétrico', '#3592FB'], ['Branco', '#FFFFFF']],
+    logoLight: 'logo-azul.svg', logoDark: 'logo-padrao.svg', logoAccent: 'logo-positiva.svg',
+    logos: [['Logo padrão', 'logo-padrao'], ['Logo azul', 'logo-azul'], ['Logo positiva', 'logo-positiva'], ['Logo negativa', 'logo-negativa']],
+  },
+  {
+    slug: 'octabuild', name: 'OctaBuild', kicker: 'Incorporação imobiliária',
+    bg: '#FFFFFF', hl: '#0063C8', font: 'Geist',
+    black: '#0F0F13', accent: '#0080FF', light: '#F4EFE5',
+    manifesto: [
+      'Acreditamos que desenvolver um empreendimento é lidar com centenas de decisões que precisam acontecer no momento certo e da forma certa.',
+      'Terrenos, documentos, números, prazos, aprovações e processos financeiros fazem parte de uma mesma operação. Quando essas informações estão dispersas, a complexidade aumenta e o controle diminui.',
+      'Por isso, criamos uma plataforma que reúne a complexidade da incorporação em um único lugar. Land Bank, documentação, cronogramas e processos financeiros passam a trabalhar de forma integrada, como uma única operação.',
+    ],
+    closing: 'Desenvolver um empreendimento exige mais do que acompanhar etapas. Exige ter controle de todo o processo.',
+    palette: [['Preto', '#0F0F13'], ['Azul', '#0080FF'], ['Off-white', '#F4EFE5']],
+    logoLight: 'logo-v2.svg', logoDark: 'logo-v1.svg', logoAccent: 'logo-v3.svg',
+    logos: [['Logo V1 (fundo escuro)', 'logo-v1'], ['Logo V2 (fundo claro)', 'logo-v2'], ['Logo V3 clara', 'logo-v3'], ['Logo V4 escura', 'logo-v4']],
+  },
+  {
+    slug: 'octalife', name: 'OctaLife', kicker: 'Creators e membros fitness',
+    bg: '#FFFFFF', hl: '#3B7D00', font: 'Geist',
+    black: '#0F0F13', accent: '#65D100', light: '#F4EFE5', pillDarkText: true,
+    lead: ['O Octalife é a plataforma do creator fitness e da sua tribo: o engajamento é medido por treino executado, PR detectado e streak mantido, não por tempo passado na tela.'],
+    closing: 'Treino executado, PR detectado e streak mantido.',
+    palette: [['Preto', '#0F0F13'], ['Verde', '#65D100'], ['Off-white', '#F4EFE5']],
+    logoLight: 'logo-preta.svg', logoDark: 'logo-original.svg', logoAccent: 'logo-preta.svg',
+    logos: [['Logo original', 'logo-original'], ['Logo branca', 'logo-branca'], ['Logo preta', 'logo-preta']],
+  },
+  {
+    slug: 'octalk', name: 'Octalk', kicker: 'Atendimento por voz com IA',
+    bg: '#FFFFFF', hl: '#4638D9', font: 'Geist',
+    black: '#0F0F13', accent: '#4638D9', light: '#F4EFE5', accentOnDark: '#8C82F0',
+    lead: ['O Octalk é conversa, voz e atendimento com IA em tempo real: voz full-duplex, setup em dois minutos e instalação em uma linha de código.'],
+    closing: 'Setup em dois minutos. Instalação em uma linha de código.',
+    palette: [['Preto', '#0F0F13'], ['Roxo', '#4638D9'], ['Off-white', '#F4EFE5']],
+    logoLight: 'logo-preta.svg', logoDark: 'logo-original.svg', logoAccent: 'logo-branca.svg',
+    logos: [['Logo original', 'logo-original'], ['Logo branca', 'logo-branca'], ['Logo preta', 'logo-preta']],
+  },
+];
+
+(function(){
+  'use strict';
+  const $ = (s, r=document) => r.querySelector(s);
+  const $$ = (s, r=document) => Array.from(r.querySelectorAll(s));
+  const clamp = (v,a,b) => Math.min(b, Math.max(a, v));
+  const lerp = (a,b,t) => a + (b-a)*t;
+  const html = document.documentElement;
+
+  /* ---- --vh real (mobile) ---- */
+  function setVh(){ html.style.setProperty('--vh', (window.innerHeight*0.01)+'px'); }
+  setVh();
+
+  /* ---- cores ---- */
+  const hex2rgb = h => { h=h.replace('#',''); if(h.length===3) h=h.split('').map(c=>c+c).join(''); const n=parseInt(h,16); return [(n>>16)&255,(n>>8)&255,n&255]; };
+  let C_PROJECT = [0,0,0], C_NEXT = [0,0,0];
+
+  /* ---- elementos ---- */
+  const bg            = $('#bg');
+  const pageContainer = $('#page-container');
+  const spacer        = $('#scroll-spacer');
+  const projectWrap   = $('#project-wrapper');
+  const projectDet    = $('#project-details');
+  const moveEl        = $('#project-details-move');
+  const itemsWrap     = $('#project-details-items-wrapper');
+  const itemsMove     = $('#project-details-items-move-container');
+  const headerInfo    = $('#project-details-header-info');
+  const preview       = $('#project-details-preview');
+  const previewTitle  = $('#project-details-preview-title');
+  const previewBar    = $('#project-details-preview-footer-bar-inner');
+  const indicatorBar  = $('#scroll-indicator-bar');
+  const homeWord      = $('#home-word');
+  const homeRadial    = $('#home-radial');
+  let items = [];
+
+  /* ---------------------------------------------------------------
+     CONTEÚDO: monta a página de uma marca a partir de BRANDS
+     --------------------------------------------------------------- */
+  const PAGES = [CASA, ...BRANDS];          // ordem da navegação "próxima marca"
+  const bySlug = Object.fromEntries(PAGES.map(b => [b.slug, b]));
+  const HOME = CASA.slug;
+  let brand = null, nextBrand = null;
+  const asset = (b, f) => `marcas/${b.slug}/${f}`;
+  const textColorOn = hex => { const [r,g,b] = hex2rgb(hex); return (0.2126*r+0.7152*g+0.0722*b)/255 > 0.55 ? '#0F0F13' : '#FFFFFF'; };
+  const hrefFor = slug => slug === HOME ? './' : `?marca=${slug}`;
+  const cardVars = b => `--c-black:${b.black};--c-accent:${b.accent};--c-light:${b.light};--c-font:'${b.font}';` +
+    `--c-hl:${b.hl};--c-tint:${b.bg};--c-on-accent:${textColorOn(b.accent)};` +
+    (b.accentOnDark ? `--c-accent-on-dark:${b.accentOnDark};` : '') + (b.slug === 'octalab' ? '--c-accent-on-light:#0F0F13;' : '');
+  const item = (w, h, inner, extra='') => `<div class="project-details-item ${extra.cls||''}" data-width="${w}" data-height="${h}"${extra.full?' data-fullscreen':''}>${inner}</div>`;
+
+  function manifestoCard(b){
+    if (b.manifesto) return item(1500, 1280, `<div class="card card-manifesto" style="${cardVars(b)}">
+      <div><div class="card-label">Manifesto · ${b.name}</div></div>
+      <div><div class="card-manifesto-body">${b.manifesto.map(p => `<p>${p}</p>`).join('')}</div>
+      <div class="card-manifesto-closing">${b.closing}</div></div></div>`, { cls: 'is-text' });
+    return item(1100, 1280, `<div class="card card-manifesto is-pending" style="${cardVars(b)}">
+      <div class="card-label">Manifesto · ${b.name}</div>
+      <div><div class="card-manifesto-body">${b.lead[0]}</div>
+      <div class="card-manifesto-closing">Manifesto em construção.</div></div></div>`, { cls: 'is-text' });
+  }
+  const logoDarkCard = b => item(1250, 1024, `<div class="card card-logo" style="${cardVars(b)}"><div class="card-label">Logo · fundo escuro</div><img src="${asset(b, b.logoDark)}" alt="Logo ${b.name}"></div>`);
+  const logoAccentCard = b => {
+    const bgc = b.accentBg || b.accent;
+    return item(2000, 1150, `<div class="card card-logo" style="${cardVars(b)};background:${bgc};--c-accent-on-dark:${textColorOn(bgc)}"><div class="card-label">Logo · fundo de marca</div><img src="${asset(b, b.logoAccent)}" alt="Logo ${b.name}"></div>`, { full: true });
+  };
+  const paletteCard = b => item(1500, 1024, `<div class="card card-palette" style="${cardVars(b)}"><div class="card-label">Paleta de cores</div>${
+    b.palette.map(([n, hex]) => `<div class="swatch" style="background:${hex};color:${textColorOn(hex)}"><b>${n}</b>${hex}</div>`).join('')}</div>`);
+  const typeCard = b => item(1400, 1024, `<div class="card card-type" style="${cardVars(b)}">
+      <div class="card-label">Tipografia</div>
+      <div class="card-type-name">${b.font}</div>
+      <div class="card-type-row"><div class="card-type-weights">${
+        [['ExtraLight',200],['Light',300],['Regular',400],['Medium',500],['Semibold',600],['Bold',700]].map(([n,w]) => `<span style="font-weight:${w}">${n}</span>`).join('')
+      }</div><div class="card-type-aa">Aa</div></div></div>`);
+  const mivCard = b => item(1000, 1024, `<a class="card card-miv" href="${asset(b,'miv.pdf')}" target="_blank" rel="noopener" style="${cardVars(b)}"><img src="${asset(b,'miv-preview.jpg')}" alt="Manual de identidade visual ${b.name}" loading="lazy"><span class="card-pill">Abrir PDF ↗</span></a>`);
+  const kitCard = b => item(1300, 1280, `<div class="card card-kit" style="${cardVars(b)}">
+      <div><div class="card-label">Arquivos da marca</div><div class="card-kit-title">Kit ${b.name}</div></div>
+      <div class="kit-list">${b.logos.map(([label, base]) => `<div class="kit-row"><span>${label}</span><span class="kit-btns">
+        <a class="kit-btn" href="${asset(b, base+'.svg')}" download="${b.slug}-${base}.svg">Baixar SVG</a>
+        <a class="kit-btn" href="${asset(b, base+'.png')}" download="${b.slug}-${base}.png">Baixar PNG</a></span></div>`).join('')}
+        <div class="kit-row"><span>Manual de identidade visual</span><span class="kit-btns"><a class="kit-btn" href="${asset(b,'miv.pdf')}" download="MIV-${b.slug}.pdf">Baixar PDF</a></span></div>
+      </div></div>`, { cls: 'is-text' });
+  const extraCoverCard = b => item(1800, 1280, `<a class="card card-miv" href="${asset(b, b.extra.slug + '/' + b.extra.cover)}" data-lightbox="${b.extra.title}" style="${cardVars(b)}"><img src="${asset(b, b.extra.slug + '/' + b.extra.cover)}" alt="${b.extra.title} ${b.name}" loading="lazy"><span class="card-pill">${b.extra.kicker} · Ver ⤢</span></a>`);
+  const extraCard = b => item(1700, 1280, `<div class="card card-kit card-extra" id="card-extra" style="${cardVars(b)}">
+      <div><div class="card-label">Espaço especial · ${b.name}</div><div class="card-kit-title">${b.extra.title}</div><p class="card-extra-blurb">${b.extra.blurb}</p></div>
+      <div class="kit-list" data-extra-list><div class="kit-empty">Carregando…</div></div></div>`, { cls: 'is-text' });
+  // lê <marca>/<espaço>/arquivos.json: [{ "nome": "...", "arquivo": "x.pdf", "descricao": "opcional" }]
+  async function loadExtra(b){
+    const list = $('[data-extra-list]'); if (!list) return;
+    const dir = b.extra.slug + '/';
+    let files = [];
+    try {
+      const r = await fetch(asset(b, dir + 'arquivos.json'), { cache: 'no-store' });
+      if (r.ok) files = await r.json();
+    } catch (e) { files = []; }
+    if (!Array.isArray(files) || !files.length){ list.innerHTML = '<div class="kit-empty">Arquivos em breve</div>'; return; }
+    const esc = t => String(t ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+    const isImgFile = f => /\.(jpe?g|png|webp|gif|svg)$/i.test(f);
+    const dl = file => b.slug + '-' + file.split('/').pop();
+    list.innerHTML = files.map(f => {
+      const file = String(f.arquivo || '');
+      const multi = Array.isArray(f.arquivos) && f.arquivos.length;
+      const thumb = f.miniatura || (!multi && isImgFile(file) ? file : '');
+      let btns;
+      if (multi){
+        btns = f.arquivos.map(x => x.abrir
+          ? (isImgFile(x.arquivo) ? `<a class="kit-btn" href="${asset(b, dir + x.arquivo)}" data-lightbox="${esc(f.nome || '')}">${esc(x.rotulo || 'Ver')}</a>` : `<a class="kit-btn" href="${asset(b, dir + x.arquivo)}" target="_blank" rel="noopener">${esc(x.rotulo || 'Abrir')}</a>`)
+          : `<a class="kit-btn" href="${asset(b, dir + x.arquivo)}" download="${dl(x.arquivo)}">${esc(x.rotulo || 'Baixar')}</a>`).join('');
+      } else {
+        const ext = (file.split('.').pop() || '').toUpperCase(); const url = asset(b, dir + file);
+        btns = (isImgFile(file) ? `<a class="kit-btn" href="${url}" data-lightbox="${esc(f.nome || '')}">Ver</a>` : '') + `<a class="kit-btn" href="${url}" download="${dl(file)}">Baixar ${ext}</a>`;
+      }
+      return `<div class="kit-row">${thumb ? `<img class="kit-thumb" src="${asset(b, dir + thumb)}" alt="" loading="lazy">` : ''}
+        <span class="kit-name"><span>${esc(f.nome || file)}</span>${f.descricao ? `<small>${esc(f.descricao)}</small>` : ''}</span>
+        <span class="kit-btns">${btns}</span></div>`;
+    }).join('');
+  }
+  const brandCard = (b, k) => item(960, 1280, `<a class="card card-brand${b.slug === 'octalab' ? ' is-primary' : ''}" href="${hrefFor(b.slug)}" data-go="${b.slug}" data-link="${b.slug}" style="${cardVars(b)}">
+      <div class="card-brand-top"><span class="n">${String(k + 1).padStart(2, '0')}</span><span class="k">${b.kicker}</span></div>
+      <div class="card-brand-mid"><span class="card-brand-logo-wrap"><img class="card-brand-logo" src="${asset(b, b.logoLight)}" alt="${b.name}"><img class="card-brand-logo alt" src="${asset(b, b.logoDark)}" alt=""></span></div>
+      <div class="card-brand-line">${b.closing}</div>
+      <div class="card-brand-foot"><span class="card-brand-dots">${b.palette.map(([, hex]) => `<i style="background:${hex}"></i>`).join('')}</span>
+      <span class="card-brand-cta">Ver marca</span></div></a>`, { cls: 'is-text is-brand' });
+
+  const CTA_SVG = '<svg viewBox="0 0 24 24" fill="none"><path stroke="currentColor" stroke-linecap="round" stroke-width="1.5" d="M9 9h6m0 0v6m0-6-6 6"/></svg>';
+  const cta = (id, cls='') => `<a id="${id}" class="launch-cta ${cls}" href="#"><span class="launch-cta-dot"></span><p class="launch-cta-text"></p><span class="launch-cta-arrow">${CTA_SVG}</span></a>`;
+  const pad2 = n => String(n).padStart(2, '0');
+  const metaBrand = b => {
+    const k = BRANDS.indexOf(b) + 1;
+    const lead = (b.lead || [b.manifesto[0]])[0];
+    const files = b.logos.length + 1;
+    const total = files + (b.extra ? 1 : 0);
+    const accentTag = b.palette[1] || b.palette[0];
+    return `<div id="home-hero">
+    <div class="hh-eyebrow"><span class="hh-num">${pad2(k)}—${pad2(BRANDS.length)}</span><span class="hh-txt">Marca da casa Octalab</span></div>
+    <h2 id="project-details-title" class="hh-title"><span class="hh-line"><span>${b.name}<i class="hh-oct" style="background:${b.accent}"></i></span></span><span class="hh-line hh-line-2 hh-sub"><span>${b.kicker}</span></span></h2>
+    <nav class="hh-jump" aria-label="Seções da marca"><button type="button" data-jump="0">Manifesto</button><button type="button" data-jump="1">Identidade</button><button type="button" data-jump="6">Arquivos</button>${b.extra ? `<button type="button" data-jump="7">${b.extra.label}</button>` : ''}</nav>
+    <div class="hh-cols">
+      <div>
+        <p class="hh-lead">${lead}</p>
+        <p class="hh-closing">${b.closing}</p>
+        <div class="hh-tags"><span class="hh-tag" style="--r:-3deg;--d:.9s">Tipografia ${b.font}</span><span class="hh-tag is-dark" style="--r:2deg;--d:1.05s;background:${b.accent};color:${textColorOn(b.accent)}">${accentTag[0]} ${accentTag[1]}</span><span class="hh-tag" style="--r:-1.5deg;--d:1.2s">${b.manifesto ? 'Manifesto' : 'Manifesto em construção'}</span></div>
+        ${cta('project-details-launch-cta', 'hh-cta')}
+      </div>
+      <div class="hh-index">
+        <div class="hh-index-head"><span>Arquivos da marca</span><span>${pad2(total)}</span></div>
+        ${b.logos.map(([label, base], i) => `<a href="${asset(b, base+'.svg')}" download="${b.slug}-${base}.svg"><span class="n">${pad2(i+1)}</span><span>${label}</span><span class="k">Baixar SVG</span><span class="arrow">↓</span></a>`).join('')}
+        <a href="${asset(b,'miv.pdf')}" target="_blank" rel="noopener"><span class="n">${pad2(files)}</span><span>Manual de identidade visual</span><span class="k">Abrir PDF</span><span class="arrow">↗</span></a>${b.extra ? `<a href="#" data-jump="7"><span class="n">${pad2(files+1)}</span><span>${b.extra.title}</span><span class="k">Ver seção</span><span class="arrow">→</span></a>` : ''}
+        <div class="hh-contact"><a href="./" data-go="${HOME}">← Todas as marcas</a>${BRANDS.filter(x => x.slug !== b.slug).map(x => `<a href="${hrefFor(x.slug)}" data-go="${x.slug}">${x.name}</a>`).join('')}</div>
+      </div>
+    </div></div>`;
+  };
+  const metaHome = () => `<div id="home-hero">
+    <div class="hh-eyebrow"><span class="hh-num">01—${String(BRANDS.length).padStart(2,'0')}</span><span class="hh-txt">Casa de produtos nativos de IA</span></div>
+    <h2 id="project-details-title" class="hh-title"><span class="hh-line"><span>Nossas</span></span><span class="hh-line hh-line-2"><span>marcas<i class="hh-oct"></i></span></span></h2>
+    <div class="hh-cols">
+      <div>
+        <p class="hh-lead">A Octalab é uma casa de <mark>produtos nativos de IA</mark>. Construímos ferramentas que complementam o <b>trabalho humano</b>, encurtam distâncias entre <em>ideia e execução</em> e tratam tecnologia como ofício, não como promessa.</p>
+        <p class="hh-note">Aqui ficam o manifesto, a identidade e os arquivos de marca de cada produto da casa.</p>
+        <div class="hh-tags"><span class="hh-tag" style="--r:-3deg;--d:.9s">Oito mentes</span><span class="hh-tag is-dark" style="--r:2deg;--d:1.05s">Quatro obsessões</span><span class="hh-tag" style="--r:-1.5deg;--d:1.2s">Da ideia à execução</span></div>
+        ${cta('project-details-launch-cta', 'hh-cta')}
+      </div>
+      <div class="hh-index">
+        <div class="hh-index-head"><span>Marcas da casa</span><span>${String(BRANDS.length).padStart(2,'0')}</span></div>
+        ${BRANDS.map((b, k) => `<a href="${hrefFor(b.slug)}" data-go="${b.slug}" data-link="${b.slug}"><span class="n">${String(k+1).padStart(2,'0')}</span><span>${b.name}</span><span class="k">${b.kicker}</span><span class="arrow">→</span></a>`).join('')}
+        <div class="hh-contact"><a href="mailto:marketing@octalab.work">marketing@octalab.work</a><a href="mailto:comercial@octalab.work">comercial@octalab.work</a></div>
+      </div>
+    </div></div>`;
+
+  // octógono radial: anéis concêntricos + raios, na geometria do símbolo
+  function buildRadial(){
+    const pts = r => Array.from({length:8}, (_, k) => { const a = (k*45+22.5)*Math.PI/180; return `${(r*Math.cos(a)).toFixed(1)},${(r*Math.sin(a)).toFixed(1)}`; }).join(' ');
+    const rings = [[480,1,.09],[395,.8,.05]];
+    const rays = Array.from({length:72}, (_, k) => { const a = k*5*Math.PI/180, r0 = k%3===0 ? 92 : 200, r1 = k%3===0 ? 478 : 400; return `<line x1="${(r0*Math.cos(a)).toFixed(1)}" y1="${(r0*Math.sin(a)).toFixed(1)}" x2="${(r1*Math.cos(a)).toFixed(1)}" y2="${(r1*Math.sin(a)).toFixed(1)}"/>`; }).join('');
+    $('#home-radial').innerHTML = `<svg viewBox="-500 -500 1000 1000" fill="none" stroke="currentColor" vector-effect="non-scaling-stroke">
+      ${rings.map(([r,w,o]) => `<polygon points="${pts(r)}" stroke-width="${w}" opacity="${o}"/>`).join('')}
+
+    </svg>`;
+  }
+
+  const sideItem = (label, href, attrs='') => `<div class="side-row"><a class="project-details-side-list-item" href="${href}" ${attrs}>${label}</a></div>`;
+
+  function renderBrand(slug){
+    brand = bySlug[slug] || bySlug[HOME];
+    const i = PAGES.indexOf(brand);
+    nextBrand = PAGES[(i + 1) % PAGES.length];
+    const isHome = brand.slug === HOME;
+
+    // cores da página
+    html.style.setProperty('--project-bg', brand.bg);
+    html.style.setProperty('--project-highlight', brand.hl);
+    html.style.setProperty('--next-bg', nextBrand.bg);
+    C_PROJECT = hex2rgb(brand.bg); C_NEXT = hex2rgb(nextBrand.bg);
+    document.title = isHome ? 'Octalab — Marcas' : brand.slug === 'octalab' ? 'Octalab — Marca' : `${brand.name} — Octalab`;
+
+    html.dataset.page = isHome ? 'home' : 'brand';
+
+    // texto
+    const meta = $('#project-details-meta');
+    meta.innerHTML = isHome ? metaHome() : metaBrand(brand);
+    // palavra monumental: nome da página; tamanho ajustado ao comprimento
+    const word = isHome ? 'OCTALAB' : brand.name.toUpperCase();
+    homeWord.firstElementChild.textContent = word;
+    html.style.setProperty('--word-size', Math.min(22, 150 / word.length).toFixed(1) + 'vw');
+    // botão: na inicial leva para a marca Octalab; nas marcas abre o manual
+    $$('.launch-cta').forEach(a => {
+      if (isHome){ a.href = hrefFor('octalab'); a.dataset.go = 'octalab'; a.removeAttribute('target'); }
+      else { a.href = asset(brand, 'miv.pdf'); delete a.dataset.go; a.target = '_blank'; a.rel = 'noopener'; }
+      a.querySelector('.launch-cta-text').textContent = isHome ? 'Marca Octalab' : 'Abrir manual';
+    });
+
+    // galeria
+    itemsMove.innerHTML = isHome
+      ? BRANDS.map(brandCard).join('')
+      : manifestoCard(brand) + logoDarkCard(brand) + logoAccentCard(brand) + paletteCard(brand) + typeCard(brand) + mivCard(brand) + kitCard(brand) + (brand.extra ? (brand.extra.cover ? extraCoverCard(brand) : '') + extraCard(brand) : '');
+    items = $$('.project-details-item');
+    if (brand.extra) loadExtra(brand);
+
+    // próxima marca
+    previewTitle.innerHTML = nextBrand.slug === HOME ? 'Todas as<br>marcas' : nextBrand.name;
+
+    // menu
+    $$('.header-menu-link[data-go]').forEach(l => l.classList.toggle('is-current', l.dataset.go === brand.slug));
+
+    // controles da galeria
+    headerInfo.firstElementChild.textContent = isHome ? 'Role para navegar pelas marcas' : 'Role para navegar';
+    $('#gn-total').textContent = pad2(items.length);
+    $('#gn-cur').textContent = '01';
+  }
+
+  function buildMenu(){
+    const arrow = '<svg class="header-menu-link-svg" viewBox="0 0 24 24" fill="none"><path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.515 12h16.97m0 0L13.01 4.525M20.485 12l-7.475 7.476"/></svg>';
+    const link = (label, href, attrs, k) => `<a class="header-menu-link" href="${href}" ${attrs} style="--i:${k}"><div class="header-menu-link-background"></div><div class="header-menu-link-inner"><span class="header-menu-link-text">${label}</span>${arrow}</div></a>`;
+    const entries = [['Início', './', `data-go="${HOME}"`], ...BRANDS.map(b => [b.name, hrefFor(b.slug), `data-go="${b.slug}"`])];
+    $('#header-menu-links').innerHTML = entries.map((e, k) => link(e[0], e[1], e[2], k)).join('');
+  }
+
+  const GALLERY_SPEED = 1.6;
+  let isMobile = false;
+  let vw=0, vh=0;
+  let galleryScroll=0;      // px de scroll consumidos pela galeria horizontal
+  let previewLen=0;         // px de scroll da "próxima marca"
+  let projectHeight=0;      // altura total do bloco da marca no documento
+  let itemMeta=[];          // {el, x, w, fullscreen}
+  let padX=0, wrapTop=0, wrapH=0, cardRadius=20;
+
+  /* ---------------------------------------------------------------
+     LAYOUT
+     --------------------------------------------------------------- */
+  function layout(){
+    setVh();
+    vw = window.innerWidth; vh = window.innerHeight;
+    isMobile = vw <= 812;
+    html.classList.toggle('is-mobile', isMobile);
+
+    // limpa transforms antes de medir
+    pageContainer.style.transform = '';
+    moveEl.style.transform = '';
+    homeWord.style.transform = ''; homeRadial.style.transform = '';
+    projectDet.style.top = '';
+    items.forEach(el => { el.style.transform=''; el.style.borderRadius=''; el.style.width=''; el.style.height=''; el.classList.remove('--fullscreen'); });
+
+    if (isMobile){
+      items.forEach(el => el.style.setProperty('--ar', el.dataset.width+'/'+el.dataset.height));
+      projectWrap.style.height = '';
+      spacer.style.height = '';
+      return;
+    }
+
+    padX = parseFloat(getComputedStyle(projectDet).paddingLeft);
+    cardRadius = parseFloat(getComputedStyle(html).getPropertyValue('--global-border-radius')) || 20;
+    const wrapRect = itemsWrap.getBoundingClientRect();
+    wrapH = wrapRect.height;
+    wrapTop = wrapRect.top - projectDet.getBoundingClientRect().top;
+
+    // dimensiona itens: altura = wrapper, largura por proporção
+    itemMeta = items.map(el => {
+      const w = wrapH * (parseFloat(el.dataset.width)/parseFloat(el.dataset.height));
+      el.style.width = w+'px';
+      el.style.height = wrapH+'px';
+      return { el, w, fullscreen: el.hasAttribute('data-fullscreen') };
+    });
+    // posições x (relativas ao início de #project-details-move)
+    let x = parseFloat(getComputedStyle(itemsMove).paddingLeft);
+    const gap = parseFloat(getComputedStyle(items[1]).marginLeft);
+    itemMeta.forEach((m,i) => { if(i>0) x += gap; m.x = x; x += m.w; });
+    const stripEnd = x + vw*0.10;            // margin-right 10vw do último
+
+    // fim da faixa: se o último item é tela cheia, termina com ele centralizado;
+    // senão, com a borda direita alinhada ao padding. Cada px de scroll vertical
+    // move a faixa GALLERY_SPEED px na horizontal.
+    const last = itemMeta[itemMeta.length-1];
+    const stripPx = last.fullscreen ? (padX + last.x + last.w/2) - vw/2 : stripEnd - (vw - padX*2);
+    galleryScroll = Math.max(0, stripPx) / GALLERY_SPEED;
+    previewLen = vh * 1.2;
+    projectHeight = vh + galleryScroll + previewLen;
+    projectWrap.style.height = projectHeight+'px';
+
+    spacer.style.height = projectHeight+'px';
+
+    // posições de encaixe: 0 = abertura; depois cada item com a borda esquerda
+    // no padding (ou centralizado, se for tela cheia)
+    snapYs = [0, ...itemMeta.map(m => {
+      const gx = m.fullscreen ? (padX + m.x + m.w/2) - vw/2 : m.x;
+      return clamp(gx / GALLERY_SPEED, 0, galleryScroll);
+    })];
+  }
+  let snapYs = [0];
+  const nearestSnap = y => { let k = 0; snapYs.forEach((s, i) => { if (Math.abs(s - y) < Math.abs(snapYs[k] - y)) k = i; }); return k; };
+
+  /* ---------------------------------------------------------------
+     SCROLL SUAVE
+     --------------------------------------------------------------- */
+  let target=0, current=0, raf=null, debugFreeze=false;
+  function onScroll(){ if (!debugFreeze) target = window.scrollY || window.pageYOffset; scheduleSnap(); }
+  window.addEventListener('scroll', onScroll, {passive:true});
+
+  // encaixe suave: quando a rolagem para dentro da galeria, alinha ao item mais próximo
+  const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let snapTimer = 0;
+  function scheduleSnap(){
+    clearTimeout(snapTimer);
+    snapTimer = setTimeout(() => {
+      if (isMobile || debugFreeze || switching) return;
+      const y = window.scrollY;
+      if (y > galleryScroll + 1) return;                 // fase "próxima marca": sem encaixe
+      const to = snapYs[nearestSnap(y)];
+      if (Math.abs(to - y) > 2) window.scrollTo({ top: to, behavior: reduceMotion ? 'auto' : 'smooth' });
+    }, 170);
+  }
+  // setas anterior / próximo
+  function navStep(dir){
+    if (isMobile) return;
+    const k = nearestSnap(window.scrollY) + dir;
+    if (k < 0) return;
+    const to = k >= snapYs.length ? projectHeight - vh : snapYs[k];   // depois do último: "próxima marca"
+    clearTimeout(snapTimer);
+    window.scrollTo({ top: to, behavior: reduceMotion ? 'auto' : 'smooth' });
+  }
+  document.addEventListener('click', e => {
+    const nb = e.target.closest('.gn-btn'); if (nb){ navStep(+nb.dataset.nav); return; }
+    const jb = e.target.closest('[data-jump]'); if (!jb) return;
+    e.preventDefault();
+    const i = +jb.dataset.jump;
+    if (isMobile){ items[i] && items[i].scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' }); return; }
+    clearTimeout(snapTimer);
+    window.scrollTo({ top: snapYs[Math.min(i + 1, snapYs.length - 1)], behavior: reduceMotion ? 'auto' : 'smooth' });
+  });
+  document.addEventListener('keydown', e => {
+    if (e.target.matches('input,textarea') || menuOpen || lbOpen) return;
+    if (e.key === 'ArrowRight'){ e.preventDefault(); navStep(1); }
+    if (e.key === 'ArrowLeft'){ e.preventDefault(); navStep(-1); }
+  });
+
+  function easeOutCubic(t){ return 1-Math.pow(1-t,3); }
+  const mixRgb = (a,b,t) => a.map((v,i)=>Math.round(lerp(v,b[i],t)));
+
+  // fim da rolagem: segura um instante na "próxima marca" e avança sozinho
+  let endSince = 0, switching = false;
+
+  function render(){
+    if (isMobile){ renderMobile(); return; }
+    current = lerp(current, target, 0.09);
+    if (Math.abs(current-target) < 0.05) current = target;
+    const y = current;
+    pageContainer.style.transform = `translate3d(0,${-y}px,0)`;
+
+    /* --- marca (fixada enquanto a galeria rola) --- */
+    const pinY = clamp(y, 0, projectHeight - vh);
+    projectDet.style.top = pinY+'px';
+
+    // deslocamento horizontal; durante a "próxima marca" a faixa continua saindo
+    const gx = clamp(y, 0, galleryScroll) * GALLERY_SPEED + Math.max(0, y - galleryScroll) * GALLERY_SPEED * 0.5;
+    moveEl.style.transform = `translate3d(${-gx}px,0,0)`;
+    // arte de fundo desliza mais devagar que a galeria (paralaxe)
+    {
+      homeWord.style.transform = `translate3d(${-gx*0.32}px,0,0)`;
+      homeRadial.style.transform = `translate(-50%,-50%) translate3d(${-gx*0.14}px,0,0)`;
+    }
+
+    // itens em tela cheia
+    const centerX = vw/2;
+    let anyFull = false;
+    itemMeta.forEach(m => {
+      if (!m.fullscreen) return;
+      const itemCenter = padX + m.x - gx + m.w/2;
+      const dist = Math.abs(itemCenter - centerX);
+      const t = easeOutCubic(clamp(1 - dist/(vw*0.45), 0, 1));
+      if (t <= 0){ m.el.style.transform=''; m.el.style.borderRadius=''; m.el.classList.remove('--fullscreen'); return; }
+      const scale = Math.max(vw/m.w, vh/wrapH);
+      const s = lerp(1, scale, t);
+      const itemCenterY = wrapTop + wrapH/2;
+      const dx = (centerX - itemCenter) * t;
+      const dy = (vh/2 - itemCenterY) * t;
+      m.el.style.transform = `translate3d(${dx}px,${dy}px,0) scale(${s})`;
+      m.el.style.borderRadius = lerp(cardRadius, 0, t)+'px';
+      m.el.classList.toggle('--fullscreen', t > 0.02);
+      if (t > 0.6) anyFull = true;
+    });
+    html.classList.toggle('is-fullscreen', anyFull);
+
+    /* --- "próxima marca" --- */
+    const pv = clamp((y - galleryScroll)/previewLen, 0, 1);
+    preview.style.opacity = clamp((pv - 0.12)/0.35, 0, 1);
+    preview.style.pointerEvents = pv > 0.5 ? 'auto' : 'none';
+    previewTitle.style.transform = `translate3d(0,${lerp(-40, -50, clamp(pv*2,0,1))}%,0)`;
+    previewBar.style.transform = `scaleX(${pv})`;
+    moveEl.style.opacity = 1 - clamp((pv - 0.25)/0.5, 0, 1);
+    moveEl.style.pointerEvents = pv > 0.5 ? 'none' : '';
+    html.classList.toggle('is-leaving', pv > 0.05);
+    headerInfo.style.opacity = y > 40 ? 0 : 1;
+    if (pv >= 0.999 && !switching && !debugFreeze){
+      if (!endSince) endSince = performance.now();
+      else if (performance.now() - endSince > 700) go(nextBrand.slug);
+    } else endSince = 0;
+
+    /* --- cor de fundo --- */
+    bg.style.backgroundColor = `rgb(${mixRgb(C_PROJECT, C_NEXT, pv).join(',')})`;
+
+    /* --- indicador --- */
+    indicatorBar.style.transform = `scaleY(${clamp(y/(projectHeight - vh),0,1)})`;
+    const k = Math.max(1, nearestSnap(target));
+    if (k !== gnShown){ gnShown = k; gnCur.textContent = pad2(k); gnPrev.disabled = target <= 0; }
+    gnNext.disabled = pv >= 0.999;
+  }
+  let gnShown = 0;
+  const gnCur = $('#gn-cur'), gnPrev = $('.gn-btn[data-nav="-1"]'), gnNext = $('.gn-btn[data-nav="1"]');
+
+  function renderMobile(){
+    const y = window.scrollY;
+    bg.style.backgroundColor = `rgb(${C_PROJECT.join(',')})`;
+    previewBar.style.transform = 'scaleX(1)';
+    preview.style.pointerEvents = 'auto';
+    moveEl.style.pointerEvents = '';
+    const doc = document.documentElement.scrollHeight - vh;
+    indicatorBar.style.transform = `scaleY(${clamp(y/Math.max(doc,1),0,1)})`;
+  }
+
+  function loop(){ render(); raf = requestAnimationFrame(loop); }
+
+  /* ---------------------------------------------------------------
+     NAVEGAÇÃO ENTRE MARCAS (sem recarregar a página)
+     --------------------------------------------------------------- */
+  function go(slug, push=true){
+    if (switching) return;
+    switching = true; endSince = 0;
+    setMenu(false);
+    html.classList.add('is-switching');
+    setTimeout(() => {
+      renderBrand(slug);
+      if (push) history.pushState({ slug: brand.slug }, '', hrefFor(brand.slug));
+      window.scrollTo(0, 0);
+      target = current = 0;
+      layout();
+      html.classList.remove('is-switching');
+      setTimeout(() => { switching = false; }, 400);
+    }, 400);
+  }
+  window.addEventListener('popstate', () => go(new URLSearchParams(location.search).get('marca') || HOME, false));
+  document.addEventListener('click', e => {
+    const a = e.target.closest('[data-go]');
+    if (!a || e.metaKey || e.ctrlKey || e.shiftKey) return;
+    e.preventDefault();
+    if (a.dataset.go === brand.slug){ setMenu(false); scrollToY(0); return; }
+    go(a.dataset.go);
+  });
+  // índice e cartão da mesma marca acendem juntos
+  document.addEventListener('mouseover', e => {
+    const el = e.target.closest('[data-link]'); if (!el) return;
+    $$('[data-link]').forEach(x => x.classList.toggle('is-linked', x !== el && x.dataset.link === el.dataset.link));
+  });
+  document.addEventListener('mouseout', e => { if (e.target.closest('[data-link]')) $$('.is-linked').forEach(x => x.classList.remove('is-linked')); });
+  preview.addEventListener('click', () => go(nextBrand.slug));
+  preview.addEventListener('keydown', e => { if (e.key === 'Enter') go(nextBrand.slug); });
+
+  /* ---------------------------------------------------------------
+     MENU
+     --------------------------------------------------------------- */
+  buildMenu();
+  const menuBtn = $('#header-right-menu-btn');
+  const menu = $('#header-menu');
+  const menuBg = $('#header-background');
+  let menuOpen = false;
+  function setMenu(open){
+    menuOpen = open;
+    menuBtn.classList.toggle('--opened', open);
+    menu.classList.toggle('--opened', open);
+    menuBg.classList.toggle('--opened', open);
+    document.documentElement.classList.toggle('is-menu-open', open);
+  }
+  menuBtn.addEventListener('click', () => setMenu(!menuOpen));
+  menuBg.addEventListener('click', () => setMenu(false));
+  document.addEventListener('keydown', e => { if (e.key === 'Escape'){ if (lbOpen) closeLightbox(); else setMenu(false); } });
+
+  /* ---------------------------------------------------------------
+     LIGHTBOX (imagens: prancha das camisetas etc.)
+     --------------------------------------------------------------- */
+  const lb = $('#lightbox'), lbImg = $('#lightbox-img'), lbCap = $('#lightbox-caption'), lbDl = $('#lightbox-dl');
+  let lbOpen = false, lbReturnFocus = null;
+  function openLightbox(src, caption, from){
+    lbReturnFocus = from || null;
+    lbImg.src = src; lbImg.alt = caption || ''; lbCap.textContent = caption || '';
+    lbDl.href = src; lbDl.download = src.split('/').pop(); lbDl.textContent = 'Baixar ' + (src.split('.').pop() || '').toUpperCase();
+    lb.hidden = false; lbOpen = true;
+    html.classList.add('is-lightbox');
+    requestAnimationFrame(() => { lb.classList.add('is-open'); $('#lightbox-close').focus(); });
+  }
+  function closeLightbox(){
+    if (!lbOpen) return;
+    lbOpen = false; lb.classList.remove('is-open'); html.classList.remove('is-lightbox');
+    setTimeout(() => { if (!lbOpen){ lb.hidden = true; lbImg.removeAttribute('src'); } }, 400);
+    if (lbReturnFocus) lbReturnFocus.focus();
+  }
+  document.addEventListener('click', e => {
+    const a = e.target.closest('[data-lightbox]');
+    if (a){ if (e.metaKey || e.ctrlKey || e.shiftKey) return; e.preventDefault(); openLightbox(a.getAttribute('href'), a.dataset.lightbox, a); return; }
+    if (e.target.closest('#lightbox-close') || e.target.id === 'lightbox-backdrop') closeLightbox();
+  });
+
+  /* ---------------------------------------------------------------
+     BOTÕES
+     --------------------------------------------------------------- */
+  function scrollToY(y){ window.scrollTo({ top: y, behavior: 'smooth' }); }
+  // "voltar": numa marca leva para a casa; na casa, volta ao topo
+  $('#header-center-project-back-btn').addEventListener('click', () => brand.slug === HOME ? scrollToY(0) : go(HOME));
+  const soundBtn = $('#header-right-sound-btn');
+  soundBtn.addEventListener('click', () => soundBtn.classList.toggle('--off'));
+  $$('form').forEach(f => f.addEventListener('submit', e => { e.preventDefault(); f.reset(); }));
+
+  /* ---------------------------------------------------------------
+     PRELOADER
+     --------------------------------------------------------------- */
+  const pre = $('#preloader');
+  const preBar = $('#preloader-bar-inner');
+  const strips = $$('.preloader-percent-digit-strip');
+  strips.forEach(s => { s.innerHTML = Array.from({length:10},(_,i)=>`<div class="preloader-percent-digit-num">${i}</div>`).join(''); });
+  function setDigits(n){
+    const str = String(n).padStart(3,'0');
+    strips.forEach((s,i) => { s.style.transform = `translate3d(0,${-parseInt(str[i],10)*0.75}em,0)`; });
+  }
+  function runPreloader(){
+    const t0 = performance.now(), dur = 1500;
+    let done = false;
+    function tick(now){
+      const t = clamp((now-t0)/dur, 0, 1);
+      const p = Math.round(easeOutCubic(t)*100);
+      preBar.style.transform = `scaleX(${p/100})`;
+      setDigits(p);
+      if (t < 1) requestAnimationFrame(tick);
+      else if (!done){
+        done = true;
+        setTimeout(() => {
+          pre.classList.add('--leaving');
+          setTimeout(() => { pre.classList.add('--done'); html.classList.add('is-ready'); }, 450);
+        }, 250);
+      }
+    }
+    requestAnimationFrame(tick);
+  }
+
+  /* ---------------------------------------------------------------
+     INIT
+     --------------------------------------------------------------- */
+  window.scrollTo(0,0);
+  if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
+  html.classList.add('is-project-details-active');
+  const params = new URLSearchParams(location.search);
+  buildRadial();
+  renderBrand(params.get('marca') || HOME);
+  history.replaceState({ slug: brand.slug }, '', location.href);
+  const ready = () => {
+    layout();
+    // ?y=1200 abre a página já rolada (útil para conferir o layout)
+    const dbgY = parseFloat(params.get('y'));
+    if (dbgY > 0){ debugFreeze = true; target = current = dbgY; }
+    else { target = window.scrollY; current = target; }
+    loop();
+    if (params.has('still')) html.classList.add('is-still');
+    if (params.has('nopre')){ pre.style.display = 'none'; html.classList.add('is-ready'); }
+    else runPreloader();
+    if (params.has('menu')) setMenu(true);
+    if (params.has('lb')) openLightbox(params.get('lb'), 'Camisetas da marca');
+  };
+  // espera as fontes, mas no máximo 2,5 s: fonte lenta não pode segurar a página
+  let started = false; const start = () => { if (!started){ started = true; ready(); } };
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(start); else window.addEventListener('load', start);
+  setTimeout(start, 2500);
+  let rt; window.addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(layout, 120); });
+})();
+</script>
+</body>
 </html>

@@ -1,0 +1,12 @@
+ONBOARDING DA MARCA — Octalab
+Coloque os arquivos nesta pasta (ou em subpastas) e liste cada linha em arquivos.json.
+
+Linha simples (um arquivo):
+  { "nome": "Estampa vetorial", "arquivo": "estampa.pdf", "descricao": "Arte final" }
+
+Linha com vários botões (ex.: frente/verso):
+  { "nome": "01 · Camiseta", "descricao": "Peito esquerdo, 8 cm", "miniatura": "mockup.png",
+    "arquivos": [ { "rotulo": "Frente", "arquivo": "01-frente.svg" }, { "rotulo": "Verso", "arquivo": "01-verso.svg" } ] }
+
+"nome" é o texto que aparece; "arquivo" é o nome exato do arquivo; "descricao" e "miniatura" são opcionais.
+Um botão com "abrir": true abre o arquivo numa aba em vez de baixar. Imagens sozinhas ganham miniatura e "Abrir" automaticamente.
