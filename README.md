@@ -19,4 +19,4 @@ Algumas marcas têm uma seção extra (ex.: camisetas da OctaGym, onboarding da 
 
 ## Publicar
 
-O repositório está ligado ao Vercel (projeto `painel-conteudos`): todo push na `main` publica automaticamente.
+O repositório está ligado ao Vercel (projeto `painel-conteudos`): todo push na `main` publica automaticamente em https://marcas-octalab.vercel.app.
