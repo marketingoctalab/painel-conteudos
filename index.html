@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Octalab — Marcas</title>
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
-  <meta name="description" content="Acervo de marcas da Octalab: manifesto, identidade visual, paleta, tipografia e arquivos de Octalab, JusPilot, OctaGym, Ecosys AUTO, OctaBuild, OctaLife e Octalk.">
+  <meta name="description" content="Acervo de marcas da Octalab: manifesto, identidade visual, paleta, tipografia e arquivos de Octalab, JusPilot, OctaGym, Ecosys AUTO, OctaBuild, OctaLife, Octalk e Colmeia.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400..800;1,400..800&family=IBM+Plex+Mono:wght@400;500&family=Geist:wght@200..800&family=Sora:wght@200..700&display=swap" rel="stylesheet">
@@ -381,8 +381,8 @@ a.card{cursor:pointer}
 /* kit de arquivos */
 .card-kit{padding:6cqh;justify-content:space-between;background:#fff;color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink)}
 .card-kit-title{font-family:Geist,Inter,sans-serif;font-weight:600;font-size:7cqh;line-height:1;letter-spacing:-.03em;margin-top:3cqh}
-.kit-list{display:flex;flex-direction:column}
-.kit-row{display:flex;align-items:center;justify-content:space-between;gap:2cqh;padding:2.2cqh 0;border-top:1px solid rgba(0,0,0,.1);font-size:2.7cqh}
+.kit-list{display:flex;flex-direction:column;overflow:auto;max-height:68cqh}
+.kit-row{display:flex;align-items:center;justify-content:space-between;gap:2cqh;padding:1.7cqh 0;border-top:1px solid rgba(0,0,0,.1);font-size:2.7cqh}
 .kit-row:last-child{border-bottom:1px solid rgba(0,0,0,.1)}
 .kit-btns{display:flex;gap:1cqh}
 /* espaço especial (camisetas, onboarding…): arquivos listados em <pasta>/arquivos.json */
@@ -782,6 +782,19 @@ const BRANDS = [
     logoLight: 'logo-preta.svg', logoDark: 'logo-original.svg', logoAccent: 'logo-branca.svg',
     logos: [['Logo original', 'logo-original'], ['Logo branca', 'logo-branca'], ['Logo preta', 'logo-preta']],
   },
+  {
+    slug: 'colmeia', name: 'Colmeia', kicker: 'Operação para empresas de serviço',
+    bg: '#FFFFFF', hl: '#798E2C', font: 'Inter',
+    black: '#121212', accent: '#798E2C', light: '#F8F8F5', accentOnDark: '#A9C240',
+    lead: ['A Colmeia reúne a operação inteira de uma empresa de serviço em um único lugar: clientes, projetos, atendimento, contratos e agentes de IA trabalhando sobre a mesma base de dados.'],
+    closing: 'Uma operação inteira. Um único banco de dados. IA que executa, não que sugere.',
+    palette: [['Preto', '#121212'], ['Verde', '#798E2C'], ['Off-white', '#F8F8F5']],
+    logoLight: 'logo-original.svg', logoDark: 'logo-branca.svg', logoAccent: 'logo-branca.svg',
+    logos: [['Logo padrão', 'logo-original'], ['Logo preta', 'logo-preta'], ['Logo branca', 'logo-branca'], ['Logo verde e branco', 'logo-verde-branco'], ['Símbolo verde', 'simbolo-verde'], ['Símbolo preto', 'simbolo-preto'], ['Símbolo branco', 'simbolo-branco']],
+    png: false,                         // só vetores por enquanto
+    miv: false,                         // sem manual de identidade ainda
+    files: [['Prancha de aplicações', 'visao.png']],
+  },
 ];
 
 (function(){
@@ -860,8 +873,9 @@ const BRANDS = [
       <div><div class="card-label">Arquivos da marca</div><div class="card-kit-title">Kit ${b.name}</div></div>
       <div class="kit-list">${b.logos.map(([label, base]) => `<div class="kit-row"><span>${label}</span><span class="kit-btns">
         <a class="kit-btn" href="${asset(b, base+'.svg')}" download="${b.slug}-${base}.svg">Baixar SVG</a>
-        <a class="kit-btn" href="${asset(b, base+'.png')}" download="${b.slug}-${base}.png">Baixar PNG</a></span></div>`).join('')}
-        <div class="kit-row"><span>Manual de identidade visual</span><span class="kit-btns"><a class="kit-btn" href="${asset(b,'miv.pdf')}" download="MIV-${b.slug}.pdf">Baixar PDF</a></span></div>
+        ${b.png === false ? '' : `<a class="kit-btn" href="${asset(b, base+'.png')}" download="${b.slug}-${base}.png">Baixar PNG</a>`}</span></div>`).join('')}
+        ${(b.files || []).map(([label, file]) => `<div class="kit-row"><span>${label}</span><span class="kit-btns"><a class="kit-btn" href="${asset(b, file)}" download="${b.slug}-${file}">Baixar ${(file.split('.').pop() || '').toUpperCase()}</a></span></div>`).join('')}
+        ${hasMiv(b) ? `<div class="kit-row"><span>Manual de identidade visual</span><span class="kit-btns"><a class="kit-btn" href="${asset(b,'miv.pdf')}" download="MIV-${b.slug}.pdf">Baixar PDF</a></span></div>` : ''}
       </div></div>`, { cls: 'is-text' });
   const extraCoverCard = b => item(1800, 1280, `<a class="card card-miv" href="${asset(b, b.extra.slug + '/' + (b.extra.coverLink || b.extra.cover))}" ${b.extra.coverLink ? 'target="_blank" rel="noopener"' : `data-lightbox="${b.extra.title}"`} style="${cardVars(b)}"><img src="${asset(b, b.extra.slug + '/' + b.extra.cover)}" alt="${b.extra.title} ${b.name}" loading="lazy"><span class="card-pill">${b.extra.kicker} · ${b.extra.coverLink ? 'Abrir ↗' : 'Ver ⤢'}</span></a>`);
   const extraCard = b => item(1700, 1280, `<div class="card card-kit card-extra" id="card-extra" style="${cardVars(b)}">
@@ -908,16 +922,20 @@ const BRANDS = [
   const CTA_SVG = '<svg viewBox="0 0 24 24" fill="none"><path stroke="currentColor" stroke-linecap="round" stroke-width="1.5" d="M9 9h6m0 0v6m0-6-6 6"/></svg>';
   const cta = (id, cls='') => `<a id="${id}" class="launch-cta ${cls}" href="#"><span class="launch-cta-dot"></span><p class="launch-cta-text"></p><span class="launch-cta-arrow">${CTA_SVG}</span></a>`;
   const pad2 = n => String(n).padStart(2, '0');
+  // ordem da galeria: manifesto, logo escuro, logo de marca, paleta, tipografia, [manual], kit, [espaço especial]
+  const hasMiv = b => b.miv !== false;
+  const sections = b => { const kit = 5 + (hasMiv(b) ? 1 : 0); return { manifesto: 0, identidade: 1, arquivos: kit, extra: kit + 1 }; };
   const metaBrand = b => {
     const k = BRANDS.indexOf(b) + 1;
     const lead = (b.lead || [b.manifesto[0]])[0];
-    const files = b.logos.length + 1;
+    const sec = sections(b);
+    const files = b.logos.length + (hasMiv(b) ? 1 : 0);
     const total = files + (b.extra ? 1 : 0);
     const accentTag = b.palette[1] || b.palette[0];
     return `<div id="home-hero">
     <div class="hh-eyebrow"><span class="hh-num">${pad2(k)}—${pad2(BRANDS.length)}</span><span class="hh-txt">Marca da casa Octalab</span></div>
     <h2 id="project-details-title" class="hh-title"><span class="hh-line"><span>${b.name}<i class="hh-oct" style="background:${b.accent}"></i></span></span><span class="hh-line hh-line-2 hh-sub"><span>${b.kicker}</span></span></h2>
-    <nav class="hh-jump" aria-label="Seções da marca"><button type="button" data-jump="0">Manifesto</button><button type="button" data-jump="1">Identidade</button><button type="button" data-jump="6">Arquivos</button>${b.extra ? `<button type="button" data-jump="7">${b.extra.label}</button>` : ''}</nav>
+    <nav class="hh-jump" aria-label="Seções da marca"><button type="button" data-jump="0">Manifesto</button><button type="button" data-jump="1">Identidade</button><button type="button" data-jump="${sec.arquivos}">Arquivos</button>${b.extra ? `<button type="button" data-jump="${sec.extra}">${b.extra.label}</button>` : ''}</nav>
     <div class="hh-cols">
       <div>
         <p class="hh-lead">${lead}</p>
@@ -928,7 +946,7 @@ const BRANDS = [
       <div class="hh-index">
         <div class="hh-index-head"><span>Arquivos da marca</span><span>${pad2(total)}</span></div>
         ${b.logos.map(([label, base], i) => `<a href="${asset(b, base+'.svg')}" download="${b.slug}-${base}.svg"><span class="n">${pad2(i+1)}</span><span>${label}</span><span class="k">Baixar SVG</span><span class="arrow">↓</span></a>`).join('')}
-        <a href="${asset(b,'miv.pdf')}" target="_blank" rel="noopener"><span class="n">${pad2(files)}</span><span>Manual de identidade visual</span><span class="k">Abrir PDF</span><span class="arrow">↗</span></a>${b.extra ? `<a href="#" data-jump="7"><span class="n">${pad2(files+1)}</span><span>${b.extra.title}</span><span class="k">Ver seção</span><span class="arrow">→</span></a>` : ''}
+        ${hasMiv(b) ? `<a href="${asset(b,'miv.pdf')}" target="_blank" rel="noopener"><span class="n">${pad2(files)}</span><span>Manual de identidade visual</span><span class="k">Abrir PDF</span><span class="arrow">↗</span></a>` : ''}${b.extra ? `<a href="#" data-jump="${sec.extra}"><span class="n">${pad2(files+1)}</span><span>${b.extra.title}</span><span class="k">Ver seção</span><span class="arrow">→</span></a>` : ''}
         <div class="hh-links"><a href="./" data-go="${HOME}">← Todas as marcas</a>${BRANDS.filter(x => x.slug !== b.slug).map(x => `<a href="${hrefFor(x.slug)}" data-go="${x.slug}">${x.name}</a>`).join('')}</div>
       </div>
     </div></div>`;
@@ -987,14 +1005,15 @@ const BRANDS = [
     // botão: na inicial leva para a marca Octalab; nas marcas abre o manual
     $$('.launch-cta').forEach(a => {
       if (isHome){ a.href = hrefFor('octalab'); a.dataset.go = 'octalab'; a.removeAttribute('target'); }
-      else { a.href = asset(brand, 'miv.pdf'); delete a.dataset.go; a.target = '_blank'; a.rel = 'noopener'; }
-      a.querySelector('.launch-cta-text').textContent = isHome ? 'Marca Octalab' : 'Abrir manual';
+      else if (hasMiv(brand)){ a.href = asset(brand, 'miv.pdf'); delete a.dataset.go; delete a.dataset.jump; a.target = '_blank'; a.rel = 'noopener'; }
+      else { a.href = '#'; delete a.dataset.go; a.dataset.jump = sections(brand).arquivos; a.removeAttribute('target'); }
+      a.querySelector('.launch-cta-text').textContent = isHome ? 'Marca Octalab' : hasMiv(brand) ? 'Abrir manual' : 'Arquivos da marca';
     });
 
     // galeria
     itemsMove.innerHTML = isHome
       ? BRANDS.map(brandCard).join('')
-      : manifestoCard(brand) + logoDarkCard(brand) + logoAccentCard(brand) + paletteCard(brand) + typeCard(brand) + mivCard(brand) + kitCard(brand) + (brand.extra ? (brand.extra.cover ? extraCoverCard(brand) : '') + extraCard(brand) : '');
+      : manifestoCard(brand) + logoDarkCard(brand) + logoAccentCard(brand) + paletteCard(brand) + typeCard(brand) + (hasMiv(brand) ? mivCard(brand) : '') + kitCard(brand) + (brand.extra ? (brand.extra.cover ? extraCoverCard(brand) : '') + extraCard(brand) : '');
     items = $$('.project-details-item');
     if (brand.extra) loadExtra(brand);
 

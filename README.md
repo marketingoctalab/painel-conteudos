@@ -1,6 +1,6 @@
 # Octalab — site das marcas
 
-Site institucional da Octalab: a casa e suas marcas (Octalab, JusPilot, OctaGym, Ecosys AUTO, OctaBuild, OctaLife, Octalk), com manifesto, identidade, paleta, tipografia, manual e arquivos para download de cada uma.
+Site institucional da Octalab: a casa e suas marcas (Octalab, JusPilot, OctaGym, Ecosys AUTO, OctaBuild, OctaLife, Octalk, Colmeia), com manifesto, identidade, paleta, tipografia, manual e arquivos para download de cada uma.
 
 Página única e estática (`index.html`), sem framework. Os arquivos de cada marca ficam em `public/marcas/<marca>/`.
 
