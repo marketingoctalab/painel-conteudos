@@ -296,6 +296,47 @@ html.is-black-bg #scroll-indicator{background:#ffffff1a}
 #lightbox.is-open #lightbox-backdrop,#lightbox.is-open #lightbox-close,#lightbox.is-open #lightbox-dl{opacity:1;transform:none}
 #lightbox.is-open #lightbox-figure{opacity:1;transform:none}
 html.is-lightbox{overflow:hidden}
+/* área da equipe */
+.menu-vault{margin-top:auto;display:grid;grid-template-columns:auto 1fr;column-gap:.9em;align-items:center;text-align:left;border:0;background:transparent;color:var(--ink);font:inherit;padding:1em 0 0;border-top:1px solid rgba(15,15,19,.18);cursor:pointer;opacity:0;transition:opacity .4s .25s}
+#header-menu.--opened .menu-vault{opacity:1}
+.menu-vault-ico{grid-row:1 / span 2;width:2.6em;height:2.6em;border-radius:100px;box-shadow:inset 0 0 0 1px var(--ink);display:flex;align-items:center;justify-content:center;transition:background .25s,color .25s}
+.menu-vault-ico svg{width:1.1em;height:1.1em}
+.menu-vault>span:not(.menu-vault-ico){font-weight:600;font-size:1.05em}
+.menu-vault small{font-family:"IBM Plex Mono",monospace;font-size:.72em;letter-spacing:.1em;text-transform:uppercase;opacity:.55}
+@media (hover:hover){.menu-vault:hover .menu-vault-ico{background:var(--ink);color:#fff}}
+#vault{position:fixed;inset:0;z-index:72;display:flex;align-items:center;justify-content:center;padding:var(--base-padding-y) var(--base-padding-x);font-size:clamp(1rem,1vw,1.5rem)}
+#vault[hidden]{display:none}
+#vault-backdrop{position:absolute;inset:0;background:rgba(15,15,19,.18);-webkit-backdrop-filter:blur(18px) saturate(1.3);backdrop-filter:blur(18px) saturate(1.3);opacity:0;transition:opacity .35s}
+#vault-panel{position:relative;width:min(100%,34em);max-height:100%;overflow:auto;background:#fff;color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink),0 40px 90px -40px rgba(15,15,19,.4);padding:2.4em 2.4em 2.2em;opacity:0;transform:translate3d(0,1.2em,0) scale(.98);transition:opacity .35s .05s,transform .6s cubic-bezier(.2,.8,.2,1) .05s}
+#vault.is-open #vault-backdrop{opacity:1}
+#vault.is-open #vault-panel{opacity:1;transform:none}
+#vault-close{position:absolute;top:1.1em;right:1.1em;width:2.4em;height:2.4em;border:0;border-radius:100px;background:transparent;box-shadow:inset 0 0 0 1px var(--ink);cursor:pointer;color:var(--ink);transition:background .25s,color .25s}
+#vault-close i{position:relative;display:block;width:1em;height:1em;margin:0 auto}
+#vault-close i:before,#vault-close i:after{content:"";position:absolute;left:0;top:50%;width:100%;height:1.5px;background:currentColor;transform:rotate(45deg)}
+#vault-close i:after{transform:rotate(-45deg)}
+@media (hover:hover){#vault-close:hover{background:var(--ink);color:#fff}}
+.vault-eyebrow{font-family:"IBM Plex Mono",monospace;font-size:.72em;letter-spacing:.12em;text-transform:uppercase;opacity:.6}
+#vault-title{font-family:Geist,Inter,sans-serif;font-weight:600;font-size:2.4em;letter-spacing:-.03em;line-height:1;margin:.25em 0 .7em}
+#vault-form label{display:block;font-family:"IBM Plex Mono",monospace;font-size:.72em;letter-spacing:.1em;text-transform:uppercase;margin-bottom:.6em;opacity:.7}
+.vault-row{display:flex;gap:.6em}
+#vault-pass{flex:1;min-width:0;height:3em;padding:0 1em;border:0;box-shadow:inset 0 0 0 1px var(--ink);font:inherit;font-size:1em;color:var(--ink);background:#fff;outline:none}
+#vault-pass:focus{box-shadow:inset 0 0 0 2px var(--ink)}
+.vault-btn{height:3em;padding:0 1.4em;border:0;border-radius:100px;background:var(--ink);color:#fff;font:inherit;font-weight:500;text-transform:uppercase;font-size:.85em;letter-spacing:.04em;cursor:pointer;transition:opacity .25s}
+.vault-btn[disabled]{opacity:.5;cursor:default}
+.vault-hint{font-size:.9em;line-height:1.5;margin:1em 0 0;opacity:.65}
+.vault-error{font-size:.9em;margin:.8em 0 0;color:#B3261E}
+#vault-list{display:flex;flex-direction:column}
+.vault-item{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:.3em 1em;align-items:center;padding:1em 0;border-top:1px solid var(--line)}
+.vault-item:last-child{border-bottom:1px solid var(--line)}
+.vault-item h4{grid-column:1 / -1;margin:0 0 .2em;font-size:1em;font-weight:600}
+.vault-item .vk{font-family:"IBM Plex Mono",monospace;font-size:.72em;letter-spacing:.08em;text-transform:uppercase;opacity:.55}
+.vault-item .vv{font-family:"IBM Plex Mono",monospace;font-size:.92em;word-break:break-all;user-select:all}
+.vault-item .vv.is-secret{letter-spacing:.15em}
+.vault-item .vb{display:flex;gap:.4em}
+.vault-item .kit-btn{font-size:.72em;padding:.5em .9em;cursor:pointer;background:#fff;border:0;font-family:"IBM Plex Mono",monospace;letter-spacing:.06em;box-shadow:inset 0 0 0 1px var(--ink);border-radius:100px;color:var(--ink)}
+.vault-item .kit-btn.is-done{background:var(--ink);color:#fff}
+.vault-note{font-family:"IBM Plex Mono",monospace;font-size:.7em;letter-spacing:.08em;text-transform:uppercase;opacity:.5;margin:1.2em 0 0}
+html.is-vault{overflow:hidden}
 /* controles explícitos da galeria horizontal */
 #gallery-nav{position:absolute;right:var(--base-padding-x);bottom:calc(var(--base-padding-y) * .6);z-index:3;display:flex;align-items:center;gap:1.4em;padding:.8em 0 .8em 1.4em;border-top:1px solid rgba(15,15,19,.18);background:var(--project-bg);font-family:"IBM Plex Mono",monospace;font-size:.8em;letter-spacing:.08em;color:var(--ink);opacity:0;transform:translate3d(0,.6em,0);transition:opacity .6s 1s,transform .8s cubic-bezier(.35,0,0,1) 1s}
 html.is-ready #gallery-nav{opacity:1;transform:none}
@@ -613,6 +654,7 @@ html.is-mobile .hh-tag{transform:rotate(var(--r,0deg)) scale(1)}
     <div id="header-menu-glass" aria-hidden="true"></div>
     <!-- preenchido pelo script com Início + uma linha por marca -->
     <div id="header-menu-links"></div>
+    <button type="button" id="header-menu-vault" class="menu-vault"><span class="menu-vault-ico"><svg viewBox="0 0 16 16" fill="none"><rect x="3" y="7" width="10" height="7" rx="1.2" stroke="currentColor" stroke-width="1.4"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg></span><span>Acessar senhas</span><small>Área da equipe</small></button>
   </div>
 </header>
 
@@ -675,6 +717,22 @@ html.is-mobile .hh-tag{transform:rotate(var(--r,0deg)) scale(1)}
   <button id="lightbox-close" aria-label="Fechar"><span>Fechar</span><i></i></button>
   <figure id="lightbox-figure"><img id="lightbox-img" alt=""><figcaption id="lightbox-caption"></figcaption></figure>
   <a id="lightbox-dl" class="kit-btn" href="#" download>Baixar</a>
+</div>
+<!-- área da equipe: lista de acessos cifrada em /acessos.enc.json, decifrada só no navegador -->
+<div id="vault" hidden role="dialog" aria-modal="true" aria-labelledby="vault-title">
+  <div id="vault-backdrop"></div>
+  <div id="vault-panel">
+    <button type="button" id="vault-close" aria-label="Fechar"><i></i></button>
+    <div class="vault-eyebrow">Área da equipe</div>
+    <h3 id="vault-title">Acessos</h3>
+    <form id="vault-form" autocomplete="off">
+      <label for="vault-pass">Chave da equipe</label>
+      <div class="vault-row"><input id="vault-pass" type="password" autocomplete="off" spellcheck="false"><button type="submit" class="vault-btn">Acessar</button></div>
+      <p class="vault-hint">Dica: o nome da Octalab seguido do ano de nascimento da empresa, tudo junto.</p>
+      <p id="vault-error" class="vault-error" hidden>Chave incorreta. Veja a dica e tente de novo.</p>
+    </form>
+    <div id="vault-list" hidden></div>
+  </div>
 </div>
 
 <script>
@@ -1340,6 +1398,63 @@ const BRANDS = [
     if (a){ if (e.metaKey || e.ctrlKey || e.shiftKey) return; e.preventDefault(); openLightbox(a.getAttribute('href'), a.dataset.lightbox, a); return; }
     if (e.target.closest('#lightbox-close') || e.target.id === 'lightbox-backdrop') closeLightbox();
   });
+
+  /* ---------------------------------------------------------------
+     COFRE DE SENHAS: /acessos.enc.json é cifrado (AES-GCM) com uma chave
+     derivada da senha (PBKDF2). O texto só existe no navegador de quem
+     acerta a senha. Gerado por ~/Projetos/Octalab/acessos/gerar.mjs.
+     --------------------------------------------------------------- */
+  const vault = $('#vault'), vaultForm = $('#vault-form'), vaultPass = $('#vault-pass'), vaultErr = $('#vault-error'), vaultList = $('#vault-list');
+  let vaultOpen = false, vaultEntries = null;
+  if (vault) {   // o painel só existe quando a área da equipe está montada
+  const b64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+  async function vaultDecrypt(pass){
+    const r = await fetch('acessos.enc.json', { cache: 'no-store' }); if (!r.ok) throw new Error('sem arquivo');
+    const d = await r.json();
+    const base = await crypto.subtle.importKey('raw', new TextEncoder().encode(pass), 'PBKDF2', false, ['deriveKey']);
+    const key = await crypto.subtle.deriveKey({ name: 'PBKDF2', salt: b64(d.salt), iterations: d.iter, hash: 'SHA-256' }, base, { name: 'AES-GCM', length: 256 }, false, ['decrypt']);
+    const pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: b64(d.iv) }, key, b64(d.ct));
+    return JSON.parse(new TextDecoder().decode(pt));
+  }
+  const escv = t => String(t ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  function renderVault(entries){
+    vaultForm.hidden = true; vaultList.hidden = false;
+    vaultList.innerHTML = entries.map((e, i) => `<div class="vault-item"><h4>${escv(e.nome)}</h4>
+      ${e.usuario ? `<span><span class="vk">Usuário</span><br><span class="vv">${escv(e.usuario)}</span></span><span class="vb"><button type="button" class="kit-btn" data-copy="${escv(e.usuario)}">Copiar</button></span>` : ''}
+      <span><span class="vk">Senha</span><br><span class="vv is-secret" data-secret="${escv(e.senha)}">••••••••</span></span><span class="vb"><button type="button" class="kit-btn" data-reveal="${i}">Mostrar</button><button type="button" class="kit-btn" data-copy="${escv(e.senha)}">Copiar</button></span>
+      ${e.nota ? `<p class="vault-hint" style="grid-column:1/-1;margin:.2em 0 0">${escv(e.nota)}</p>` : ''}</div>`).join('')
+      + '<p class="vault-note">Não compartilhe fora da equipe.</p>';
+  }
+  function openVault(){
+    setMenu(false);
+    vault.hidden = false; vaultOpen = true; html.classList.add('is-vault');
+    if (vaultEntries) renderVault(vaultEntries); else { vaultForm.hidden = false; vaultList.hidden = true; }
+    requestAnimationFrame(() => { vault.classList.add('is-open'); if (!vaultEntries) vaultPass.focus(); });
+  }
+  function closeVault(){
+    if (!vaultOpen) return;
+    vaultOpen = false; vault.classList.remove('is-open'); html.classList.remove('is-vault');
+    setTimeout(() => { if (!vaultOpen) vault.hidden = true; }, 350);
+    vaultPass.value = ''; vaultErr.hidden = true;
+  }
+  vaultForm.addEventListener('submit', async e => {
+    e.preventDefault();
+    const btn = vaultForm.querySelector('.vault-btn'); btn.disabled = true; vaultErr.hidden = true;
+    const pass = vaultPass.value.trim().toLowerCase().replace(/\s+/g, '');
+    try { vaultEntries = await vaultDecrypt(pass); renderVault(vaultEntries); }
+    catch (err){ vaultErr.hidden = false; vaultPass.select(); }
+    btn.disabled = false;
+  });
+  document.addEventListener('click', e => {
+    if (e.target.closest('#header-menu-vault')){ openVault(); return; }
+    if (e.target.closest('#vault-close') || e.target.id === 'vault-backdrop'){ closeVault(); return; }
+    const rv = e.target.closest('[data-reveal]');
+    if (rv){ const v = rv.closest('.vault-item').querySelector('[data-secret]'); const shown = rv.textContent === 'Ocultar'; v.textContent = shown ? '••••••••' : v.dataset.secret; rv.textContent = shown ? 'Mostrar' : 'Ocultar'; return; }
+    const cp = e.target.closest('[data-copy]');
+    if (cp){ navigator.clipboard.writeText(cp.dataset.copy).then(() => { cp.classList.add('is-done'); cp.textContent = 'Copiado'; setTimeout(() => { cp.classList.remove('is-done'); cp.textContent = 'Copiar'; }, 1400); }); }
+  });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && vaultOpen) closeVault(); });
+  } else { $('#header-menu-vault').hidden = true; }
 
   /* ---------------------------------------------------------------
      BOTÕES
