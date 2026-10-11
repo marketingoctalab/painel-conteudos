@@ -5,10 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Octalab — Marcas</title>
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
-  <meta name="description" content="Acervo de marcas da Octalab: manifesto, identidade visual, paleta, tipografia e arquivos de Octalab, JusPilot, OctaGym, Ecosys AUTO, OctaBuild, OctaLife, Octalk e Colmeia.">
+  <meta name="description" content="Acervo de marcas da Octalab: manifesto, identidade visual, paleta, tipografia e arquivos de Octalab, JusPilot, OctaGym, Ecosys AUTO, OctaBuild, OctaLife, Octalk, Colmeia e VaiVender.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400..800;1,400..800&family=IBM+Plex+Mono:wght@400;500&family=Geist:wght@200..800&family=Sora:wght@200..700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400..800;1,400..800&family=IBM+Plex+Mono:wght@400;500&family=Geist:wght@200..800&family=Sora:wght@200..700&family=Urbanist:wght@200..900&display=swap" rel="stylesheet">
 <style>
 /* ------------------------------------------------------------------
    TOKENS
@@ -554,7 +554,7 @@ html.is-mobile #home-grid{background-size:calc(100%/6) 100%,calc(100%/6) 100%}
 html.is-mobile #home-radial{left:84%;top:30%;width:110vw;height:110vw;opacity:.7}
 html.is-mobile #home-word{font-size:calc(var(--word-size,22vw) * 1.8);top:calc(var(--base-padding-y) + 64px);left:-.04em}
 html.is-mobile #project-details-meta{width:100%;padding-top:15.5em}
-html.is-mobile .hh-title{font-size:clamp(3rem,17vw,5.4rem)}
+html.is-mobile .hh-title{font-size:clamp(2.6rem,min(17vw,calc(125vw / var(--name-len,7))),5.4rem)}
 html.is-mobile .hh-line-2{padding-left:.5em}
 html.is-mobile .hh-line-2.hh-sub{padding-left:1.3em}
 html.is-mobile .hh-cols{grid-template-columns:minmax(0,1fr);row-gap:2.4em}
@@ -795,6 +795,23 @@ const BRANDS = [
     miv: false,                         // sem manual de identidade ainda
     files: [['Prancha de aplicações', 'visao.png']],
   },
+  {
+    slug: 'vaivender', name: 'VaiVender', kicker: 'IA que atende seus leads fora do horário',
+    bg: '#FFFFFF', hl: '#3A12B0', font: 'Urbanist',
+    black: '#14141B', accent: '#3A12B0', light: '#F3F2EC', accentOnDark: '#C6F84A',
+    lead: ['O VaiVender coloca a Vera, uma IA, para atender quem chega fora do horário: responde, confere o preço, negocia dentro das suas regras e chama você só quando a decisão é sua.'],
+    manifesto: [
+      'Venda sem viver no marketplace. Publica, responde e negocia a qualquer hora, sem ficar preso à tela.',
+      'Sua venda não dorme. A Vera atende às 23h47 enquanto você dormia, negocia dentro das suas regras e o preço mínimo continua sendo seu.',
+      'Você entra só quando a decisão é sua, com o contexto completo: ela responde, carrega, confere o preço e passa o bastão.',
+    ],
+    closing: 'Você vive. A Vera vende.',
+    palette: [['Preto Noite', '#14141B'], ['Roxo Sócio', '#3A12B0'], ['Limão Vai', '#C6F84A'], ['Laranja Raposa', '#FF6B2C'], ['Lavanda', '#A8A4F7'], ['Papel', '#F3F2EC']],
+    logoLight: 'logo-preta.png', logoDark: 'logo-papel.png', logoAccent: 'logo-limao.png', accentBg: '#14141B',
+    logos: [['Logo principal · Limão', 'logo-limao'], ['Logo · Papel', 'logo-papel'], ['Logo · fundos claros', 'logo-preta'], ['Logo monocromático', 'logo-mono'], ['Nome · Limão', 'nome-limao'], ['Nome · Papel', 'nome-papel'], ['Nome · Preto', 'nome-preto'], ['Símbolo colorido', 'simbolo-colorido'], ['Símbolo preto', 'simbolo-preto'], ['Símbolo Limão', 'simbolo-limao']],
+    svg: false,                         // só PNG por enquanto (o manual não traz vetores)
+    extra: { slug: 'comercial', label: 'Comercial', title: 'Filme da marca', kicker: 'Sua venda não dorme', cover: 'poster.jpg', coverLink: 'vaivender-comercial.mp4', blurb: 'Filme de 40 segundos com a Vera em ação: gente real, luz natural, casa virada estoque. Em MP4 para redes e apresentações.' },
+  },
 ];
 
 (function(){
@@ -872,7 +889,7 @@ const BRANDS = [
   const kitCard = b => item(1300, 1280, `<div class="card card-kit" style="${cardVars(b)}">
       <div><div class="card-label">Arquivos da marca</div><div class="card-kit-title">Kit ${b.name}</div></div>
       <div class="kit-list">${b.logos.map(([label, base]) => `<div class="kit-row"><span>${label}</span><span class="kit-btns">
-        <a class="kit-btn" href="${asset(b, base+'.svg')}" download="${b.slug}-${base}.svg">Baixar SVG</a>
+        ${b.svg === false ? '' : `<a class="kit-btn" href="${asset(b, base+'.svg')}" download="${b.slug}-${base}.svg">Baixar SVG</a>`}
         ${b.png === false ? '' : `<a class="kit-btn" href="${asset(b, base+'.png')}" download="${b.slug}-${base}.png">Baixar PNG</a>`}</span></div>`).join('')}
         ${(b.files || []).map(([label, file]) => `<div class="kit-row"><span>${label}</span><span class="kit-btns"><a class="kit-btn" href="${asset(b, file)}" download="${b.slug}-${file}">Baixar ${(file.split('.').pop() || '').toUpperCase()}</a></span></div>`).join('')}
         ${hasMiv(b) ? `<div class="kit-row"><span>Manual de identidade visual</span><span class="kit-btns"><a class="kit-btn" href="${asset(b,'miv.pdf')}" download="MIV-${b.slug}.pdf">Baixar PDF</a></span></div>` : ''}
@@ -923,7 +940,9 @@ const BRANDS = [
   const cta = (id, cls='') => `<a id="${id}" class="launch-cta ${cls}" href="#"><span class="launch-cta-dot"></span><p class="launch-cta-text"></p><span class="launch-cta-arrow">${CTA_SVG}</span></a>`;
   const pad2 = n => String(n).padStart(2, '0');
   // ordem da galeria: manifesto, logo escuro, logo de marca, paleta, tipografia, [manual], kit, [espaço especial]
+  const MAX_INDEX = 5;   // o índice da abertura mostra até 5 logos; o resto fica no kit
   const hasMiv = b => b.miv !== false;
+  const vecExt = b => b.svg === false ? 'png' : 'svg';   // formato principal dos logos
   const sections = b => { const kit = 5 + (hasMiv(b) ? 1 : 0); return { manifesto: 0, identidade: 1, arquivos: kit, extra: kit + 1 }; };
   const metaBrand = b => {
     const k = BRANDS.indexOf(b) + 1;
@@ -934,7 +953,7 @@ const BRANDS = [
     const accentTag = b.palette[1] || b.palette[0];
     return `<div id="home-hero">
     <div class="hh-eyebrow"><span class="hh-num">${pad2(k)}—${pad2(BRANDS.length)}</span><span class="hh-txt">Marca da casa Octalab</span></div>
-    <h2 id="project-details-title" class="hh-title"><span class="hh-line"><span>${b.name}<i class="hh-oct" style="background:${b.accent}"></i></span></span><span class="hh-line hh-line-2 hh-sub"><span>${b.kicker}</span></span></h2>
+    <h2 id="project-details-title" class="hh-title" style="--name-len:${b.name.length}"><span class="hh-line"><span>${b.name}<i class="hh-oct" style="background:${b.accent}"></i></span></span><span class="hh-line hh-line-2 hh-sub"><span>${b.kicker}</span></span></h2>
     <nav class="hh-jump" aria-label="Seções da marca"><button type="button" data-jump="0">Manifesto</button><button type="button" data-jump="1">Identidade</button><button type="button" data-jump="${sec.arquivos}">Arquivos</button>${b.extra ? `<button type="button" data-jump="${sec.extra}">${b.extra.label}</button>` : ''}</nav>
     <div class="hh-cols">
       <div>
@@ -945,9 +964,10 @@ const BRANDS = [
       </div>
       <div class="hh-index">
         <div class="hh-index-head"><span>Arquivos da marca</span><span>${pad2(total)}</span></div>
-        ${b.logos.map(([label, base], i) => `<a href="${asset(b, base+'.svg')}" download="${b.slug}-${base}.svg"><span class="n">${pad2(i+1)}</span><span>${label}</span><span class="k">Baixar SVG</span><span class="arrow">↓</span></a>`).join('')}
+        ${b.logos.slice(0, MAX_INDEX).map(([label, base], i) => `<a href="${asset(b, base+'.'+vecExt(b))}" download="${b.slug}-${base}.${vecExt(b)}"><span class="n">${pad2(i+1)}</span><span>${label}</span><span class="k">Baixar ${vecExt(b).toUpperCase()}</span><span class="arrow">↓</span></a>`).join('')}
+        ${b.logos.length > MAX_INDEX ? `<a href="#" data-jump="${sec.arquivos}"><span class="n">…</span><span>Mais ${b.logos.length - MAX_INDEX} arquivos no kit</span><span class="k">Ver kit</span><span class="arrow">→</span></a>` : ''}
         ${hasMiv(b) ? `<a href="${asset(b,'miv.pdf')}" target="_blank" rel="noopener"><span class="n">${pad2(files)}</span><span>Manual de identidade visual</span><span class="k">Abrir PDF</span><span class="arrow">↗</span></a>` : ''}${b.extra ? `<a href="#" data-jump="${sec.extra}"><span class="n">${pad2(files+1)}</span><span>${b.extra.title}</span><span class="k">Ver seção</span><span class="arrow">→</span></a>` : ''}
-        <div class="hh-links"><a href="./" data-go="${HOME}">← Todas as marcas</a>${BRANDS.filter(x => x.slug !== b.slug).map(x => `<a href="${hrefFor(x.slug)}" data-go="${x.slug}">${x.name}</a>`).join('')}</div>
+        <div class="hh-links"><a href="./" data-go="${HOME}">← Todas as marcas</a></div>
       </div>
     </div></div>`;
   };
@@ -1069,6 +1089,9 @@ const BRANDS = [
     }
 
     padX = parseFloat(getComputedStyle(projectDet).paddingLeft);
+    { const meta = $('#project-details-meta'); meta.style.top = ''; meta.style.transform = '';
+      const topOff = parseFloat(getComputedStyle(projectDet).paddingTop) + 70;   // abaixo do cabeçalho
+      if (meta.offsetHeight > vh - topOff * 2){ meta.style.top = topOff + 'px'; meta.style.transform = 'none'; } }
     cardRadius = parseFloat(getComputedStyle(html).getPropertyValue('--global-border-radius')) || 20;
     const wrapRect = itemsWrap.getBoundingClientRect();
     wrapH = wrapRect.height;

@@ -1,0 +1,4 @@
+[
+  { "nome": "Comercial VaiVender", "descricao": "Filme · 40 s · 1920×822 · MP4", "miniatura": "poster.jpg",
+    "arquivos": [ { "rotulo": "Assistir", "arquivo": "vaivender-comercial.mp4", "abrir": true }, { "rotulo": "Baixar MP4", "arquivo": "vaivender-comercial.mp4" } ] }
+]
