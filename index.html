@@ -152,8 +152,14 @@ html.is-ready #header-right-menu-btn{transform:scale(1)}
 #header-menu-links:before{content:"Navegação";display:block;font-family:"IBM Plex Mono",monospace;font-size:.75em;letter-spacing:.14em;text-transform:uppercase;padding-bottom:.9em;margin-bottom:.6em;border-bottom:1px solid rgba(15,15,19,.18);opacity:0;transition:opacity .4s .1s}
 #header-menu.--opened #header-menu-links:before{opacity:1}
 html.is-menu-open #header-right-sound-btn{opacity:0;pointer-events:none}
+.hdr-vault{font-size:.875em;width:3.2em;height:3.2em;border-radius:100px;border:0;background:transparent;color:var(--color-black);box-shadow:inset 0 0 0 1px currentColor;cursor:pointer;display:flex;align-items:center;justify-content:center;transform:scale(0);transition:transform .5s cubic-bezier(.35,0,0,1) .05s,background .25s,color .25s}
+html.is-ready .hdr-vault{transform:scale(1)}
+.hdr-vault svg{width:1.15em;height:1.15em}
+@media (hover:hover){.hdr-vault:hover{background:var(--color-black);color:var(--color-white)}}
+html.is-menu-open .hdr-vault{opacity:0;pointer-events:none}
+@media (max-width:812px){.hdr-vault{transform:none}}
 html.is-menu-open #header-logo,html.is-menu-open #header-center-project-back-btn{z-index:2}
-#header-menu-links{display:flex;flex-direction:column;gap:.5em}
+#header-menu-links{display:flex;flex-direction:column;gap:.35em;flex:1 1 auto;min-height:0;overflow:auto;padding-bottom:1em}
 .header-menu-link{position:relative;display:block;width:100%;border:none;background:transparent;padding:0;text-align:left;font-size:clamp(2rem,4.5vw,5rem);line-height:1.1;overflow:hidden;cursor:pointer;color:inherit;font-family:inherit;opacity:0;transform:translate3d(2em,0,0);transition:opacity .5s cubic-bezier(.35,0,0,1),transform .6s cubic-bezier(.35,0,0,1)}
 #header-menu.--opened .header-menu-link{opacity:1;transform:translateZ(0)}
 #header-menu.--opened .header-menu-link:nth-child(2){transition-delay:.05s}
@@ -297,7 +303,7 @@ html.is-black-bg #scroll-indicator{background:#ffffff1a}
 #lightbox.is-open #lightbox-figure{opacity:1;transform:none}
 html.is-lightbox{overflow:hidden}
 /* área da equipe */
-.menu-vault{margin-top:auto;display:grid;grid-template-columns:auto 1fr;column-gap:.9em;align-items:center;text-align:left;border:0;background:transparent;color:var(--ink);font:inherit;padding:1em 0 0;border-top:1px solid rgba(15,15,19,.18);cursor:pointer;opacity:0;transition:opacity .4s .25s}
+.menu-vault{flex:0 0 auto;margin-top:.4em;display:grid;grid-template-columns:auto 1fr;column-gap:.9em;align-items:center;text-align:left;border:0;background:transparent;color:var(--ink);font:inherit;padding:1em 0 0;border-top:1px solid rgba(15,15,19,.18);cursor:pointer;opacity:0;transition:opacity .4s .25s}
 #header-menu.--opened .menu-vault{opacity:1}
 .menu-vault-ico{grid-row:1 / span 2;width:2.6em;height:2.6em;border-radius:100px;box-shadow:inset 0 0 0 1px var(--ink);display:flex;align-items:center;justify-content:center;transition:background .25s,color .25s}
 .menu-vault-ico svg{width:1.1em;height:1.1em}
@@ -371,7 +377,7 @@ html.is-switching #page-container{opacity:0}
 #project-details-desc p.lead-note{opacity:.6}
 .project-details-side-list-item.is-current{color:var(--project-highlight)}
 #project-details-side-list .side-row{display:block}
-.header-menu-link{font-size:clamp(1.5rem,2.8vw,3.2rem)}
+.header-menu-link{font-size:clamp(1.35rem,2.4vw,2.8rem)}
 #header-menu.--opened .header-menu-link{transition-delay:calc(var(--i,0) * .04s)}
 .header-menu-link.is-current .header-menu-link-text{font-weight:600}
 .header-menu-link.is-current .header-menu-link-text:after{content:" ●";font-size:.35em;vertical-align:middle}
@@ -640,6 +646,7 @@ html.is-mobile .hh-tag{transform:rotate(var(--r,0deg)) scale(1)}
 
     <div id="header-right">
       <button id="header-right-sound-btn" aria-label="Som"><i></i><i></i><i></i><i></i></button>
+      <button id="header-right-vault-btn" class="hdr-vault" aria-label="Acessar senhas" title="Acessar senhas"><svg viewBox="0 0 16 16" fill="none"><rect x="3" y="7" width="10" height="7" rx="1.2" stroke="currentColor" stroke-width="1.4"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg></button>
       <button id="header-right-menu-btn" aria-label="Menu">
         <div id="header-right-menu-btn-inner">
           <span id="header-right-menu-btn-text">Menu</span>
@@ -1446,7 +1453,7 @@ const BRANDS = [
     btn.disabled = false;
   });
   document.addEventListener('click', e => {
-    if (e.target.closest('#header-menu-vault')){ openVault(); return; }
+    if (e.target.closest('#header-menu-vault, #header-right-vault-btn')){ openVault(); return; }
     if (e.target.closest('#vault-close') || e.target.id === 'vault-backdrop'){ closeVault(); return; }
     const rv = e.target.closest('[data-reveal]');
     if (rv){ const v = rv.closest('.vault-item').querySelector('[data-secret]'); const shown = rv.textContent === 'Ocultar'; v.textContent = shown ? '••••••••' : v.dataset.secret; rv.textContent = shown ? 'Mostrar' : 'Ocultar'; return; }
@@ -1454,7 +1461,7 @@ const BRANDS = [
     if (cp){ navigator.clipboard.writeText(cp.dataset.copy).then(() => { cp.classList.add('is-done'); cp.textContent = 'Copiado'; setTimeout(() => { cp.classList.remove('is-done'); cp.textContent = 'Copiar'; }, 1400); }); }
   });
   document.addEventListener('keydown', e => { if (e.key === 'Escape' && vaultOpen) closeVault(); });
-  } else { $('#header-menu-vault').hidden = true; }
+  } else { $('#header-menu-vault').hidden = true; $('#header-right-vault-btn').hidden = true; }
 
   /* ---------------------------------------------------------------
      BOTÕES
