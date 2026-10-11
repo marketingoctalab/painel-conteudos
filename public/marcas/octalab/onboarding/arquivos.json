@@ -1,1 +1,4 @@
-[]
+[
+  { "nome": "Boas-vindas à Octalab", "descricao": "Onboarding · 7 páginas", "miniatura": "capa-onboarding.png",
+    "arquivos": [ { "rotulo": "Abrir PDF", "arquivo": "onboarding-octalab.pdf", "abrir": true }, { "rotulo": "Baixar PDF", "arquivo": "onboarding-octalab.pdf" } ] }
+]

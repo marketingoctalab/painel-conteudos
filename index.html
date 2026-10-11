@@ -695,7 +695,7 @@ const CASA = {
 const BRANDS = [
   {
     slug: 'octalab', name: 'Octalab', kicker: 'A casa',
-    extra: { slug: 'onboarding', label: 'Onboarding', title: 'Onboarding da marca', kicker: 'Material para quem chega na Octalab', blurb: 'Apresentação da casa, cultura, ferramentas e primeiros passos. Tudo que uma pessoa nova precisa para começar.' },
+    extra: { slug: 'onboarding', label: 'Onboarding', title: 'Onboarding da marca', kicker: 'Boas-vindas à Octalab', cover: 'capa-onboarding.png', coverLink: 'onboarding-octalab.pdf', blurb: 'O essencial para conhecer a empresa em poucos minutos: quem somos, como trabalhamos, as marcas da casa e os primeiros passos.' },
     bg: '#FFFFFF', hl: '#0F0F13', font: 'Geist',
     black: '#0F0F13', accent: '#0F0F13', light: '#F4EFE5', accentOnDark: '#F4EFE5',
     lead: ['A Octalab é uma casa de produtos nativos de IA. Construímos ferramentas que complementam o trabalho humano, encurtam distâncias entre ideia e execução e tratam tecnologia como ofício, não como promessa.'],
@@ -863,7 +863,7 @@ const BRANDS = [
         <a class="kit-btn" href="${asset(b, base+'.png')}" download="${b.slug}-${base}.png">Baixar PNG</a></span></div>`).join('')}
         <div class="kit-row"><span>Manual de identidade visual</span><span class="kit-btns"><a class="kit-btn" href="${asset(b,'miv.pdf')}" download="MIV-${b.slug}.pdf">Baixar PDF</a></span></div>
       </div></div>`, { cls: 'is-text' });
-  const extraCoverCard = b => item(1800, 1280, `<a class="card card-miv" href="${asset(b, b.extra.slug + '/' + b.extra.cover)}" data-lightbox="${b.extra.title}" style="${cardVars(b)}"><img src="${asset(b, b.extra.slug + '/' + b.extra.cover)}" alt="${b.extra.title} ${b.name}" loading="lazy"><span class="card-pill">${b.extra.kicker} · Ver ⤢</span></a>`);
+  const extraCoverCard = b => item(1800, 1280, `<a class="card card-miv" href="${asset(b, b.extra.slug + '/' + (b.extra.coverLink || b.extra.cover))}" ${b.extra.coverLink ? 'target="_blank" rel="noopener"' : `data-lightbox="${b.extra.title}"`} style="${cardVars(b)}"><img src="${asset(b, b.extra.slug + '/' + b.extra.cover)}" alt="${b.extra.title} ${b.name}" loading="lazy"><span class="card-pill">${b.extra.kicker} · ${b.extra.coverLink ? 'Abrir ↗' : 'Ver ⤢'}</span></a>`);
   const extraCard = b => item(1700, 1280, `<div class="card card-kit card-extra" id="card-extra" style="${cardVars(b)}">
       <div><div class="card-label">Espaço especial · ${b.name}</div><div class="card-kit-title">${b.extra.title}</div><p class="card-extra-blurb">${b.extra.blurb}</p></div>
       <div class="kit-list" data-extra-list><div class="kit-empty">Carregando…</div></div></div>`, { cls: 'is-text' });
